@@ -28,6 +28,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+      # Settings must check this fork's releases for updates, never
+      # upstream's: a release whose app would ask elsewhere stops here.
+      - name: Updates check this fork
+        run: go test ./internal/version/
       # The toolchain's container writes as root; folders made first stay the
       # runner's, so the steps after it can write beside what it built.
       - name: Build
