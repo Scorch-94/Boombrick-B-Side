@@ -191,13 +191,38 @@ func (l *Library) Episodes(uri string) (es []Episode, have bool, err error) {
 }
 
 // Stale has the episodes of uri asked for again the next time they are
-// wanted: a place in one of them has moved.
+// wanted: a place in one of them has moved. The screens hear of it, so they
+// ask.
 func (l *Library) Stale(uri string) {
 	l.mu.Lock()
-	defer l.mu.Unlock()
 	if e := l.lists[episodesKey+uri]; e != nil {
 		e.at = time.Time{}
 	}
+	l.mu.Unlock()
+	l.signal()
+}
+
+// InProgress is Continue listening's episodes for Home: as kept, read from
+// the store without starting the helper, as Saved is; once the helper is
+// running, asked for again when due, as Episodes is.
+func (l *Library) InProgress() ([]Episode, bool) {
+	l.mu.Lock()
+	running := l.status.State == Ready
+	l.mu.Unlock()
+	if running {
+		es, have, _ := l.Episodes(ContinueURI)
+		return es, have
+	}
+	key := episodesKey + ContinueURI
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	e := l.entry(key)
+	if !e.read && !e.busy {
+		e.busy = true
+		l.wg.Go(func() { l.fill(key, e, nil) })
+	}
+	es, _ := e.body.([]Episode)
+	return es, e.have
 }
 
 // freshFor is how long key's list is shown before it is asked for again.

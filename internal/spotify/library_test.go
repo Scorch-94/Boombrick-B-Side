@@ -404,3 +404,30 @@ func TestListsAnsweredAfterSigningOutAreDropped(t *testing.T) {
 		t.Fatal("the old account's playlists are shown")
 	}
 }
+
+// Home's episodes in progress come from the store while the helper isn't
+// running, without asking it; once it is, they are asked for when due.
+func TestInProgressStartsNothing(t *testing.T) {
+	db := openDB(t)
+	ep := []Episode{{ID: "e1", Title: "Ep 12", Show: "Night Owls", Duration: 60_000, Position: 30_000, PlayedAt: 1}}
+	c := &fakeClient{status: Status{State: Ready}, episodes: map[string][]Episode{ContinueURI: ep}, asked: map[string]int{}}
+	l, now := library(t, c, db)
+	waitFor(t, "continue", func() bool { _, have, _ := l.Episodes(ContinueURI); return have })
+
+	c2 := &fakeClient{status: Status{State: Ready}, episodes: map[string][]Episode{ContinueURI: ep}, asked: map[string]int{}}
+	l2, _ := library(t, c2, db)
+	waitFor(t, "the kept episodes", func() bool { _, have := l2.InProgress(); return have })
+	time.Sleep(20 * time.Millisecond)
+	if n := c2.times(ContinueURI) + c2.times("status"); n != 0 {
+		t.Fatalf("Home asked the helper %d times before it was running", n)
+	}
+	if es, _ := l2.InProgress(); !reflect.DeepEqual(es, ep) {
+		t.Fatalf("kept %+v", es)
+	}
+
+	l.Status()
+	waitFor(t, "the status", func() bool { st, _ := l.Status(); return st.State == Ready })
+	now.advance(2 * time.Minute)
+	l.InProgress()
+	waitFor(t, "continue again, the helper running", func() bool { return c.times(ContinueURI) == 2 })
+}

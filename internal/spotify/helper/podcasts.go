@@ -108,6 +108,9 @@ func (s *Librespot) Episodes(ctx context.Context, uri string) ([]spotify.Episode
 		e := episode(strings.TrimPrefix(u, "spotify:episode:"), m)
 		if st, ok := states[u]; ok {
 			e.Position, e.Finished = st.position, st.finished
+			if !st.at.IsZero() && st.at.Unix() > 0 {
+				e.PlayedAt = st.at.Unix()
+			}
 		}
 		out = append(out, e)
 	}

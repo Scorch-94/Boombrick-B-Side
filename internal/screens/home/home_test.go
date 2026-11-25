@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"math"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -470,6 +471,53 @@ func TestReleaseDoesNothing(t *testing.T) {
 	}
 }
 
+// Podcast episodes started on Spotify join Continue listening, by when
+// each was last played: those played through, not started, or not hosted
+// by Spotify don't.
+func TestContinueRowEpisodes(t *testing.T) {
+	ix := library.NewIndex([]library.Album{
+		{Artist: "Odalys", Title: "Copper Season", Tracks: []library.Track{{Path: "/a/1"}, {Path: "/a/2"}}},
+	})
+	t0 := time.Date(2026, 11, 25, 9, 0, 0, 0, time.UTC)
+	progress := []resume.Progress{{Artist: "Odalys", Album: "Copper Season", Path: "/a/2", Fraction: 0.7, Updated: t0}}
+	ep := func(id string, at time.Duration, pos int64) spotify.Episode {
+		return spotify.Episode{ID: id, Title: "Ep " + id, Show: "Night Owls", Cover: "https://i.scdn.co/image/" + id,
+			Duration: 60_000, Position: pos, PlayedAt: t0.Add(at).Unix()}
+	}
+	newer, older := ep("new", time.Hour, 15_000), ep("old", -time.Hour, 30_000)
+	done := ep("done", 2*time.Hour, 30_000)
+	done.Finished = true
+	ext := ep("ext", 3*time.Hour, 30_000)
+	ext.External = true
+	var played, queued []string
+	row, ok := ContinueRow(progress, ix, func(*library.Album, int, int64) {}, nil, Episodes{
+		List:  []spotify.Episode{older, done, ext, ep("unstarted", 4*time.Hour, 0), newer},
+		Play:  func(e spotify.Episode) { played = append(played, e.ID) },
+		Queue: func(e spotify.Episode) { queued = append(queued, e.ID) },
+	})
+	if !ok || len(row.Items) != 3 || row.Meta != "3 in progress" {
+		t.Fatalf("row %+v", row)
+	}
+	var titles []string
+	for _, it := range row.Items {
+		titles = append(titles, it.Title)
+	}
+	if !slices.Equal(titles, []string{"Ep new", "Copper Season", "Ep old"}) {
+		t.Fatalf("order %v, want the latest played first", titles)
+	}
+	if it := row.Items[0]; it.Subtitle != "Night Owls" || it.Source != media.Spotify || it.Progress != 0.25 ||
+		it.Art.Cover.URL == "" {
+		t.Fatalf("episode card %+v", it)
+	}
+	row.Items[0].Play()
+	row.Items[2].Queue()
+	if !slices.Equal(played, []string{"new"}) || !slices.Equal(queued, []string{"old"}) {
+		t.Fatalf("played %v, queued %v", played, queued)
+	}
+	rows := append([]fixture.Row{row}, fixture.Home()[1:]...)
+	uitest.Golden(t, "home-continue-episodes", render(t, New(rows), time.Unix(1000, 0)))
+}
+
 func TestContinueRow(t *testing.T) {
 	ix := library.NewIndex([]library.Album{
 		{Artist: "Odalys", Title: "Copper Season", Tracks: []library.Track{{Path: "/a/1"}, {Path: "/a/2"}}},
@@ -483,7 +531,7 @@ func TestContinueRow(t *testing.T) {
 	var gotFrame int64
 	row, ok := ContinueRow(progress, ix, func(a *library.Album, track int, frame int64) {
 		gotAlbum, gotTrack, gotFrame = a, track, frame
-	}, nil)
+	}, nil, Episodes{})
 	if !ok || row.Title != "Continue listening" || row.Meta != "1 in progress" || len(row.Items) != 1 || !row.Continue {
 		t.Fatalf("row = %+v", row)
 	}
@@ -494,7 +542,7 @@ func TestContinueRow(t *testing.T) {
 	if gotAlbum != ix.Recent[0] || gotTrack != 1 || gotFrame != 4800 {
 		t.Fatalf("Play resumed %v track %d at %d", gotAlbum, gotTrack, gotFrame)
 	}
-	if _, ok := ContinueRow(nil, ix, nil, nil); ok {
+	if _, ok := ContinueRow(nil, ix, nil, nil, Episodes{}); ok {
 		t.Fatal("nothing in progress gives no row")
 	}
 }
@@ -511,7 +559,7 @@ func TestContinueRowFindsARenamedAlbum(t *testing.T) {
 		{Artist: "Odalys", Album: "Copper Season", Path: "/a/1", Fraction: 0.2},
 	}
 	var gotTrack int
-	row, ok := ContinueRow(progress, ix, func(a *library.Album, track int, frame int64) { gotTrack = track }, nil)
+	row, ok := ContinueRow(progress, ix, func(a *library.Album, track int, frame int64) { gotTrack = track }, nil, Episodes{})
 	if !ok || len(row.Items) != 1 || row.Items[0].Progress != 0.7 || row.Items[0].Title != "Copper Season" {
 		t.Fatalf("row = %+v", row)
 	}

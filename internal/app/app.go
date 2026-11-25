@@ -254,18 +254,19 @@ type App struct {
 	last         player.State
 	dirty        bool
 	fade         accentFade
-	grounds      *grounds     // a new accent's backgrounds, rendered before its fade starts
-	accentDue    bool         // what plays changed with the screen off: its accent is due when it is on
-	arts         atomic.Bool  // art finished since poll last looked
-	redraw       atomic.Bool  // lyrics, YouTube Music's answers, Settings' meter or releases, or an import have news to draw
-	downloaded   atomic.Bool  // the download queue changed since poll last looked
-	landed       atomic.Bool  // and downloads landed, to show in the library
-	fontsIn      atomic.Bool  // and fonts arrived, for text that drew as missing
-	skipped      atomic.Bool  // and a queued song was dropped, its download failed
-	spotified    atomic.Bool  // the Spotify library has news
-	handFailed   atomic.Bool  // handing the music over failed, for poll to say
-	handing      atomic.Bool  // the music is being handed over: input waits
-	volume       atomic.Int32 // a volume level to show, plus one; 0 for none
+	grounds      *grounds          // a new accent's backgrounds, rendered before its fade starts
+	accentDue    bool              // what plays changed with the screen off: its accent is due when it is on
+	arts         atomic.Bool       // art finished since poll last looked
+	redraw       atomic.Bool       // lyrics, YouTube Music's answers, Settings' meter or releases, or an import have news to draw
+	downloaded   atomic.Bool       // the download queue changed since poll last looked
+	landed       atomic.Bool       // and downloads landed, to show in the library
+	fontsIn      atomic.Bool       // and fonts arrived, for text that drew as missing
+	skipped      atomic.Bool       // and a queued song was dropped, its download failed
+	spotified    atomic.Bool       // the Spotify library has news
+	episodes     []spotify.Episode // podcast episodes in progress, for Continue listening
+	handFailed   atomic.Bool       // handing the music over failed, for poll to say
+	handing      atomic.Bool       // the music is being handed over: input waits
+	volume       atomic.Int32      // a volume level to show, plus one; 0 for none
 	quit         bool
 	drawn        bool
 	drawnAt      time.Time // the start of the frame drawn last
@@ -438,7 +439,8 @@ func New(opts Options) (*App, error) {
 		podTab = spotifyscreen.NewPodcasts(a.env)
 		a.expired = spotifyscreen.NewExpired(a.signIn)
 		a.forward(opts.Spotify.Ready(), &a.spotified)
-		opts.Spotify.Saved() // reads the playlists kept, for Home, without starting the helper
+		opts.Spotify.Saved()      // reads the playlists kept, for Home, without starting the helper
+		opts.Spotify.InProgress() // and the podcast episodes in progress
 	}
 	if opts.Radio != nil {
 		a.forward(opts.Radio.Ready(), &a.redraw)
@@ -839,7 +841,13 @@ func (a *App) showHome(progress []resume.Progress) {
 		return
 	}
 	var rows []fixture.Row
-	if row, ok := home.ContinueRow(progress, a.ix, a.resumeAlbum, a.queueAlbum); ok {
+	var eps home.Episodes
+	if a.opts.Spotify != nil && a.spotifyOn() && a.env != nil {
+		eps = home.Episodes{List: a.episodes,
+			Play:  func(ep spotify.Episode) { spotifyscreen.PlayEpisode(a.env, ep) },
+			Queue: func(ep spotify.Episode) { spotifyscreen.QueueEpisode(a.env, ep) }}
+	}
+	if row, ok := home.ContinueRow(progress, a.ix, a.resumeAlbum, a.queueAlbum, eps); ok {
 		rows = append(rows, row)
 	}
 	if a.opts.Spotify != nil && a.spotifyOn() {

@@ -21,6 +21,9 @@ type Spotify interface {
 	// Saved is the playlists kept from the last time they were asked for,
 	// without asking.
 	Saved() ([]spotify.Playlist, bool)
+	// InProgress is Continue listening's episodes, for Home, without
+	// starting the helper.
+	InProgress() ([]spotify.Episode, bool)
 	Logout()
 	Ready() <-chan struct{}
 }
@@ -90,8 +93,10 @@ func (a *App) signIn() {
 // playlists kept change, and once signed in again a later expiry may open
 // the dialog again.
 func (a *App) spotifyNews() {
-	if pls, _ := a.opts.Spotify.Saved(); !slices.Equal(pls, a.playlists) {
-		a.playlists = pls
+	pls, _ := a.opts.Spotify.Saved()
+	eps, _ := a.opts.Spotify.InProgress()
+	if !slices.Equal(pls, a.playlists) || !slices.Equal(eps, a.episodes) {
+		a.playlists, a.episodes = pls, eps
 		a.showHome(a.progress)
 	}
 	if st, _ := a.opts.Spotify.Status(); st.State == spotify.Ready {

@@ -83,13 +83,13 @@ func (pg *ShowPage) Handle(ev input.Event, now time.Time) bool {
 			if len(pg.eps) == 0 {
 				return false
 			}
-			playEpisode(pg.e, pg.eps[pg.list.Focus()])
+			PlayEpisode(pg.e, pg.eps[pg.list.Focus()])
 			return true
 		case input.Y:
 			if len(pg.eps) == 0 {
 				return false
 			}
-			queueEpisode(pg.e, pg.eps[pg.list.Focus()])
+			QueueEpisode(pg.e, pg.eps[pg.list.Focus()])
 			return true
 		case input.X:
 			if pg.err == nil {

@@ -131,15 +131,28 @@ func (h *Home) SetRows(rows []fixture.Row) {
 // maxRecent is how many albums the Recently added row shows.
 const maxRecent = 12
 
-// maxContinue is how many albums Continue listening shows.
-const maxContinue = 4
+// maxContinue is how many albums and episodes Continue listening shows.
+const maxContinue = 6
 
-// ContinueRow is Continue listening: albums part-way through, most recent
-// first, skipping any no longer in the library. play resumes an album at a
-// track and frame; queue adds it to the queue.
+// Episodes are the Spotify podcast episodes Continue listening shows
+// beside the albums: those part way through, with what A and Y do to one.
+type Episodes struct {
+	List  []spotify.Episode
+	Play  func(spotify.Episode)
+	Queue func(spotify.Episode) // nil: Y does nothing
+}
+
+// ContinueRow is Continue listening: albums part-way through and podcast
+// episodes started, most recent first, skipping albums no longer in the
+// library. play resumes an album at a track and frame; queue adds it to the
+// queue.
 func ContinueRow(progress []resume.Progress, ix *library.Index, play func(a *library.Album, track int, frame int64),
-	queue func(*library.Album)) (fixture.Row, bool) {
-	var items []fixture.Item
+	queue func(*library.Album), eps Episodes) (fixture.Row, bool) {
+	type entry struct {
+		at   time.Time
+		item fixture.Item
+	}
+	var entries []entry
 	var shown []*library.Album
 	for _, pr := range progress {
 		a := ix.Album(pr.Artist, pr.Album)
@@ -162,7 +175,31 @@ func ContinueRow(progress []resume.Progress, ix *library.Index, play func(a *lib
 		if queue != nil {
 			it.Queue = func() { queue(a) }
 		}
-		items = append(items, it)
+		entries = append(entries, entry{pr.Updated, it})
+	}
+	for _, ep := range eps.List {
+		if ep.External || ep.Finished || ep.Position <= 0 || ep.Duration <= 0 {
+			continue
+		}
+		art := widgets.SpecFor(ep.Show)
+		if ep.Cover != "" {
+			art.Cover = media.Cover{URL: ep.Cover}
+		}
+		it := fixture.Item{Title: ep.Title, Subtitle: ep.Show, Art: art, Source: media.Spotify,
+			Progress: float64(ep.Position) / float64(ep.Duration)}
+		if eps.Play != nil {
+			it.Play = func() { eps.Play(ep) }
+		}
+		if eps.Queue != nil {
+			it.Queue = func() { eps.Queue(ep) }
+		}
+		entries = append(entries, entry{time.Unix(ep.PlayedAt, 0), it})
+	}
+	// Most recent first; equals keep their order, albums before episodes.
+	slices.SortStableFunc(entries, func(x, y entry) int { return y.at.Compare(x.at) })
+	var items []fixture.Item
+	for _, e := range entries {
+		items = append(items, e.item)
 		if len(items) == maxContinue {
 			break
 		}

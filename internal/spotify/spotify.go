@@ -87,6 +87,8 @@ type Episode struct {
 	// points; Finished is set once they played it through.
 	Position int64 `json:"position_ms,omitempty"`
 	Finished bool  `json:"finished,omitempty"`
+	// PlayedAt is when the place last moved, in Unix seconds; 0 if never.
+	PlayedAt int64 `json:"played_at,omitempty"`
 	// External is set for an episode Spotify doesn't host, only links to:
 	// it can't be streamed here.
 	External bool `json:"external,omitempty"`

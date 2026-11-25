@@ -57,9 +57,9 @@ func IsEpisode(t player.Track) bool {
 // externalToast says why an episode Spotify doesn't host won't play.
 const externalToast = "Hosted outside Spotify, so it can’t play here yet"
 
-// playEpisode plays ep on its own from where the user got to in it, or from
+// PlayEpisode plays ep on its own from where the user got to in it, or from
 // the start once they finished it or got near its end.
-func playEpisode(e *Env, ep spotify.Episode) {
+func PlayEpisode(e *Env, ep spotify.Episode) {
 	if ep.External {
 		e.Nav.Toast(externalToast)
 		return
@@ -72,8 +72,8 @@ func playEpisode(e *Env, ep spotify.Episode) {
 	e.Player.PlayFrom([]player.Track{EpisodeTrack(ep)}, 0, ms*spotify.Rate/1000)
 }
 
-// queueEpisode adds ep to the end of the queue.
-func queueEpisode(e *Env, ep spotify.Episode) {
+// QueueEpisode adds ep to the end of the queue.
+func QueueEpisode(e *Env, ep spotify.Episode) {
 	if ep.External {
 		e.Nav.Toast(externalToast)
 		return
@@ -276,14 +276,14 @@ func (p *Podcasts) Handle(ev input.Event, now time.Time) bool {
 			if p.filter == showsFilter {
 				p.e.Nav.Push(NewShowPage(p.e, p.shows[g.Focus()]))
 			} else {
-				playEpisode(p.e, p.eps[p.filter][g.Focus()])
+				PlayEpisode(p.e, p.eps[p.filter][g.Focus()])
 			}
 			return true
 		case input.Y:
 			if p.filter == showsFilter || g.Count() == 0 {
 				return false
 			}
-			queueEpisode(p.e, p.eps[p.filter][g.Focus()])
+			QueueEpisode(p.e, p.eps[p.filter][g.Focus()])
 			return true
 		case input.X:
 			if p.errs[p.filter] == nil {
