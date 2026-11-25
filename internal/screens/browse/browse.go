@@ -29,6 +29,10 @@ const (
 )
 
 // shuffle plays ts with shuffle on, from a random one of them.
+// ShuffleAll plays every song in ix, shuffled: Home's Shuffle all songs,
+// as the Library's Songs list starts with.
+func ShuffleAll(p Player, ix *library.Index) { shuffle(p, songTracks(ix.Songs)) }
+
 func shuffle(p Player, ts []player.Track) {
 	if len(ts) == 0 {
 		return

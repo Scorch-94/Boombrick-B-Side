@@ -858,6 +858,20 @@ func (a *App) showHome(progress []resume.Progress) {
 			rows = append(rows, row)
 		}
 	}
+	if a.homeShows(keys.HomeShuffle) {
+		play := func() { browse.ShuffleAll(a.player, a.ix) }
+		queue := func() {
+			ts := make([]player.Track, len(a.ix.Songs))
+			for i, s := range a.ix.Songs {
+				ts[i] = screens.TrackOf(s)
+			}
+			a.opts.Player.Enqueue(ts)
+			a.Toast(screens.AddedToQueue)
+		}
+		if row, ok := home.ShuffleRow(len(a.ix.Songs), play, queue); ok {
+			rows = append(rows, row)
+		}
+	}
 	if a.random == nil {
 		a.random = home.NewRandomPicks(time.Now().UnixNano())
 	}
@@ -925,7 +939,9 @@ func (a *App) homeSections() []settingsscreen.Integration {
 			Icon: "back30", About: "Spotify episodes you've started"})
 	}
 	ins = append(ins,
-		settingsscreen.Integration{Key: keys.HomeRandom, Name: "Random albums", Icon: "shuffle", About: "Six albums, new each launch"},
+		settingsscreen.Integration{Key: keys.HomeShuffle, Name: "Shuffle all songs", Icon: "shuffle",
+			About: "Every song on your SD card, shuffled"},
+		settingsscreen.Integration{Key: keys.HomeRandom, Name: "Random albums", Icon: "refresh", About: "Six albums, new each launch"},
 		settingsscreen.Integration{Key: keys.HomePlaylists, Name: "Playlists", Icon: "music", About: "Your .m3u and .csv playlists"})
 	if a.opts.Spotify != nil {
 		ins = append(ins,

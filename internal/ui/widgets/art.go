@@ -117,14 +117,19 @@ func Art(u *ui.Context, spec ArtSpec, size int, radius float64, box gfx.Rect) {
 
 // artGlyph renders the letter for variant 2: Outfit at 90 % of the art size,
 // 10 % from the left, in a line box that ends 6 % below the art.
-// Liked Songs uses a heart icon instead of ♥, which the fonts lack. size is in
+// Liked Songs uses a heart icon instead of ♥, and Shuffle all songs the
+// shuffle icon instead of ⇄, which the fonts lack. size is in
 // device pixels: this calls the text engine directly, which works in whatever
 // pixels the style gives it.
 func artGlyph(u *ui.Context, glyph string, size int) (*image.NRGBA, int, int) {
 	s := float64(size)
-	if glyph == "♥" {
+	if glyph == "♥" || glyph == "⇄" {
 		hs := int(0.45 * s)
-		img, err := icons.Rasterize("heart", hs, 0, true)
+		name, stroke, filled := "heart", 0.0, true
+		if glyph == "⇄" {
+			name, stroke, filled = "shuffle", 6, false
+		}
+		img, err := icons.Rasterize(name, hs, stroke, filled)
 		if err != nil {
 			return nil, 0, 0
 		}

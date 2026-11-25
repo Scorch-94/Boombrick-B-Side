@@ -808,3 +808,26 @@ func TestAllSectionsOff(t *testing.T) {
 	}
 	uitest.Golden(t, "home-all-off", render(t, h, t0))
 }
+
+// Shuffle all songs is one card: A shuffles every song, Y queues them.
+func TestShuffleRow(t *testing.T) {
+	if _, ok := ShuffleRow(0, nil, nil); ok {
+		t.Fatal("a Shuffle row with no songs")
+	}
+	played, queued := 0, 0
+	row, ok := ShuffleRow(1234, func() { played++ }, func() { queued++ })
+	if !ok || row.Meta != "1,234 songs" || len(row.Items) != 1 || row.Items[0].Title != "All songs" {
+		t.Fatalf("row %+v", row)
+	}
+	h := New(nil)
+	h.SetRows([]fixture.Row{row})
+	h.Handle(press(input.A), t0)
+	h.Handle(press(input.Y), t0)
+	if hs := h.hints(); hs[0].Label != "Shuffle" {
+		t.Fatalf("hints %v", hs)
+	}
+	if played != 1 || queued != 1 {
+		t.Fatalf("played %d, queued %d", played, queued)
+	}
+	uitest.Golden(t, "home-shuffle", render(t, h, t0.Add(anim.Focus)))
+}

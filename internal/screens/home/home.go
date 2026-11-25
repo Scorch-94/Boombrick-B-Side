@@ -340,6 +340,27 @@ func SpotifyRow(pls []spotify.Playlist, open, imp func(spotify.Playlist)) (fixtu
 	return fixture.Row{Title: "Spotify playlists", Meta: meta, Cards: true, Spotify: true, Items: items}, true
 }
 
+// ShuffleArt is Shuffle all songs' card.
+var ShuffleArt = widgets.ArtSpec{Hue: 25, Variant: 2, Glyph: "⇄"}
+
+// ShuffleRow is Shuffle all songs: one card that plays every song in the
+// library shuffled, as the Library's Songs list starts with, and queues them
+// all with Y. It reports false with no songs.
+func ShuffleRow(songs int, play, queue func()) (fixture.Row, bool) {
+	if songs == 0 {
+		return fixture.Row{}, false
+	}
+	meta := screens.Count(songs) + " songs"
+	if songs == 1 {
+		meta = "1 song"
+	}
+	it := fixture.Item{Title: "All songs", Subtitle: "Shuffled", Art: ShuffleArt, Play: play}
+	if queue != nil {
+		it.Queue = queue
+	}
+	return fixture.Row{Title: "Shuffle", Meta: meta, Cards: true, Shuffle: true, Items: []fixture.Item{it}}, true
+}
+
 // PlaylistsRow is Playlists: the playlist files in the Library, in its
 // order. A card opens the playlist's page with open, and Y queues it. It
 // reports false with no playlists.
@@ -672,7 +693,7 @@ var (
 
 // itemHints is what a playable item's hint bar depends on: whether A opens it,
 // as a Spotify playlist's page, and whether X imports it and Y queues it.
-type itemHints struct{ open, imp, queue bool }
+type itemHints struct{ open, shuffle, imp, queue bool }
 
 func (h *Home) hints() []widgets.Hint {
 	if len(h.rows) == 0 {
@@ -689,13 +710,16 @@ func (h *Home) hints() []widgets.Hint {
 		}
 		return sampleHints
 	}
-	k := itemHints{open: r.Spotify || r.Open, imp: it.Import != nil, queue: it.Queue != nil}
+	k := itemHints{open: r.Spotify || r.Open, shuffle: r.Shuffle, imp: it.Import != nil, queue: it.Queue != nil}
 	if hints, ok := h.hintBars[k]; ok {
 		return hints
 	}
 	hints := []widgets.Hint{{Key: "A", Label: "Play"}}
 	if k.open {
 		hints[0].Label = "Open"
+	}
+	if k.shuffle {
+		hints[0].Label = "Shuffle"
 	}
 	if k.imp {
 		hints = append(hints, widgets.Hint{Key: "X", Label: "Import"})

@@ -34,6 +34,7 @@ type Row struct {
 	Continue    bool // cards carry a source badge and a progress strip
 	Spotify     bool // A opens and X imports, instead of play and download
 	Open        bool // A opens a page, as a playlist's, rather than playing
+	Shuffle     bool // A shuffles, for Shuffle all songs
 }
 
 // Status is the status bar of the design frames.

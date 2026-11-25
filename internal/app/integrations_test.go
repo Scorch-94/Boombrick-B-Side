@@ -353,16 +353,18 @@ func TestHomeSections(t *testing.T) {
 	song := &library.Track{Path: "/m/a/1.flac", Title: "Neon"}
 	a.ix.Playlists = []*library.Playlist{{Name: "Late Drive", Entries: []library.PlaylistEntry{{Song: song}},
 		Songs: []*library.Track{song}}}
+	a.ix.Songs = []*library.Track{song}
 	a.showHome(nil)
-	want := []string{"Playlists", "Spotify playlists", "Podcasts", "Recently added"}
+	want := []string{"Shuffle", "Playlists", "Spotify playlists", "Podcasts", "Recently added"}
 	if got := a.home.RowTitles(); !slices.Equal(got, want) {
 		t.Fatalf("rows %v, want %v", got, want)
 	}
+	a.opts.Prefs.SetBool(keys.HomeShuffle, false)
 	a.opts.Prefs.SetBool(keys.HomePlaylists, false)
 	a.opts.Prefs.SetBool(keys.HomePodcasts, false)
 	a.showHome(nil)
 	if got := a.home.RowTitles(); !slices.Equal(got, []string{"Spotify playlists", "Recently added"}) {
-		t.Fatalf("rows %v with Playlists and Podcasts off", got)
+		t.Fatalf("rows %v with Shuffle, Playlists and Podcasts off", got)
 	}
 	for _, in := range a.homeSections() {
 		a.opts.Prefs.SetBool(in.Key, false)
@@ -384,11 +386,11 @@ func TestHomeSectionsList(t *testing.T) {
 		return out
 	}
 	bare := &App{}
-	if got := names(bare); !slices.Equal(got, []string{"Continue listening", "Random albums", "Playlists", "Recently added"}) {
+	if got := names(bare); !slices.Equal(got, []string{"Continue listening", "Shuffle all songs", "Random albums", "Playlists", "Recently added"}) {
 		t.Fatalf("without Spotify or radio: %v", got)
 	}
 	all := &App{opts: Options{Spotify: fakeSpotify{}, Radio: &radio.Directory{}}}
-	if got := names(all); len(got) != 8 || got[1] != "Podcast episodes in Continue listening" || got[6] != "Radio" {
+	if got := names(all); len(got) != 9 || got[1] != "Podcast episodes in Continue listening" || got[2] != "Shuffle all songs" || got[7] != "Radio" {
 		t.Fatalf("with both: %v", got)
 	}
 }

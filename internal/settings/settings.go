@@ -27,6 +27,7 @@ const (
 	HomeContinue  = "home.continue"
 	HomeEpisodes  = "home.continue_episodes"
 	HomeRandom    = "home.random"
+	HomeShuffle   = "home.shuffle"
 	HomePlaylists = "home.playlists"
 	HomeSpotify   = "home.spotify"
 	HomePodcasts  = "home.podcasts"
@@ -66,6 +67,7 @@ var Defaults = map[string]string{
 	HomeContinue:     "true",
 	HomeEpisodes:     "true",
 	HomeRandom:       "true",
+	HomeShuffle:      "true",
 	HomePlaylists:    "true",
 	HomeSpotify:      "true",
 	HomePodcasts:     "true",

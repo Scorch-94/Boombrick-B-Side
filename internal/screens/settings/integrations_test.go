@@ -149,7 +149,8 @@ func TestRowsOfAnIntegrationSwitchedOffAreHidden(t *testing.T) {
 var homeSections = []Integration{
 	{Key: keys.HomeContinue, Name: "Continue listening", Icon: "play", About: "Albums you stopped part way through"},
 	{Key: keys.HomeEpisodes, Name: "Podcast episodes in Continue listening", Icon: "back30", About: "Spotify episodes you've started"},
-	{Key: keys.HomeRandom, Name: "Random albums", Icon: "shuffle", About: "Six albums, new each launch"},
+	{Key: keys.HomeShuffle, Name: "Shuffle all songs", Icon: "shuffle", About: "Every song on your SD card, shuffled"},
+	{Key: keys.HomeRandom, Name: "Random albums", Icon: "refresh", About: "Six albums, new each launch"},
 	{Key: keys.HomePlaylists, Name: "Playlists", Icon: "music", About: "Your .m3u and .csv playlists"},
 	{Key: keys.HomeSpotify, Name: "Spotify playlists", Icon: "stream", About: "Liked Songs and your playlists"},
 	{Key: keys.HomePodcasts, Name: "Podcasts", Icon: "headphones", About: "Shows you follow on Spotify"},
@@ -163,7 +164,7 @@ func TestTheHomeSectionsPage(t *testing.T) {
 	p := prefs{}
 	homes := 0
 	s := New(Options{Prefs: p, Player: &fakePlayer{}, HomeSections: homeSections, HomeSwitched: func() { homes++ }})
-	if !s.shown(rowHome) || s.rows[rowHome].Value != "8 of 8 on" {
+	if !s.shown(rowHome) || s.rows[rowHome].Value != "9 of 9 on" {
 		t.Fatalf("the row shown %v, says %q", s.shown(rowHome), s.rows[rowHome].Value)
 	}
 	for s.focus != rowHome {
@@ -173,11 +174,11 @@ func TestTheHomeSectionsPage(t *testing.T) {
 	if s.integrations == nil || s.integrations.title != "Home sections" {
 		t.Fatal("A should open the Home sections page")
 	}
-	for range 5 {
+	for range 6 {
 		s.Handle(press(input.Down), t0)
 	}
 	s.Handle(press(input.A), t0)
-	if p.Bool(keys.HomePodcasts) || homes != 1 || s.integrations.rows[5].Value != "Off" {
+	if p.Bool(keys.HomePodcasts) || homes != 1 || s.integrations.rows[6].Value != "Off" {
 		t.Fatalf("Podcasts on %v, Home told %d times", p.Bool(keys.HomePodcasts), homes)
 	}
 	e := &env{prefs: p, p: &fakePlayer{}, s: s}
@@ -187,7 +188,7 @@ func TestTheHomeSectionsPage(t *testing.T) {
 	}
 	uitest.Golden(t, "home-sections-page", render(t, e, t0.Add(anim.Focus)))
 	s.Back()
-	if s.rows[rowHome].Value != "7 of 8 on" {
+	if s.rows[rowHome].Value != "8 of 9 on" {
 		t.Fatalf("back on Settings the row says %q", s.rows[rowHome].Value)
 	}
 	if New(Options{Prefs: p, Player: &fakePlayer{}}).shown(rowHome) {
