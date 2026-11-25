@@ -12,6 +12,7 @@ import (
 	"github.com/ujjwal313/boombrick/internal/platform/input"
 	"github.com/ujjwal313/boombrick/internal/player"
 	"github.com/ujjwal313/boombrick/internal/screens"
+	"github.com/ujjwal313/boombrick/internal/spotify"
 	"github.com/ujjwal313/boombrick/internal/theme"
 	"github.com/ujjwal313/boombrick/internal/ui"
 	"github.com/ujjwal313/boombrick/internal/ui/anim"
@@ -78,6 +79,7 @@ var (
 	timeStyle   = text.Style{Face: text.Figtree, Size: 22, Tabular: true}
 	formatStyle = text.Style{Face: text.Figtree, Size: 20}
 	oneStyle    = text.Style{Face: text.FigtreeSemiBold, Size: 15}
+	skipStyle   = text.Style{Face: text.FigtreeSemiBold, Size: 13}
 )
 
 // NowPlaying shows the current track and its transport controls.
@@ -99,6 +101,7 @@ type NowPlaying struct {
 	hintBar         []widgets.Hint
 	hintLabel       string // A's label in hintBar
 	hintLive        bool   // hintBar is a station's, with no lyrics or seeking
+	hintEp          bool   // the hints were made for a podcast episode
 }
 
 // formatKey is what formatLine depends on.
@@ -230,7 +233,7 @@ func (n *NowPlaying) moveTo(f int, now time.Time) {
 }
 
 // Handle runs the transport straight from the buttons: Left is the previous
-// track and Right the next, A plays or pauses, Up switches shuffle and Down
+// track and Right the next (on a podcast episode, 30 seconds back and on), A plays or pauses, Up switches shuffle and Down
 // steps repeat. L1 and R1 also change track, Y opens lyrics and L2 and R2
 // seek. B is handled by the app, which closes the screen. A station has no
 // lyrics, and can't seek.
@@ -292,7 +295,27 @@ func (n *NowPlaying) press(c int, now time.Time) {
 	n.values[c].To(0, now, 3*anim.Focus, anim.EaseOutCubic)
 }
 
+// skip is how far Left and Right jump in a podcast episode.
+const skip = 30 * time.Second
+
+// episode reports whether t is a podcast episode, streamed.
+func episode(t player.Track) bool {
+	_, ok := spotify.IsEpisode(t.SpotifyID)
+	return ok && t.Path == ""
+}
+
 func (n *NowPlaying) activate() {
+	if s := n.p.State(); episode(s.Track) && (n.focus == prevCtl || n.focus == nextCtl) {
+		to := s.Elapsed - skip
+		if n.focus == nextCtl {
+			to = s.Elapsed + skip
+		}
+		if s.Duration > 0 {
+			to = min(to, s.Duration)
+		}
+		n.p.Seek(max(to, 0))
+		return
+	}
 	switch n.focus {
 	case shuffleCtl:
 		n.p.SetShuffle(!n.p.State().Shuffle)
@@ -499,6 +522,15 @@ func drawControl(u *ui.Context, s player.State, i int, cx, cy float32, box gfx.R
 		}
 		u.Icon(name, 44, 2, true, cx-22, cy-22, theme.Paper)
 	case prevCtl, nextCtl:
+		if episode(s.Track) {
+			name := "back30"
+			if i == nextCtl {
+				name = "fwd30"
+			}
+			u.Icon(name, 44, 2, false, cx-22, cy-22, theme.Paper)
+			u.Text("30", skipStyle, cx-u.TextWidth("30", skipStyle)/2, u.CenterY(skipStyle, cy-22, 44), theme.Paper)
+			return
+		}
 		u.Icon(controlIcons[i], 44, 2, true, cx-22, cy-22, theme.Paper)
 	default:
 		on := s.Shuffle
@@ -524,16 +556,20 @@ func (n *NowPlaying) hints(s player.State) []widgets.Hint {
 	if !s.Playing {
 		label = "Play"
 	}
-	live := s.Track.Live()
-	if n.hintBar != nil && label == n.hintLabel && live == n.hintLive {
+	live, ep := s.Track.Live(), episode(s.Track)
+	if n.hintBar != nil && label == n.hintLabel && live == n.hintLive && ep == n.hintEp {
 		return n.hintBar
 	}
-	hints := []widgets.Hint{{Key: "A", Label: label}, {Key: "◀ ▶", Label: "Track"}, {Key: "▲", Label: "Shuffle"},
+	track := "Track"
+	if ep {
+		track = "30 sec"
+	}
+	hints := []widgets.Hint{{Key: "A", Label: label}, {Key: "◀ ▶", Label: track}, {Key: "▲", Label: "Shuffle"},
 		{Key: "▼", Label: "Repeat"}}
 	// L2 and R2 still seek, but the bar has no room left for their hint.
 	if n.hasLyrics(s) {
 		hints = append(hints, widgets.Hint{Key: "Y", Label: "Lyrics"})
 	}
-	n.hintBar, n.hintLabel, n.hintLive = hints, label, live
+	n.hintBar, n.hintLabel, n.hintLive, n.hintEp = hints, label, live, ep
 	return n.hintBar
 }

@@ -96,6 +96,14 @@ func runBackground() error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
+	// Podcast episodes' places go back to Spotify while the screen is off too.
+	followed := make(chan struct{})
+	followCtx, stopFollowing := context.WithCancel(context.Background())
+	go func() {
+		defer close(followed)
+		followEpisodes(followCtx, p, sp, nil, log)
+	}()
+	defer func() { stopFollowing(); <-followed }()
 	saver := resume.NewSaver(db.DB)
 	err = background.Run(ctx, background.Options{
 		Player:     p,

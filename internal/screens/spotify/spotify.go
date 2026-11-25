@@ -23,6 +23,9 @@ type Source interface {
 	Status() (spotify.Status, error)
 	Playlists() ([]spotify.Playlist, bool, error)
 	Tracks(uri string) ([]spotify.Track, bool, error)
+	// Shows and Episodes are the podcasts, as Playlists and Tracks.
+	Shows() ([]spotify.Show, bool, error)
+	Episodes(uri string) ([]spotify.Episode, bool, error)
 	Retry()
 	Login()
 	// LoginErr is why the last sign-in failed, until the next one starts.
@@ -36,6 +39,9 @@ type Source interface {
 type Player interface {
 	SetShuffle(on bool)
 	Play(tracks []player.Track, start int)
+	// PlayFrom is Play starting tracks[start] at frame: an episode where
+	// the user left it.
+	PlayFrom(tracks []player.Track, start int, frame int64)
 	Enqueue(tracks []player.Track)
 	State() player.State
 }

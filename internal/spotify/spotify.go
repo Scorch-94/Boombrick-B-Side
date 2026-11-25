@@ -65,6 +65,57 @@ type Track struct {
 // LikedURI names Liked Songs, for Tracks.
 const LikedURI = "spotify:collection:tracks"
 
+// Show is a podcast the user follows.
+type Show struct {
+	URI       string `json:"uri"` // spotify:show:<id>
+	Name      string `json:"name"`
+	Publisher string `json:"publisher,omitempty"`
+	Cover     string `json:"cover,omitempty"`
+}
+
+// Episode is a podcast episode, with where the user is in it.
+type Episode struct {
+	ID        string `json:"id"` // base62, as in spotify:episode:<id>
+	Title     string `json:"title"`
+	Show      string `json:"show"`
+	ShowURI   string `json:"show_uri,omitempty"`
+	Publisher string `json:"publisher,omitempty"`
+	Cover     string `json:"cover,omitempty"`
+	Duration  int64  `json:"duration_ms"`
+	Published int64  `json:"published,omitempty"` // Unix seconds; 0 if unknown
+	// Position is how far in the user got, in ms, from Spotify's resume
+	// points; Finished is set once they played it through.
+	Position int64 `json:"position_ms,omitempty"`
+	Finished bool  `json:"finished,omitempty"`
+	// External is set for an episode Spotify doesn't host, only links to:
+	// it can't be streamed here.
+	External bool `json:"external,omitempty"`
+}
+
+// The podcast lists Episodes takes besides a show's URI.
+const (
+	// ContinueURI is the episodes the user is part way through, on any
+	// device, the latest first.
+	ContinueURI = "boombrick:podcasts:continue"
+	// YourEpisodesURI is the episodes the user saved to listen to later.
+	YourEpisodesURI = "boombrick:podcasts:your-episodes"
+)
+
+// EpisodePrefix marks an episode's ID where a track's would go: in a stream's
+// ID, and in the player's SpotifyID. A track's has none.
+const EpisodePrefix = "episode:"
+
+// EpisodeStreamID is the stream ID of episode id.
+func EpisodeStreamID(id string) string { return EpisodePrefix + id }
+
+// IsEpisode reports whether a stream ID is an episode's, returning its ID.
+func IsEpisode(streamID string) (string, bool) {
+	if len(streamID) > len(EpisodePrefix) && streamID[:len(EpisodePrefix)] == EpisodePrefix {
+		return streamID[len(EpisodePrefix):], true
+	}
+	return "", false
+}
+
 // DefaultKbps is the streaming quality used unless another is asked for, of
 // the 96, 160 and 320 kbps Spotify offers.
 const DefaultKbps = 160
@@ -81,6 +132,9 @@ var (
 	ErrRefused = errors.New("spotify: refuses this account")
 	// ErrOffline means Spotify can't be reached.
 	ErrOffline = errors.New("spotify: offline")
+	// ErrExternal means the episode is hosted outside Spotify, which only
+	// links to it, so it can't be streamed here.
+	ErrExternal = errors.New("spotify: episode hosted outside Spotify")
 )
 
 // Throttled is Spotify refusing for now; asking again before Wait has passed
@@ -119,6 +173,8 @@ func StatusOf(err error) (int, time.Duration) {
 		return http.StatusTooManyRequests, th.Wait
 	case errors.Is(err, ErrOffline):
 		return http.StatusServiceUnavailable, 0
+	case errors.Is(err, ErrExternal):
+		return http.StatusNotImplemented, 0
 	}
 	return http.StatusInternalServerError, 0
 }
@@ -143,6 +199,8 @@ func ErrorOf(code int, retryAfter, msg string) error {
 		return &Throttled{Wait: wait}
 	case http.StatusServiceUnavailable:
 		return ErrOffline
+	case http.StatusNotImplemented:
+		return ErrExternal
 	}
 	return fmt.Errorf("spotify helper: %d %s", code, msg)
 }

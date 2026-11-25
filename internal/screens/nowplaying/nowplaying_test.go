@@ -54,6 +54,56 @@ func TestGolden(t *testing.T) {
 	uitest.Golden(t, "nowplaying", off.Image())
 }
 
+// episodePlaying is a podcast episode streaming from Spotify, 1:33 in.
+func episodePlaying() *fake {
+	f := playing()
+	f.st.Track = player.Track{SpotifyID: "episode:4rOoJ6Egrf8K2IrywzwOMk", Title: "The Long Night Shift",
+		Artist: "Night Owls", Album: "Night Owls"}
+	f.st.Duration, f.st.Format, f.st.Kbps = 45*time.Minute, "", 160
+	return f
+}
+
+// On a podcast episode Left jumps 30 seconds back and Right 30 on, within
+// the episode; L1 and R1 still change track.
+func TestEpisodeSkips(t *testing.T) {
+	f := episodePlaying()
+	n := New(f)
+	n.Handle(press(input.Right), t0)
+	n.Handle(press(input.Left), t0)
+	n.Handle(press(input.Left), t0)
+	n.Handle(press(input.Left), t0)
+	n.Handle(press(input.Left), t0) // from 33s: to the start, not before it
+	want := []time.Duration{123 * time.Second, 93 * time.Second, 63 * time.Second, 33 * time.Second, 3 * time.Second}
+	if !slices.Equal(f.seeks, want) {
+		t.Fatalf("seeks %v, want %v", f.seeks, want)
+	}
+	n.Handle(press(input.Left), t0)
+	if f.seeks[len(f.seeks)-1] != 0 {
+		t.Fatalf("seek before the start went to %v", f.seeks[len(f.seeks)-1])
+	}
+	f.st.Elapsed = 44*time.Minute + 50*time.Second
+	n.Handle(press(input.Right), t0)
+	if f.seeks[len(f.seeks)-1] != 45*time.Minute {
+		t.Fatalf("seek past the end went to %v", f.seeks[len(f.seeks)-1])
+	}
+	if f.nexts != 0 || f.prevs != 0 {
+		t.Fatalf("skips changed track: nexts %d, prevs %d", f.nexts, f.prevs)
+	}
+	n.Handle(press(input.R1), t0)
+	if f.nexts != 1 {
+		t.Fatal("R1 should still go to the next track")
+	}
+	if h := n.hints(f.st); h[1] != (widgets.Hint{Key: "◀ ▶", Label: "30 sec"}) {
+		t.Fatalf("D-pad hint %+v", h[1])
+	}
+	u, off := uitest.NewContext(t, theme.DeviceW, theme.DeviceH)
+	u.Accent = theme.Derive(fixture.PlayingHue, fixture.PlayingChroma)
+	u.Status = fixture.Status()
+	u.Now = t0.Add(time.Second)
+	New(episodePlaying()).Draw(u)
+	uitest.Golden(t, "nowplaying-episode", off.Image())
+}
+
 // Left and Right change track at once, and focus stays on play/pause.
 func TestDpadChangesTrack(t *testing.T) {
 	f := playing()

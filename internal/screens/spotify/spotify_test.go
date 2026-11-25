@@ -41,6 +41,9 @@ type fakeSource struct {
 	retries   int
 	version   uint64
 	asked     int
+	shows     []spotify.Show
+	episodes  map[string][]spotify.Episode
+	podErr    error
 }
 
 func (s *fakeSource) Status() (spotify.Status, error) { s.asked++; return s.status, s.statusErr }
@@ -50,6 +53,13 @@ func (s *fakeSource) Playlists() ([]spotify.Playlist, bool, error) {
 func (s *fakeSource) Tracks(uri string) ([]spotify.Track, bool, error) {
 	ts, ok := s.tracks[uri]
 	return ts, ok, s.listErr
+}
+func (s *fakeSource) Shows() ([]spotify.Show, bool, error) {
+	return s.shows, s.shows != nil, s.podErr
+}
+func (s *fakeSource) Episodes(uri string) ([]spotify.Episode, bool, error) {
+	es, ok := s.episodes[uri]
+	return es, ok, s.podErr
 }
 func (s *fakeSource) Retry()          { s.retries++ }
 func (s *fakeSource) Login()          { s.logins++ }
@@ -79,6 +89,10 @@ func (p *fakePlayer) Play(ts []player.Track, start int) {
 		s = "~"
 	}
 	p.played = append(p.played, s+ts[start].SpotifyID+"@"+strconv.Itoa(start))
+}
+func (p *fakePlayer) PlayFrom(ts []player.Track, start int, frame int64) {
+	p.Play(ts, start)
+	p.played[len(p.played)-1] += "+" + strconv.FormatInt(frame, 10)
 }
 func (p *fakePlayer) Enqueue(ts []player.Track) { p.queued = append(p.queued, ids(ts)) }
 func (p *fakePlayer) State() player.State       { return p.state }

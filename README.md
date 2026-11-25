@@ -48,6 +48,12 @@ Open Settings from the quick menu (Menu). When a newer release is out, the Boomb
 
 The Downloader card updates yt-dlp, which YouTube Music downloads use, the same way.
 
+## Podcasts
+
+With Spotify signed in, the **Podcasts** tab lists the podcasts on your Spotify account: **Continue** (episodes you are part way through, on any device), **Shows** (the podcasts you follow) and **Your Episodes** (the ones you saved). L2 and R2 change between them. A plays an episode from where you left off; Y adds it to the queue. Your place goes back to Spotify every 30 seconds while an episode plays, when you pause and when you move on, so the Spotify app on your phone carries on from there. On Now Playing, Left and Right jump 30 seconds back and forward during an episode.
+
+Only episodes Spotify hosts itself play; the ones it only links to, on the podcast's own host, show "Not playable yet".
+
 ## Playlists
 
 Put `.m3u` or `.m3u8` files in a `Playlists` folder inside your music folder (`Music/Playlists/` on the SD card). They show under **Playlists** in the Library (called **Lists** when Genres also shows), in the order the file lists them. Each line can be a path relative to the playlist (`../Artist/Album/01 Song.flac`), relative to the music folder (`Artist/Album/01 Song.flac`), or absolute; paths written on a PC (`C:\Users\me\Music\...`) or another device (`/storage/.../Music/...`) work too, from their `Music` folder on. Songs the library doesn't have are counted as "not found". Playlists are read again on every launch and rescan; on an empty Playlists filter, Y rescans.
@@ -61,7 +67,7 @@ Put `.m3u` or `.m3u8` files in a `Playlists` folder inside your music folder (`M
 | B | Back |
 | X | Download (YouTube Music); search (Library) |
 | Y | Add to the queue; on Now Playing, lyrics |
-| D-pad Left, Right (Now Playing) | Previous and next track |
+| D-pad Left, Right (Now Playing) | Previous and next track; 30 s back and forward in a podcast episode |
 | A (Now Playing) | Play or pause |
 | D-pad Up (Now Playing) | Shuffle on or off |
 | D-pad Down (Now Playing) | Step repeat: off, all, one |

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/ujjwal313/boombrick/internal/ui/widgets"
 	"io"
 	"log/slog"
 	"testing"
@@ -85,7 +86,9 @@ func TestSpotifyRowOpensAndImports(t *testing.T) {
 // overlay.
 func TestOpenDownloads(t *testing.T) {
 	s, _, _ := testShell()
-	s.stacks = append(s.stacks, nil, nil, nil)
+	for len(s.stacks) < widgets.TabCount {
+		s.stacks = append(s.stacks, nil)
+	}
 	a := &App{shell: s}
 	s.openOverlay(0, t0)
 	if !screens.OpenDownloads(a) || s.tab != screens.DownloadsTab || s.open >= 0 {

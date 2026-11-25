@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,6 +20,8 @@ type Client interface {
 	Logout(ctx context.Context) error
 	Playlists(ctx context.Context) ([]Playlist, error)
 	Tracks(ctx context.Context, uri string) ([]Track, error)
+	Shows(ctx context.Context) ([]Show, error)
+	Episodes(ctx context.Context, uri string) ([]Episode, error)
 }
 
 const (
@@ -32,6 +35,13 @@ const (
 	// playlistsKey is the playlists' key in the cache; a playlist's tracks
 	// are under its URI.
 	playlistsKey = "playlists"
+	// showsKey is the followed podcasts' key; a list of episodes is under
+	// episodesKey and its URI.
+	showsKey    = "podcasts:shows"
+	episodesKey = "podcasts:episodes:"
+	// freshContinue is how long Continue listening is shown before it is
+	// asked for again: places in episodes move as they're listened to.
+	freshContinue = time.Minute
 	// Track lists are kept in memory while in use: the keepTracks asked for
 	// last, and any asked for within idle. The rest are read from the store
 	// again when next asked for.
@@ -165,6 +175,39 @@ func (l *Library) Tracks(uri string) (ts []Track, have bool, err error) {
 	return ts, have, err
 }
 
+// Shows are the podcasts the user follows, as Playlists.
+func (l *Library) Shows() (ss []Show, have bool, err error) {
+	v, have, err := l.get(showsKey, func(ctx context.Context) (any, error) { return l.c.Shows(ctx) })
+	ss, _ = v.([]Show)
+	return ss, have, err
+}
+
+// Episodes are a show's episodes, or ContinueURI's or YourEpisodesURI's,
+// as Playlists.
+func (l *Library) Episodes(uri string) (es []Episode, have bool, err error) {
+	v, have, err := l.get(episodesKey+uri, func(ctx context.Context) (any, error) { return l.c.Episodes(ctx, uri) })
+	es, _ = v.([]Episode)
+	return es, have, err
+}
+
+// Stale has the episodes of uri asked for again the next time they are
+// wanted: a place in one of them has moved.
+func (l *Library) Stale(uri string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if e := l.lists[episodesKey+uri]; e != nil {
+		e.at = time.Time{}
+	}
+}
+
+// freshFor is how long key's list is shown before it is asked for again.
+func freshFor(key string) time.Duration {
+	if key == episodesKey+ContinueURI {
+		return freshContinue
+	}
+	return fresh
+}
+
 // Saved is the playlists as last kept, without asking the helper, so Home
 // can show them without starting it.
 func (l *Library) Saved() ([]Playlist, bool) {
@@ -264,7 +307,7 @@ func (l *Library) get(key string, fetch func(context.Context) (any, error)) (any
 	e := l.entry(key)
 	now := l.now()
 	e.used = now
-	due := !e.read || !e.have || now.Sub(e.at) >= fresh
+	due := !e.read || !e.have || now.Sub(e.at) >= freshFor(key)
 	if e.err != nil && now.Sub(e.tried) < retryAfter {
 		due = false
 	}
@@ -289,7 +332,7 @@ func (l *Library) fill(key string, e *list, fetch func(context.Context) (any, er
 		if ok && !e.have {
 			e.body, e.have, e.at = body, true, at
 		}
-		done := fetch == nil || e.have && l.now().Sub(e.at) < fresh
+		done := fetch == nil || e.have && l.now().Sub(e.at) < freshFor(key)
 		if done {
 			e.busy = false
 		}
@@ -338,7 +381,7 @@ func (l *Library) trim() {
 	}
 	var ts []held
 	for k, e := range l.lists {
-		if k != playlistsKey && e.have && !e.busy {
+		if k != playlistsKey && k != showsKey && e.have && !e.busy {
 			ts = append(ts, held{k, e})
 		}
 	}
@@ -376,11 +419,20 @@ func (l *Library) load(key string) (any, time.Time, bool) {
 		return nil, time.Time{}, false
 	}
 	var v any
-	if key == playlistsKey {
+	switch {
+	case key == playlistsKey:
 		var ps []Playlist
 		err = json.Unmarshal([]byte(body), &ps)
 		v = ps
-	} else {
+	case key == showsKey:
+		var ss []Show
+		err = json.Unmarshal([]byte(body), &ss)
+		v = ss
+	case strings.HasPrefix(key, episodesKey):
+		var es []Episode
+		err = json.Unmarshal([]byte(body), &es)
+		v = es
+	default:
 		var ts []Track
 		err = json.Unmarshal([]byte(body), &ts)
 		v = ts

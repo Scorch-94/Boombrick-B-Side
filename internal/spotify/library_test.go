@@ -23,6 +23,8 @@ type fakeClient struct {
 	status    Status
 	playlists []Playlist
 	tracks    map[string][]Track
+	shows     []Show
+	episodes  map[string][]Episode
 	err       error // every list's answer, when set
 	loginErr  error // a sign-in's answer, when set
 	asked     map[string]int
@@ -85,6 +87,20 @@ func (f *fakeClient) Tracks(_ context.Context, uri string) ([]Track, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.tracks[uri], f.err
+}
+
+func (f *fakeClient) Shows(context.Context) ([]Show, error) {
+	f.count(showsKey)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.shows, f.err
+}
+
+func (f *fakeClient) Episodes(_ context.Context, uri string) ([]Episode, error) {
+	f.count(uri)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.episodes[uri], f.err
 }
 
 var (
@@ -164,6 +180,42 @@ func TestListsAreKept(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 	if n := c2.times(playlistsKey) + c2.times(LikedURI); n != 0 {
 		t.Fatalf("asked the helper %d times for fresh lists", n)
+	}
+}
+
+// Podcasts are kept like playlists: the shows and each list of episodes,
+// read back from the store after a restart. Continue listening is asked
+// for again after a minute, others after ten, and Stale asks at once.
+func TestPodcastListsAreKept(t *testing.T) {
+	db := openDB(t)
+	owls := []Show{{URI: "spotify:show:1", Name: "Night Owls", Publisher: "Owl FM"}}
+	ep := []Episode{{ID: "e1", Title: "Ep 12", Show: "Night Owls", Duration: 3_600_000, Position: 60_000}}
+	c := &fakeClient{shows: owls, episodes: map[string][]Episode{ContinueURI: ep, "spotify:show:1": ep}, asked: map[string]int{}}
+	l, now := library(t, c, db)
+	waitFor(t, "the shows", func() bool { _, have, _ := l.Shows(); return have })
+	waitFor(t, "continue", func() bool { _, have, _ := l.Episodes(ContinueURI); return have })
+	waitFor(t, "a show", func() bool { _, have, _ := l.Episodes("spotify:show:1"); return have })
+	if ss, _, _ := l.Shows(); !reflect.DeepEqual(ss, owls) {
+		t.Fatalf("shows %+v", ss)
+	}
+	now.advance(2 * time.Minute)
+	l.Episodes(ContinueURI)
+	l.Episodes("spotify:show:1")
+	waitFor(t, "continue again", func() bool { return c.times(ContinueURI) == 2 })
+	time.Sleep(20 * time.Millisecond)
+	if n := c.times("spotify:show:1"); n != 1 {
+		t.Fatalf("a show asked %d times within ten minutes", n)
+	}
+	l.Stale("spotify:show:1")
+	l.Episodes("spotify:show:1")
+	waitFor(t, "the stale show", func() bool { return c.times("spotify:show:1") == 2 })
+
+	c2 := &fakeClient{err: ErrOffline, asked: map[string]int{}}
+	l2, _ := library(t, c2, db)
+	waitFor(t, "the kept shows", func() bool { _, have, _ := l2.Shows(); return have })
+	waitFor(t, "the kept episodes", func() bool { _, have, _ := l2.Episodes("spotify:show:1"); return have })
+	if es, _, _ := l2.Episodes("spotify:show:1"); !reflect.DeepEqual(es, ep) {
+		t.Fatalf("kept episodes %+v", es)
 	}
 }
 

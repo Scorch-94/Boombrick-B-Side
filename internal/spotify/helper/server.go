@@ -27,8 +27,16 @@ type Session interface {
 	// Tracks lists a playlist's tracks, or Liked Songs' (spotify.LikedURI).
 	Tracks(ctx context.Context, uri string) ([]spotify.Track, error)
 	// Stream opens a track, decoded, from ms; levelled with Spotify's own
-	// loudness data if level is set.
+	// loudness data if level is set. An ID with spotify.EpisodePrefix is an
+	// episode's.
 	Stream(ctx context.Context, id string, ms int64, kbps int, level bool) (Stream, error)
+	// Shows lists the podcasts the user follows.
+	Shows(ctx context.Context) ([]spotify.Show, error)
+	// Episodes lists a show's episodes, or spotify.ContinueURI's or
+	// spotify.YourEpisodesURI's, with the user's place in each.
+	Episodes(ctx context.Context, uri string) ([]spotify.Episode, error)
+	// SavePosition records how far into an episode the user got.
+	SavePosition(ctx context.Context, id string, ms int64, finished bool) error
 }
 
 // Stream is a track being decoded.
@@ -75,6 +83,24 @@ func Handler(s Session, log *slog.Logger) http.Handler {
 	mux.HandleFunc("GET /tracks", func(w http.ResponseWriter, r *http.Request) {
 		ts, err := s.Tracks(r.Context(), r.URL.Query().Get("uri"))
 		reply(w, ts, err)
+	})
+	mux.HandleFunc("GET /shows", func(w http.ResponseWriter, r *http.Request) {
+		ss, err := s.Shows(r.Context())
+		reply(w, ss, err)
+	})
+	mux.HandleFunc("GET /episodes", func(w http.ResponseWriter, r *http.Request) {
+		es, err := s.Episodes(r.Context(), r.URL.Query().Get("uri"))
+		reply(w, es, err)
+	})
+	mux.HandleFunc("POST /position", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		ms, _ := strconv.ParseInt(q.Get("ms"), 10, 64)
+		if err := s.SavePosition(r.Context(), q.Get("id"), ms, q.Get("finished") == "1"); err != nil {
+			log.Warn("save position", "id", q.Get("id"), "err", err)
+			fail(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("GET /stream/{id}", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()

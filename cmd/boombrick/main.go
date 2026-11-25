@@ -291,8 +291,14 @@ func run(started time.Time) error {
 	// Quitting cancels the scanner and the saver, and waits for them and the
 	// restore before the database closes under them.
 	ctx, cancel := context.WithCancel(context.Background())
-	scanDone, saved := make(chan struct{}), make(chan struct{})
-	defer func() { cancel(); <-scanDone; <-saved; <-restored }()
+	scanDone, saved, followed := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	defer func() { cancel(); <-scanDone; <-saved; <-restored; <-followed }()
+	// Podcast episodes' places go back to Spotify as they play, and the
+	// Podcasts tab's Continue listening is asked for again after.
+	go func() {
+		defer close(followed)
+		followEpisodes(ctx, p, sp, func() { spLib.Stale(spotify.ContinueURI) }, log)
+	}()
 
 	// Scans run one at a time on their own goroutine: at start-up, then each
 	// time the app asks. Asking while a scan runs queues one more. The app

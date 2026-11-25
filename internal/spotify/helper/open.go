@@ -14,6 +14,8 @@ import (
 	audiofilespb "github.com/devgianlu/go-librespot/proto/spotify/extendedmetadata/audiofiles"
 	metadatapb "github.com/devgianlu/go-librespot/proto/spotify/metadata"
 	"github.com/devgianlu/go-librespot/session"
+
+	"github.com/ujjwal313/boombrick/internal/spotify"
 )
 
 // loudnessTarget is the loudness Spotify levels to, in LUFS.
@@ -36,33 +38,54 @@ func (o *opened) Close() error { return o.raw.Close() }
 // here, by a decoder that can be closed.
 func (s *Librespot) open(ctx context.Context, sess *session.Session, id librespot.SpotifyId, kbps int, level bool, ms int64) (*opened, error) {
 	sp := sess.Spclient()
-	var meta metadatapb.Track
-	if err := sp.ExtendedMetadataSimple(ctx, id, extmetadatapb.ExtensionKind_TRACK_V4, &meta); err != nil {
-		return nil, fmt.Errorf("track metadata: %w", err)
-	}
 	s.mu.Lock()
 	country := s.country
 	s.mu.Unlock()
-	t, err := playable(&meta, country)
-	if err != nil {
-		return nil, err
+	var (
+		media *librespot.Media
+		file  *metadatapb.AudioFile
+		gain  = float32(1)
+	)
+	if id.Type() == librespot.SpotifyIdTypeEpisode {
+		// An episode lists its audio files itself, as go-librespot's player
+		// reads them; there is no loudness data for it.
+		var meta metadatapb.Episode
+		if err := sp.ExtendedMetadataSimple(ctx, id, extmetadatapb.ExtensionKind_EPISODE_V4, &meta); err != nil {
+			return nil, fmt.Errorf("episode metadata: %w", err)
+		}
+		if len(meta.GetAudio()) == 0 && meta.GetExternalUrl() != "" {
+			return nil, spotify.ErrExternal
+		}
+		if restricted(meta.GetRestriction(), country) {
+			return nil, librespot.ErrMediaRestricted
+		}
+		media = librespot.NewMediaFromEpisode(&meta)
+		file = vorbisFile(meta.GetAudio(), kbps)
+	} else {
+		var meta metadatapb.Track
+		if err := sp.ExtendedMetadataSimple(ctx, id, extmetadatapb.ExtensionKind_TRACK_V4, &meta); err != nil {
+			return nil, fmt.Errorf("track metadata: %w", err)
+		}
+		t, err := playable(&meta, country)
+		if err != nil {
+			return nil, err
+		}
+		media = librespot.NewMediaFromTrack(t)
+		var files audiofilespb.AudioFilesExtensionResponse
+		if err := sp.ExtendedMetadataSimple(ctx, media.Id(), extmetadatapb.ExtensionKind_AUDIO_FILES, &files); err != nil {
+			return nil, fmt.Errorf("audio files: %w", err)
+		}
+		var all []*metadatapb.AudioFile
+		for _, f := range files.GetFiles() {
+			all = append(all, f.GetFile())
+		}
+		file = vorbisFile(all, kbps)
+		if p := files.GetDefaultFileNormalizationParams(); level && p != nil {
+			gain = levelling(p.GetLoudnessDb(), p.GetTruePeakDb())
+		}
 	}
-	media := librespot.NewMediaFromTrack(t)
-	var files audiofilespb.AudioFilesExtensionResponse
-	if err := sp.ExtendedMetadataSimple(ctx, media.Id(), extmetadatapb.ExtensionKind_AUDIO_FILES, &files); err != nil {
-		return nil, fmt.Errorf("audio files: %w", err)
-	}
-	var all []*metadatapb.AudioFile
-	for _, f := range files.GetFiles() {
-		all = append(all, f.GetFile())
-	}
-	file := vorbisFile(all, kbps)
 	if file == nil {
 		return nil, librespot.ErrNoSupportedFormats
-	}
-	gain := float32(1)
-	if p := files.GetDefaultFileNormalizationParams(); level && p != nil {
-		gain = levelling(p.GetLoudnessDb(), p.GetTruePeakDb())
 	}
 	key, err := sess.AudioKey().Request(ctx, media.Id().Id(), file.GetFileId())
 	if err != nil {

@@ -28,16 +28,17 @@ const (
 	TabHome = iota
 	TabLibrary
 	TabSpotify
+	TabPodcasts
 	TabYouTube
 	TabDownloads
 	TabRadio
 	TabCount
 )
 
-var tabNames = [TabCount]string{"Home", "Library", "Spotify", "YouTube", "Downloads", "Radio"}
+var tabNames = [TabCount]string{"Home", "Library", "Spotify", "Podcasts", "YouTube", "Downloads", "Radio"}
 
 // allTabs is every tab, shown when u.Tabs.Shown is nil.
-var allTabs = []int{TabHome, TabLibrary, TabSpotify, TabYouTube, TabDownloads, TabRadio}
+var allTabs = []int{TabHome, TabLibrary, TabSpotify, TabPodcasts, TabYouTube, TabDownloads, TabRadio}
 
 // TabName is the name tab id shows.
 func TabName(id int) string { return tabNames[id] }

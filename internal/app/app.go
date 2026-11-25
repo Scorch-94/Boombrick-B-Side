@@ -422,9 +422,11 @@ func New(opts Options) (*App, error) {
 		a.forward(opts.YouTube.Ready(), &a.redraw)
 	}
 	var spTab screens.Screen = &screens.Placeholder{Tab: spotifyTab, Title: "Spotify"}
+	var podTab screens.Screen = &screens.Placeholder{Tab: widgets.TabPodcasts, Title: "Podcasts"}
 	if opts.Spotify != nil {
 		a.env = a.spotifyEnv()
 		spTab = spotifyscreen.NewTab(a.env)
+		podTab = spotifyscreen.NewPodcasts(a.env)
 		a.expired = spotifyscreen.NewExpired(a.signIn)
 		a.forward(opts.Spotify.Ready(), &a.spotified)
 		opts.Spotify.Saved() // reads the playlists kept, for Home, without starting the helper
@@ -438,6 +440,7 @@ func New(opts Options) (*App, error) {
 	a.shell = newShell(a.home,
 		a.library,
 		spTab,
+		podTab,
 		ytTab,
 		dlTab,
 		a.radioTab())

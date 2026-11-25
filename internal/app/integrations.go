@@ -25,12 +25,12 @@ func (a *App) radioOn() bool {
 }
 
 // shownTabs is the tabs shown with the switches as given: Home and the
-// Library always, Spotify's with it, and YouTube's and Downloads with
+// Library always, Spotify's and Podcasts with Spotify, and YouTube's and Downloads with
 // YouTube, and Radio's with the Radio service and its switch.
 func shownTabs(spotify, youtube, radio bool) []int {
 	ids := []int{widgets.TabHome, widgets.TabLibrary}
 	if spotify {
-		ids = append(ids, widgets.TabSpotify)
+		ids = append(ids, widgets.TabSpotify, widgets.TabPodcasts)
 	}
 	if youtube {
 		ids = append(ids, widgets.TabYouTube, widgets.TabDownloads)

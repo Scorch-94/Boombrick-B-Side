@@ -393,7 +393,11 @@ func (s *Librespot) Stream(ctx context.Context, id string, ms int64, kbps int, l
 	if err != nil {
 		return nil, err
 	}
-	sid, err := librespot.SpotifyIdFromBase62(librespot.SpotifyIdTypeTrack, id)
+	typ, base := librespot.SpotifyIdTypeTrack, id
+	if e, ok := spotify.IsEpisode(id); ok {
+		typ, base = librespot.SpotifyIdTypeEpisode, e
+	}
+	sid, err := librespot.SpotifyIdFromBase62(typ, base)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", spotify.ErrUnavailable, err)
 	}

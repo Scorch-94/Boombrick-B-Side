@@ -9,9 +9,13 @@ func circle(cx, cy, r float64) string {
 
 // paths holds each icon's path data on Lucide's 24-unit grid.
 var paths = map[string][]string{
-	"play":        {"M6 3l14 9-14 9V3z"},
-	"pause":       {"M6 4h4v16H6z", "M14 4h4v16h-4z"},
-	"prev":        {"M19 20 9 12l10-8v16z", "M5 19V5"},
+	"play":  {"M6 3l14 9-14 9V3z"},
+	"pause": {"M6 4h4v16H6z", "M14 4h4v16h-4z"},
+	"prev":  {"M19 20 9 12l10-8v16z", "M5 19V5"},
+	// back30 and fwd30 are Lucide's rotate-ccw and rotate-cw: an episode's
+	// skips, with "30" drawn inside.
+	"back30":      {"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", "M3 3v5h5"},
+	"fwd30":       {"M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8", "M21 3v5h-5"},
 	"next":        {"M5 4l10 8-10 8V4z", "M19 5v14"},
 	"shuffle":     {"m18 14 4 4-4 4", "m18 2 4 4-4 4", "M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-7.6a4 4 0 0 1 3.3-1.7H22", "M2 6h1.972a4 4 0 0 1 3.392 1.88", "M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"},
 	"repeat":      {"m17 2 4 4-4 4", "M3 11v-1a4 4 0 0 1 4-4h14", "m7 22-4-4 4-4", "M21 13v1a4 4 0 0 1-4 4H3"},

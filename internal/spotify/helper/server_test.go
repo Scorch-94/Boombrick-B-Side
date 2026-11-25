@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"math"
@@ -24,7 +25,10 @@ type fake struct {
 	playlists []spotify.Playlist
 	tracks    map[string][]spotify.Track
 	stream    *fakeStream
-	err       error // every call's answer, when set
+	shows     []spotify.Show
+	episodes  map[string][]spotify.Episode
+	saved     []string // "id ms finished", as SavePosition was called
+	err       error    // every call's answer, when set
 
 	asked struct {
 		id    string
@@ -44,6 +48,14 @@ func (f *fake) Playlists(context.Context) ([]spotify.Playlist, error) {
 }
 func (f *fake) Tracks(_ context.Context, uri string) ([]spotify.Track, error) {
 	return f.tracks[uri], f.err
+}
+func (f *fake) Shows(context.Context) ([]spotify.Show, error) { return f.shows, f.err }
+func (f *fake) Episodes(_ context.Context, uri string) ([]spotify.Episode, error) {
+	return f.episodes[uri], f.err
+}
+func (f *fake) SavePosition(_ context.Context, id string, ms int64, finished bool) error {
+	f.saved = append(f.saved, fmt.Sprintf("%s %d %t", id, ms, finished))
+	return f.err
 }
 func (f *fake) Stream(_ context.Context, id string, ms int64, kbps int, level bool) (Stream, error) {
 	f.asked.id, f.asked.ms, f.asked.kbps, f.asked.level = id, ms, kbps, level

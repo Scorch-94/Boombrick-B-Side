@@ -195,6 +195,29 @@ func (h *Helper) Tracks(ctx context.Context, uri string) ([]Track, error) {
 	return ts, h.call(ctx, http.MethodGet, "/tracks?uri="+url.QueryEscape(uri), &ts)
 }
 
+// Shows lists the podcasts the user follows.
+func (h *Helper) Shows(ctx context.Context) ([]Show, error) {
+	var ss []Show
+	return ss, h.call(ctx, http.MethodGet, "/shows", &ss)
+}
+
+// Episodes lists a show's episodes, newest first, or ContinueURI's or
+// YourEpisodesURI's, each with where the user is in it.
+func (h *Helper) Episodes(ctx context.Context, uri string) ([]Episode, error) {
+	var es []Episode
+	return es, h.call(ctx, http.MethodGet, "/episodes?uri="+url.QueryEscape(uri), &es)
+}
+
+// SavePosition tells Spotify how far into episode id the user got, so other
+// devices carry on from there; finished marks it played through.
+func (h *Helper) SavePosition(ctx context.Context, id string, ms int64, finished bool) error {
+	f := "0"
+	if finished {
+		f = "1"
+	}
+	return h.call(ctx, http.MethodPost, fmt.Sprintf("/position?id=%s&ms=%d&finished=%s", url.QueryEscape(id), ms, f), nil)
+}
+
 func (h *Helper) call(ctx context.Context, method, path string, v any) error {
 	resp, err := h.do(ctx, method, path)
 	if err != nil {

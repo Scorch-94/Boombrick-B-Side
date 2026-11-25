@@ -42,17 +42,17 @@ func (p switchPrefs) SetBool(k string, v bool) {
 
 func TestShownTabs(t *testing.T) {
 	home, lib := widgets.TabHome, widgets.TabLibrary
-	sp, yt, dl, rd := widgets.TabSpotify, widgets.TabYouTube, widgets.TabDownloads, widgets.TabRadio
+	sp, pod, yt, dl, rd := widgets.TabSpotify, widgets.TabPodcasts, widgets.TabYouTube, widgets.TabDownloads, widgets.TabRadio
 	for _, c := range []struct {
 		spotify, youtube, radio bool
 		want                    []int
 	}{
-		{true, true, true, []int{home, lib, sp, yt, dl, rd}},
-		{true, true, false, []int{home, lib, sp, yt, dl}},
+		{true, true, true, []int{home, lib, sp, pod, yt, dl, rd}},
+		{true, true, false, []int{home, lib, sp, pod, yt, dl}},
 		{false, true, true, []int{home, lib, yt, dl, rd}},
-		{true, false, true, []int{home, lib, sp, rd}},
+		{true, false, true, []int{home, lib, sp, pod, rd}},
 		{false, false, true, []int{home, lib, rd}},
-		{true, false, false, []int{home, lib, sp}},
+		{true, false, false, []int{home, lib, sp, pod}},
 		{false, false, false, []int{home, lib}},
 	} {
 		if got := shownTabs(c.spotify, c.youtube, c.radio); !slices.Equal(got, c.want) {
@@ -127,7 +127,7 @@ func TestSignedOutWithSpotifyOffIsAToast(t *testing.T) {
 func switchApp(t *testing.T, p switchPrefs) (*App, *[]bool, *[]bool, *liveQueue) {
 	t.Helper()
 	t.Cleanup(func() { screens.SetDownloads(true) })
-	s, _ := sixTabs()
+	s, _ := allTabs()
 	var holds, imports []bool
 	q := newLiveQueue()
 	a := &App{shell: s, ui: &ui.Context{}, opts: Options{Prefs: p, Downloads: q, Radio: &radio.Directory{},
@@ -139,7 +139,7 @@ func switchApp(t *testing.T, p switchPrefs) (*App, *[]bool, *[]bool, *liveQueue)
 
 func TestSwitchesAtStart(t *testing.T) {
 	a, holds, imports, _ := switchApp(t, switchPrefs{keys.YouTubeOn: "false"})
-	if !slices.Equal(a.ui.Tabs.Shown, []int{widgets.TabHome, widgets.TabLibrary, widgets.TabSpotify, widgets.TabRadio}) {
+	if !slices.Equal(a.ui.Tabs.Shown, []int{widgets.TabHome, widgets.TabLibrary, widgets.TabSpotify, widgets.TabPodcasts, widgets.TabRadio}) {
 		t.Fatalf("tabs %v", a.ui.Tabs.Shown)
 	}
 	if !slices.Equal(*holds, []bool{true}) || !slices.Equal(*imports, []bool{false}) {
