@@ -248,3 +248,19 @@ func TestPlayingOpensNowPlaying(t *testing.T) {
 	}
 	(&App{}).showNowPlaying() // no shell yet: nothing to open, and no panic
 }
+
+func TestClockText(t *testing.T) {
+	at := func(h, m int) time.Time { return time.Date(2026, 11, 25, h, m, 0, 0, time.UTC) }
+	for _, c := range []struct {
+		t      time.Time
+		twelve bool
+		want   string
+	}{
+		{at(14, 30), false, "14:30"}, {at(9, 5), false, "9:05"}, {at(0, 7), false, "0:07"},
+		{at(14, 30), true, "2:30 PM"}, {at(0, 7), true, "12:07 AM"}, {at(12, 0), true, "12:00 PM"}, {at(9, 5), true, "9:05 AM"},
+	} {
+		if got := clockText(c.t, c.twelve); got != c.want {
+			t.Errorf("clockText(%s, %v) = %q, want %q", c.t.Format("15:04"), c.twelve, got, c.want)
+		}
+	}
+}

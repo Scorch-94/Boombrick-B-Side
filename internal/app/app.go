@@ -627,17 +627,34 @@ func (a *App) push(ev sdl.Event) {
 	}
 }
 
+// clockText is the status bar's time: "14:30", or "2:30 PM" on the 12-hour
+// clock.
+func clockText(t time.Time, twelve bool) string {
+	if !twelve {
+		return fmt.Sprintf("%d:%02d", t.Hour(), t.Minute())
+	}
+	h, ampm := t.Hour()%12, "AM"
+	if t.Hour() >= 12 {
+		ampm = "PM"
+	}
+	if h == 0 {
+		h = 12
+	}
+	return fmt.Sprintf("%d:%02d %s", h, t.Minute(), ampm)
+}
+
 // Run draws and handles input until quit. Frames are drawn only when
 // something changed, a screen is animating, or music is playing under Now
 // Playing's progress bar; otherwise the loop sleeps until the next input, key
 // repeat or clock minute.
 func (a *App) Run() error {
-	minute := -1
+	minute, h12 := -1, false
 	for !a.quit {
 		now := time.Now()
-		if m := now.Minute(); m != minute {
-			minute = m
-			a.ui.Status.Time = fmt.Sprintf("%d:%02d", now.Hour(), now.Minute())
+		twelve := a.opts.Prefs != nil && a.opts.Prefs.String(keys.Clock) == keys.Clock12
+		if m := now.Minute(); m != minute || twelve != h12 {
+			minute, h12 = m, twelve
+			a.ui.Status.Time = clockText(now, twelve)
 			a.dirty = true
 		}
 		if a.powerHeld(now) {

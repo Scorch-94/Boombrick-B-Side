@@ -20,6 +20,8 @@ const (
 	// AlbumView is how the Library shows albums: AlbumGrid, AlbumLarge or
 	// AlbumList.
 	AlbumView = "library.album_view"
+	// Clock is the status bar clock's format: Clock24 or Clock12.
+	Clock = "display.clock"
 	// The integrations' switches: an integration switched off is hidden and
 	// does no work, but keeps its data.
 	SpotifyOn = "integrations.spotify"
@@ -34,6 +36,12 @@ const (
 	AlbumList  = "list"  // rows, as the songs and artists show
 )
 
+// The clock's formats.
+const (
+	Clock24 = "24" // 14:30
+	Clock12 = "12" // 2:30 PM
+)
+
 // Defaults holds the value used for a key that has never been set.
 var Defaults = map[string]string{
 	StreamingKbps:    "160",
@@ -41,6 +49,7 @@ var Defaults = map[string]string{
 	PreferDownloaded: "true",
 	VolumeLevelling:  "true",
 	AlbumView:        AlbumGrid,
+	Clock:            Clock24,
 	SpotifyOn:        "true",
 	YouTubeOn:        "true",
 	RadioOn:          "true",

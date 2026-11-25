@@ -4,6 +4,7 @@ All notable changes to Boombrick. Versions match the release tags.
 
 ## [v0.7.4]
 
+- Settings: Clock shows the time at the top left on the 24-hour clock (14:30) or the 12-hour (2:30 PM).
 - Settings: Album view chooses how the Library shows albums: a 4 × 2 grid with small covers (the default), 3 across with big covers as in Boombrick, or a list like Songs, with each album's artist and year. It changes at once, staying on the album you were on.
 
 ## [v0.7.3]

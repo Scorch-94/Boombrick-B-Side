@@ -181,6 +181,9 @@ func TestVolumeLevelling(t *testing.T) {
 	if !e.s.Handle(press(input.Down), t0) || e.s.focus != rowAlbums {
 		t.Fatalf("Down from Volume levelling went to %d, want Album view", e.s.focus)
 	}
+	if !e.s.Handle(press(input.Down), t0) || e.s.focus != rowClock {
+		t.Fatalf("Down from Album view went to %d, want Clock", e.s.focus)
+	}
 	if e.s.Handle(press(input.Down), t0) {
 		t.Fatal("Down past the last row moved")
 	}
@@ -403,11 +406,11 @@ func TestCards(t *testing.T) {
 			t.Errorf("%q, want %q", w.got, w.want)
 		}
 	}
-	for range 5 {
+	for range 6 {
 		e.s.Handle(press(input.Down), t0)
 	}
 	if e.s.focus != pillTool {
-		t.Fatalf("five Downs went to %d, want the Downloader card's pill", e.s.focus)
+		t.Fatalf("six Downs went to %d, want the Downloader card's pill", e.s.focus)
 	}
 	e.s.Handle(press(input.A), t0)
 	if e.dl.updates != 1 {
@@ -626,14 +629,14 @@ func TestScrollComesToRest(t *testing.T) {
 		return e.s.scroll.At(now)
 	}
 	draw()
-	for e.s.focus != rowAlbums {
+	for e.s.focus != rowClock {
 		down()
 	}
 	view := float64(screens.ContentBot - listTop(u))
-	if got, want := e.s.scroll.At(now), 7*widgets.SettingHeight-view; got != want {
-		t.Errorf("Album view scrolled to %.1f, want %.1f to bring its bottom in", got, want)
+	if got, want := e.s.scroll.At(now), 8*widgets.SettingHeight-view; got != want {
+		t.Errorf("Clock scrolled to %.1f, want %.1f to bring its bottom in", got, want)
 	}
-	if got, want := down(), float64(7*widgets.SettingHeight+16); e.s.focus != pillTool || got != want {
+	if got, want := down(), float64(8*widgets.SettingHeight+16); e.s.focus != pillTool || got != want {
 		t.Errorf("on %d the scroll rests at %.1f, want %.1f for the Downloader card's top", e.s.focus, got, want)
 	}
 }
@@ -658,5 +661,24 @@ func TestSleepTimerWhileAStationPlays(t *testing.T) {
 	e.s.Handle(press(input.Right), t0)
 	if e.p.sleep.Mode != player.SleepTrack {
 		t.Fatalf("Right with no station set %v, want End of track", e.p.sleep.Mode)
+	}
+}
+
+// Clock offers the 24- and 12-hour clocks; 24 is the default.
+func TestClockSetting(t *testing.T) {
+	e := newEnv(true)
+	for e.s.focus != rowClock {
+		e.s.Handle(press(input.Down), t0)
+	}
+	if got := e.s.rows[rowClock].Value; got != "24-hour" {
+		t.Fatalf("Clock says %q at first", got)
+	}
+	e.s.Handle(press(input.A), t0)
+	e.s.Handle(press(input.Right), t0)
+	if e.prefs.String(keys.Clock) != keys.Clock12 || e.s.rows[rowClock].Value != "12-hour" {
+		t.Fatalf("Right chose %q", e.prefs.String(keys.Clock))
+	}
+	if e.s.Handle(press(input.Right), t0) {
+		t.Fatal("Right past 12-hour")
 	}
 }

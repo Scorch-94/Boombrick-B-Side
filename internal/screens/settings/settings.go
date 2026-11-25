@@ -87,6 +87,7 @@ const (
 	rowSleep
 	rowLevelling
 	rowAlbums
+	rowClock
 	rowCount
 	pillTool    = rowCount     // the Downloader card's pill
 	pillApp     = rowCount + 1 // the Boombrick card's
@@ -137,6 +138,12 @@ var albumViews = []choice{
 	{"List", "Like Songs", keys.AlbumList},
 }
 
+// clocks are Clock's options.
+var clocks = []choice{
+	{"24-hour", "14:30", keys.Clock24},
+	{"12-hour", "2:30 PM", keys.Clock12},
+}
+
 // Screen is Settings.
 type Screen struct {
 	opts         Options
@@ -151,6 +158,7 @@ type Screen struct {
 	stream       int // Streaming quality's choice, as last read
 	quality      int // and Download quality's
 	albums       int // and Album view's
+	clock        int // and Clock's
 	sleeps       []choice
 	sleep        player.Sleep // the timer as its row last showed it
 	sleptAt      time.Time    // and when
@@ -186,6 +194,7 @@ func New(opts Options) *Screen {
 		rowSleep:        {Icon: "moon", Label: "Sleep timer"},
 		rowLevelling:    {Icon: "sliders", Label: "Volume levelling"},
 		rowAlbums:       {Icon: "music", Label: "Album view"},
+		rowClock:        {Icon: "clock", Label: "Clock"},
 	}
 	for _, m := range player.SleepModes {
 		s.sleeps = append(s.sleeps, choice{label: screens.SleepLabel(m)})
@@ -230,6 +239,11 @@ func (s *Screen) readPrefs() {
 	s.rows[rowQuality].Value = qualities[s.quality].label
 	s.albums = s.albumIndex()
 	s.rows[rowAlbums].Value = albumViews[s.albums].label
+	s.clock = 0
+	if s.opts.Prefs.String(keys.Clock) == keys.Clock12 {
+		s.clock = 1
+	}
+	s.rows[rowClock].Value = clocks[s.clock].label
 	s.rows[rowLevelling].Value = onOff(s.opts.Prefs.Bool(keys.VolumeLevelling))
 	s.rows[rowPrefer].Value = onOff(s.opts.Prefs.Bool(keys.PreferDownloaded))
 	for _, k := range []string{keys.SpotifyOn, keys.YouTubeOn} {
@@ -329,7 +343,7 @@ func (s *Screen) move(step int, now time.Time) bool {
 // opens Storage, switches levelling, or presses a card's pill.
 func (s *Screen) act(now time.Time) bool {
 	switch s.focus {
-	case rowStream, rowQuality, rowSleep, rowAlbums:
+	case rowStream, rowQuality, rowSleep, rowAlbums, rowClock:
 		if s.open == s.focus {
 			s.open = -1
 		} else {
@@ -381,6 +395,13 @@ func (s *Screen) choose(step int) bool {
 			return false
 		}
 		s.opts.Prefs.Set(keys.DownloadQuality, qualities[i].value)
+		s.readPrefs()
+	case rowClock:
+		i := s.clock + step
+		if i < 0 || i >= len(clocks) {
+			return false
+		}
+		s.opts.Prefs.Set(keys.Clock, clocks[i].value)
 		s.readPrefs()
 	case rowAlbums:
 		i := s.albums + step
@@ -709,6 +730,8 @@ func (s *Screen) options(row int) (choices []choice, chosen int, about string, c
 		return qualities, s.quality, "YouTube Music downloads", 2
 	case rowAlbums:
 		return albumViews, s.albums, "How the Library shows albums", 3
+	case rowClock:
+		return clocks, s.clock, "The time at the top left", 2
 	}
 	return s.sleeps, s.sleepIndex(), "Fades out, then pauses", 4
 }
