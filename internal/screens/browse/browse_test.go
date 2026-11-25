@@ -228,17 +228,17 @@ func TestLibraryXOpensSearch(t *testing.T) {
 	nav := &fakeNav{}
 	l := New(nav, &fakePlayer{}, "/m", nil)
 	l.SetIndex(sampleIndex())
-	for f := range genresFilter {
+	for f := range playlistsFilter + 1 {
 		if !l.Handle(press(input.X), t0) {
 			t.Fatalf("X on filter %d went unhandled", f)
 		}
-		if got := l.hints()[1]; got.Key != "X" || got.Label != "Search" {
-			t.Fatalf("filter %d: the second hint is %+v", f, got)
+		if !slices.Contains(l.hints(), widgets.Hint{Key: "X", Label: "Search"}) {
+			t.Fatalf("filter %d: hints %+v have no X Search", f, l.hints())
 		}
 		l.Handle(press(input.R2), t0)
 	}
-	if len(nav.pushed) != 3 {
-		t.Fatalf("pushed %d screens, want 3", len(nav.pushed))
+	if len(nav.pushed) != 4 {
+		t.Fatalf("pushed %d screens, want 4", len(nav.pushed))
 	}
 	if _, ok := nav.pushed[0].(*Search); !ok {
 		t.Fatalf("X pushed %T", nav.pushed[0])
@@ -345,11 +345,11 @@ func TestLibraryGenres(t *testing.T) {
 	p, nav := &fakePlayer{}, &fakeNav{}
 	l := New(nav, p, "/m", nil)
 	l.SetIndex(genreIndex())
-	for range 3 {
+	for range 4 {
 		l.Handle(press(input.R2), t0)
 	}
 	if l.filter != genresFilter || l.Handle(press(input.R2), t0) {
-		t.Fatal("R2 from Songs should show the genres, the last filter")
+		t.Fatal("R2 from Playlists should show the genres, the last filter")
 	}
 	for range 3 {
 		l.Handle(press(input.Down), t0) // Folk, Jazz, Pop, Rock
@@ -370,20 +370,91 @@ func TestLibraryGenres(t *testing.T) {
 func TestLibraryHidesGenresWithoutTags(t *testing.T) {
 	l := New(&fakeNav{}, &fakePlayer{}, "/m", nil)
 	l.SetIndex(sampleIndex())
-	l.Handle(press(input.R2), t0)
-	l.Handle(press(input.R2), t0)
-	if l.Handle(press(input.R2), t0) {
-		t.Fatal("R2 on Songs should do nothing without genres")
+	for range 3 {
+		l.Handle(press(input.R2), t0)
+	}
+	if l.filter != playlistsFilter || l.Handle(press(input.R2), t0) {
+		t.Fatal("R2 on Playlists should do nothing without genres")
 	}
 	l.SetIndex(genreIndex())
 	if !l.Handle(press(input.R2), t0) || l.filter != genresFilter {
-		t.Fatal("R2 on Songs should show the genres once there are some")
+		t.Fatal("R2 on Playlists should show the genres once there are some")
 	}
 	l.SetIndex(sampleIndex())
 	if l.filter != songsFilter {
 		t.Fatalf("filter %d once the genres went, want the songs", l.filter)
 	}
 	render(t, l, t0)
+}
+
+// playlistIndex is sampleIndex with two playlists.
+func playlistIndex() *library.Index {
+	ix := sampleIndex()
+	byTitle := map[string]*library.Track{}
+	for _, t := range ix.Songs {
+		byTitle[t.Title] = t
+	}
+	ix.Playlists = []*library.Playlist{
+		{Name: "Late Drive", Path: "/m/Playlists/Late Drive.m3u", Missing: 2, Duration: 467 * time.Second,
+			Songs: []*library.Track{byTitle["Neon"], byTitle["Rust"]}},
+		{Name: "Morning", Path: "/m/Playlists/Morning.m3u", Songs: []*library.Track{byTitle["Salt"]}},
+	}
+	return ix
+}
+
+// The Playlists filter lists the playlists; A opens one as a page in the
+// file's order, Y queues it.
+func TestLibraryPlaylists(t *testing.T) {
+	p, nav := &fakePlayer{}, &fakeNav{}
+	l := New(nav, p, "/m", nil)
+	l.SetIndex(playlistIndex())
+	for range 3 {
+		l.Handle(press(input.R2), t0)
+	}
+	if l.filter != playlistsFilter {
+		t.Fatalf("filter %d after three R2, want Playlists", l.filter)
+	}
+	if r := l.row(0); r.subtitle != "2 songs · 7 min · 2 not found" {
+		t.Fatalf("the first row says %q", r.subtitle)
+	}
+	l.Handle(press(input.Y), t0)
+	if len(p.queued) != 1 || !slices.Equal(p.queued[0], []string{"/m/a/1.flac", "/m/Copper Season/Rust.flac"}) {
+		t.Fatalf("Y queued %q", p.queued)
+	}
+	l.Handle(press(input.A), t0)
+	pg, ok := nav.pushed[0].(*AlbumPage)
+	if !ok || pg.title != "Late Drive" || pg.who != "Playlist · 2 not found" || pg.rows[0].Title != "Neon" || pg.rows[0].Subtitle != "Kenji Arata" {
+		t.Fatalf("A opened %+v", nav.pushed[0])
+	}
+	pg.Handle(press(input.A), t0) // Play
+	if len(p.lists) != 1 || p.lists[0][0] != "/m/a/1.flac" {
+		t.Fatalf("Play played %v", p.lists)
+	}
+	uitest.Golden(t, "library-playlists", render(t, l, t0.Add(anim.Focus)))
+	uitest.Golden(t, "playlist-page", render(t, pg, t0.Add(anim.Focus)))
+}
+
+// With no playlists, the filter says where to put them, and Y rescans.
+func TestLibraryNoPlaylists(t *testing.T) {
+	scans, nav := 0, &fakeNav{}
+	l := New(nav, &fakePlayer{}, "/mnt/SDCARD/Music", func() { scans++ })
+	l.SetIndex(sampleIndex())
+	l.filter = playlistsFilter
+	if !l.Handle(press(input.Y), t0) || scans != 1 || len(nav.toasts) != 1 {
+		t.Fatalf("Y rescanned %d times, toasts %v", scans, nav.toasts)
+	}
+	uitest.Golden(t, "library-no-playlists", render(t, l, t0))
+}
+
+// With genres too, the filter is called Lists so the row fits.
+func TestLibraryListsWithGenres(t *testing.T) {
+	l := New(&fakeNav{}, &fakePlayer{}, "/m", nil)
+	ix := genreIndex()
+	l.SetIndex(ix)
+	render(t, l, t0)
+	if !slices.Equal(l.names, []string{"Albums", "Artists", "Songs", "Lists", "Genres"}) {
+		t.Fatalf("filters %q", l.names)
+	}
 }
 
 // When the filters' counts don't all fit, only the chosen filter shows its
@@ -405,7 +476,7 @@ func TestLibraryCountsThatDontFit(t *testing.T) {
 	if l.allCounts {
 		t.Fatal("1,000 albums, 100 artists, 10,000 songs and 30 genres can't all show their counts")
 	}
-	l.SetIndex(genreIndex())
+	l.SetIndex(sampleIndex())
 	render(t, l, t0)
 	if !l.allCounts {
 		t.Fatal("a small library's counts all fit")
@@ -543,7 +614,7 @@ func TestNewIndexRowsAreMadeAfresh(t *testing.T) {
 	if r := l.rows[songsFilter][0]; r.subtitle != "Marisol Vega · Salt & Static" || r.duration != "3:42" {
 		t.Fatalf("the first song's row: %q, %q", r.subtitle, r.duration)
 	}
-	if l.counts != [filterCount]string{"1", "1", "1", "0"} {
+	if l.counts != [filterCount]string{"1", "1", "1", "0", "0"} {
 		t.Fatalf("counts %q", l.counts)
 	}
 }

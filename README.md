@@ -46,6 +46,10 @@ Open Settings from the quick menu (Menu). When a newer release is out, the Boomb
 
 The Downloader card updates yt-dlp, which YouTube Music downloads use, the same way.
 
+## Playlists
+
+Put `.m3u` or `.m3u8` files in a `Playlists` folder inside your music folder (`Music/Playlists/` on the SD card). They show under **Playlists** in the Library (called **Lists** when Genres also shows), in the order the file lists them. Each line can be a path relative to the playlist (`../Artist/Album/01 Song.flac`), relative to the music folder (`Artist/Album/01 Song.flac`), or absolute; paths written on a PC (`C:\Users\me\Music\...`) or another device (`/storage/.../Music/...`) work too, from their `Music` folder on. Songs the library doesn't have are counted as "not found". Playlists are read again on every launch and rescan; on an empty Playlists filter, Y rescans.
+
 ## Controls
 
 | Button | Action |

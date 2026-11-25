@@ -34,8 +34,11 @@ type Index struct {
 	Artists []*Artist // by name
 	Songs   []*Track  // by title
 	Genres  []*Genre  // by name
-	byKey   map[[2]string]*Album
-	spotify map[string]*Track // the files imports downloaded, by Spotify ID
+	// Playlists are the .m3u files in the music folder's Playlists folder,
+	// by name; Load leaves them to ReadPlaylists.
+	Playlists []*Playlist
+	byKey     map[[2]string]*Album
+	spotify   map[string]*Track // the files imports downloaded, by Spotify ID
 }
 
 // Load reads the library and sorts it for browsing.

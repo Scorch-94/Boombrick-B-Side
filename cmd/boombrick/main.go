@@ -373,11 +373,17 @@ func run(started time.Time) error {
 		Player:     p,
 		MusicDir:   paths.Music,
 		MusicPlace: prof.MusicPlace(),
-		Load:       func() (*library.Index, error) { return library.Load(db.DB) },
-		Progress:   func() ([]resume.Progress, error) { return resume.Recent(db.DB, 8) },
-		Rescan:     rescan,
-		Scanned:    scanned,
-		Saved:      savedTrack,
+		Load: func() (*library.Index, error) {
+			ix, err := library.Load(db.DB)
+			if err == nil {
+				ix.Playlists = library.ReadPlaylists(paths.Music, ix)
+			}
+			return ix, err
+		},
+		Progress: func() ([]resume.Progress, error) { return resume.Recent(db.DB, 8) },
+		Rescan:   rescan,
+		Scanned:  scanned,
+		Saved:    savedTrack,
 		Status: func() platform.Status {
 			st := platform.ReadStatus("/sys")
 			st.Bluetooth = bt.Connected()

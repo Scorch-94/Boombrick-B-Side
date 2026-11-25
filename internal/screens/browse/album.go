@@ -72,6 +72,31 @@ func NewGenrePage(nav screens.Nav, p Player, g *library.Genre) *AlbumPage {
 	return pg
 }
 
+// NewPlaylistPage opens playlist pl: its songs in the file's order, each
+// with its artist.
+func NewPlaylistPage(nav screens.Nav, p Player, pl *library.Playlist) *AlbumPage {
+	who := "Playlist"
+	if pl.Missing > 0 {
+		who += " · " + strconv.Itoa(pl.Missing) + " not found"
+	}
+	pg := newPage(nav, p, screens.PlaylistArt(pl), pl.Name, who, screens.SongsAndTime(len(pl.Songs), pl.Duration),
+		songTracks(pl.Songs))
+	for i, s := range pl.Songs {
+		pg.rows[i].Subtitle = s.Artist
+	}
+	return pg
+}
+
+// playlistLine is a playlist's songs and time, and how many of its entries
+// aren't in the library.
+func playlistLine(pl *library.Playlist) string {
+	line := screens.SongsAndTime(len(pl.Songs), pl.Duration)
+	if pl.Missing > 0 {
+		line += " · " + strconv.Itoa(pl.Missing) + " not found"
+	}
+	return line
+}
+
 // newPage makes a page of tracks: art, title and two lines of details in
 // the left column, the tracks numbered on the right.
 func newPage(nav screens.Nav, p Player, art widgets.ArtSpec, title, who, length string, tracks []player.Track) *AlbumPage {

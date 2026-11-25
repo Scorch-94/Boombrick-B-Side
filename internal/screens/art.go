@@ -27,6 +27,16 @@ func ArtistArt(ar *library.Artist) widgets.ArtSpec {
 	return s
 }
 
+// PlaylistArt is a playlist's art: its first song's album cover, over the
+// placeholder made from its name.
+func PlaylistArt(pl *library.Playlist) widgets.ArtSpec {
+	s := widgets.SpecFor(pl.Name)
+	if len(pl.Songs) > 0 {
+		s.Cover = SongArt(pl.Songs[0]).Cover
+	}
+	return s
+}
+
 // GenreArt is a genre's art: the placeholder made from its name.
 func GenreArt(g *library.Genre) widgets.ArtSpec { return widgets.SpecFor(g.Name) }
 
