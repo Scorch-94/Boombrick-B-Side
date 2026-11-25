@@ -220,7 +220,9 @@ func run(started time.Time) error {
 	// in on the next launch.
 	toolReleases := release.NewChecker(web, "yt-dlp/yt-dlp", online, releaseEvery, log)
 	defer toolReleases.Close()
-	releases := release.NewChecker(web, "ujjwal313/boombrick", online, releaseEvery, log)
+	// This fork's releases, not upstream's: their zips are named for the
+	// fork, and an update must never swap it for the original.
+	releases := release.NewChecker(web, version.Repo, online, releaseEvery, log)
 	defer releases.Close()
 	var updater app.Updater
 	if paths.OnDevice && dir != "" {

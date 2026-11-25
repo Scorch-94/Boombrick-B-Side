@@ -2,7 +2,7 @@ GO      ?= go
 VERSION ?= dev
 PKG     := github.com/ujjwal313/boombrick
 # The repository Settings checks for updates: the fork building it in CI.
-REPO    ?= $(or $(GITHUB_REPOSITORY),ujjwal313/boombrick)
+REPO    ?= $(or $(GITHUB_REPOSITORY),Scorch-94/Boombrick-B-Side)
 LDFLAGS := -s -w -X $(PKG)/internal/version.Version=$(VERSION) -X $(PKG)/internal/version.Repo=$(REPO)
 # SQLite without loadable extensions, which Boombrick never loads.
 TAGS    := sqlite_omit_load_extension

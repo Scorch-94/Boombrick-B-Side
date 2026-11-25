@@ -2,6 +2,10 @@
 
 All notable changes to Boombrick. Versions match the release tags.
 
+## [v0.7.3]
+
+- Settings checks this fork's releases for updates. Versions 0.7.0 to 0.7.2 asked the original Boombrick's, so their Update button can't install B-Side, and stalls; install 0.7.3 from its zip once, and updates work from Settings after that.
+
 ## [v0.7.2]
 
 - Library: Albums shows a grid of four across and two down, with smaller covers and each title and artist running the column's width.

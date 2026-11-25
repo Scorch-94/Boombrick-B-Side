@@ -24,4 +24,6 @@ func String() string {
 // never swaps this build for upstream's:
 //
 //	-ldflags "-X github.com/ujjwal313/boombrick/internal/version.Repo=you/boombrick"
-var Repo = "ujjwal313/boombrick"
+//
+// Builds made elsewhere check this fork's.
+var Repo = "Scorch-94/Boombrick-B-Side"
