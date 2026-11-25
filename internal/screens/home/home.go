@@ -3,6 +3,7 @@ package home
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"slices"
 	"time"
 
@@ -232,6 +233,71 @@ func AlbumRow(albums []*library.Album, play, queue func(*library.Album)) (fixtur
 		meta = "1 album"
 	}
 	return fixture.Row{Title: "Recently added", Meta: meta, Items: items}, true
+}
+
+// maxRandom is how many albums Random albums shows.
+const maxRandom = 6
+
+// RandomPicks are the albums Random albums shows: picked at random when
+// the library first comes in, and kept for as long as the app runs, so the
+// row stays put while it's open and changes the next time the app is. An
+// album gone from the library since gives its place to another.
+type RandomPicks struct {
+	rng  *rand.Rand
+	keys []albumKey
+}
+
+type albumKey struct{ artist, title string }
+
+// NewRandomPicks picks with seed; the app seeds it with the time it starts.
+func NewRandomPicks(seed int64) *RandomPicks {
+	return &RandomPicks{rng: rand.New(rand.NewPCG(uint64(seed), uint64(seed)>>1|1))}
+}
+
+// From is the picks among ix's albums: those kept that are still there,
+// then new ones at random to make up maxRandom, or all of them in a smaller
+// library.
+func (p *RandomPicks) From(ix *library.Index) []*library.Album {
+	var out []*library.Album
+	var keys []albumKey
+	for _, k := range p.keys {
+		if a := ix.Album(k.artist, k.title); a != nil && !slices.Contains(out, a) {
+			out, keys = append(out, a), append(keys, k)
+		}
+	}
+	var rest []*library.Album
+	for _, a := range ix.Albums {
+		if !slices.Contains(out, a) {
+			rest = append(rest, a)
+		}
+	}
+	p.rng.Shuffle(len(rest), func(i, j int) { rest[i], rest[j] = rest[j], rest[i] })
+	for _, a := range rest {
+		if len(out) == maxRandom {
+			break
+		}
+		out, keys = append(out, a), append(keys, albumKey{a.Artist, a.Title})
+	}
+	p.keys = keys
+	return out
+}
+
+// RandomRow is Random albums: a few albums picked at random each time the
+// app opens. play starts one and queue adds it to the queue. It reports
+// false with no albums.
+func RandomRow(albums []*library.Album, play, queue func(*library.Album)) (fixture.Row, bool) {
+	if len(albums) == 0 {
+		return fixture.Row{}, false
+	}
+	items := make([]fixture.Item, len(albums))
+	for i, a := range albums {
+		items[i] = fixture.Item{Title: a.Title, Subtitle: a.Artist, Art: screens.AlbumArt(a), Source: source(a),
+			Play: func() { play(a) }}
+		if queue != nil {
+			items[i].Queue = func() { queue(a) }
+		}
+	}
+	return fixture.Row{Title: "Random albums", Meta: "New picks each launch", Items: items}, true
 }
 
 // SpotifyRow is Spotify playlists: Liked Songs, then the user's playlists,

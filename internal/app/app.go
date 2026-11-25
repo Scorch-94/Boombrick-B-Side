@@ -264,6 +264,7 @@ type App struct {
 	skipped      atomic.Bool       // and a queued song was dropped, its download failed
 	spotified    atomic.Bool       // the Spotify library has news
 	episodes     []spotify.Episode // podcast episodes in progress, for Continue listening
+	random       *home.RandomPicks // Random albums' picks, made afresh each launch
 	handFailed   atomic.Bool       // handing the music over failed, for poll to say
 	handing      atomic.Bool       // the music is being handed over: input waits
 	volume       atomic.Int32      // a volume level to show, plus one; 0 for none
@@ -848,6 +849,12 @@ func (a *App) showHome(progress []resume.Progress) {
 			Queue: func(ep spotify.Episode) { spotifyscreen.QueueEpisode(a.env, ep) }}
 	}
 	if row, ok := home.ContinueRow(progress, a.ix, a.resumeAlbum, a.queueAlbum, eps); ok {
+		rows = append(rows, row)
+	}
+	if a.random == nil {
+		a.random = home.NewRandomPicks(time.Now().UnixNano())
+	}
+	if row, ok := home.RandomRow(a.random.From(a.ix), a.playAlbum, a.queueAlbum); ok {
 		rows = append(rows, row)
 	}
 	if a.opts.Spotify != nil && a.spotifyOn() {

@@ -696,3 +696,59 @@ func TestRadioRowGolden(t *testing.T) {
 	h.Handle(press(input.Down), t0)
 	uitest.Golden(t, "home-radio-row", render(t, h, t0.Add(anim.Focus)))
 }
+
+// Random albums picks six, keeps them while the app runs, even as the
+// library comes in again, replaces one that's gone, and picks others with
+// another seed, as the next launch has.
+func TestRandomAlbums(t *testing.T) {
+	var albums []library.Album
+	for i := range 20 {
+		albums = append(albums, library.Album{Artist: fmt.Sprintf("Artist %d", i), Title: fmt.Sprintf("Album %02d", i),
+			Tracks: []library.Track{{Path: fmt.Sprintf("/m/%d/1.flac", i)}}})
+	}
+	ix := library.NewIndex(albums)
+	p := NewRandomPicks(1)
+	first := p.From(ix)
+	if len(first) != maxRandom {
+		t.Fatalf("%d picks", len(first))
+	}
+	titles := func(as []*library.Album) []string {
+		var out []string
+		for _, a := range as {
+			out = append(out, a.Title)
+		}
+		return out
+	}
+	if again := p.From(library.NewIndex(albums)); !slices.Equal(titles(again), titles(first)) {
+		t.Fatalf("picks changed as the library came in again: %v, then %v", titles(first), titles(again))
+	}
+	var fewer []library.Album
+	for _, a := range albums {
+		if a.Title != first[2].Title {
+			fewer = append(fewer, a)
+		}
+	}
+	after := p.From(library.NewIndex(fewer))
+	if len(after) != maxRandom || slices.Contains(titles(after), first[2].Title) ||
+		!slices.Equal(titles(after)[:2], titles(first)[:2]) {
+		t.Fatalf("after a removal %v, from %v", titles(after), titles(first))
+	}
+	if other := NewRandomPicks(2).From(ix); slices.Equal(titles(other), titles(first)) {
+		t.Fatal("another launch picked the same albums")
+	}
+	if small := NewRandomPicks(3).From(library.NewIndex(albums[:3])); len(small) != 3 {
+		t.Fatalf("a library of 3 gave %d picks", len(small))
+	}
+	var played string
+	row, ok := RandomRow(first, func(a *library.Album) { played = a.Title }, nil)
+	if !ok || row.Title != "Random albums" || len(row.Items) != maxRandom {
+		t.Fatalf("row %+v", row)
+	}
+	row.Items[0].Play()
+	if played != first[0].Title {
+		t.Fatalf("played %q", played)
+	}
+	if _, ok := RandomRow(nil, nil, nil); ok {
+		t.Fatal("no albums, no row")
+	}
+}
