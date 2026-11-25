@@ -127,8 +127,14 @@ func TestReadPlaylistsCSV(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Fatalf("songs %v, want %v", got, want)
 	}
-	if lists[0].Missing != 1 {
-		t.Fatalf("missing %d, want Moonlit Hollow's", lists[0].Missing)
+	// Moonlit Hollow's isn't in the library, so it streams from Spotify,
+	// last as in the file.
+	pl := lists[0]
+	last := pl.Entries[len(pl.Entries)-1].Stream
+	if pl.Missing != 0 || pl.Streams != 1 || len(pl.Entries) != 8 || last == nil ||
+		*last != (StreamSong{SpotifyID: "2P7MOgeQVeDDN43ji37XmX", Title: "Aquatic Ambience", Artist: "Moonlit Hollow",
+			Album: "Aquatic Ambience", Duration: 147935 * time.Millisecond}) {
+		t.Fatalf("missing %d, streams %d, last entry %+v", pl.Missing, pl.Streams, last)
 	}
 }
 

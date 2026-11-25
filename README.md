@@ -48,7 +48,7 @@ Open Settings from the quick menu (Menu). When a newer release is out, the Boomb
 
 The Downloader card updates yt-dlp, which YouTube Music downloads use, the same way.
 
-A `.csv` playlist, as Exportify, Soundiiz or TuneMyMusic export one, is read by its header row: each song is found by its Spotify track (for songs the Spotify import downloaded), then by title and artist, with the album and length telling versions apart; a title's extras, like `(From "…")` or ` - Piano Version`, are set aside when that leaves only one song. A `Path` column works as an `.m3u` does. Underscores in the file's name become spaces in the playlist's.
+A `.csv` playlist, as Exportify, Soundiiz or TuneMyMusic export one, is read by its header row: each song is found by its Spotify track (for songs the Spotify import downloaded), then by title and artist, with the album and length telling versions apart; a title's extras, like `(From "…")` or ` - Piano Version`, are set aside when that leaves only one song. A `Path` column works as an `.m3u` does. A song you don't have that the file gives a Spotify track for plays from Spotify instead (marked "Spotify" on the playlist's page), so the whole playlist plays as long as Spotify is set up and you're online; without Spotify those songs are skipped. Underscores in the file's name become spaces in the playlist's.
 
 ## Podcasts
 

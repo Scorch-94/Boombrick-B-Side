@@ -14,14 +14,40 @@ import (
 // .csv files are the Library's playlists.
 const PlaylistDir = "Playlists"
 
-// Playlist is an .m3u file's songs that are in the library, in the file's
-// order. Missing counts the lines naming a file the library doesn't have.
+// Playlist is a playlist file's songs, in the file's order. Entries holds
+// every song it can play: the library's, and for a .csv the songs the
+// library doesn't have but Spotify does, which are streamed. Songs is just
+// the library's. Missing counts the entries that are neither, and Streams
+// the Spotify ones.
 type Playlist struct {
 	Name     string // the file's name without its extension
 	Path     string
+	Entries  []PlaylistEntry
 	Songs    []*Track
+	Streams  int
 	Missing  int
-	Duration time.Duration
+	Duration time.Duration // of every entry
+}
+
+// PlaylistEntry is one of a playlist's songs: the library's Song, or a
+// Stream from Spotify.
+type PlaylistEntry struct {
+	Song   *Track
+	Stream *StreamSong
+}
+
+// StreamSong is a playlist song the library doesn't have, to stream from
+// Spotify by its track ID.
+type StreamSong struct {
+	SpotifyID, Title, Artist, Album string
+	Duration                        time.Duration // 0 if not given
+}
+
+// add appends a library song.
+func (pl *Playlist) add(t *Track) {
+	pl.Entries = append(pl.Entries, PlaylistEntry{Song: t})
+	pl.Songs = append(pl.Songs, t)
+	pl.Duration += t.Duration
 }
 
 // ReadPlaylists reads the playlists in music's Playlists folder and matches
@@ -90,12 +116,17 @@ func ReadPlaylists(music string, ix *Index) []*Playlist {
 				} else {
 					t = songs.match(row)
 				}
-				if t == nil {
+				switch {
+				case t != nil:
+					pl.add(t)
+				case row.spotifyID != "" && row.title != "":
+					pl.Entries = append(pl.Entries, PlaylistEntry{Stream: &StreamSong{SpotifyID: row.spotifyID,
+						Title: row.title, Artist: strings.Join(row.artists, ", "), Album: row.album, Duration: row.duration}})
+					pl.Streams++
+					pl.Duration += row.duration
+				default:
 					pl.Missing++
-					continue
 				}
-				pl.Songs = append(pl.Songs, t)
-				pl.Duration += t.Duration
 			}
 			lists = append(lists, pl)
 			continue
@@ -106,8 +137,7 @@ func ReadPlaylists(music string, ix *Index) []*Playlist {
 				pl.Missing++
 				continue
 			}
-			pl.Songs = append(pl.Songs, t)
-			pl.Duration += t.Duration
+			pl.add(t)
 		}
 		lists = append(lists, pl)
 	}

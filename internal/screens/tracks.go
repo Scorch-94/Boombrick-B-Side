@@ -30,6 +30,22 @@ func TrackOf(t *library.Track) player.Track {
 		AlbumGain: t.AlbumGain, AlbumPeak: t.AlbumPeak, HasAlbumGain: t.HasAlbumGain, Duration: t.Duration}
 }
 
+// PlaylistTracks is what plays for a playlist: its library songs from
+// their files and the rest streamed from Spotify, in the playlist's order.
+func PlaylistTracks(pl *library.Playlist) []player.Track {
+	ts := make([]player.Track, len(pl.Entries))
+	for i, e := range pl.Entries {
+		if e.Song != nil {
+			ts[i] = TrackOf(e.Song)
+			continue
+		}
+		s := e.Stream
+		ts[i] = player.Track{SpotifyID: s.SpotifyID, Title: s.Title, Artist: s.Artist, AlbumArtist: s.Artist,
+			Album: s.Album, Duration: s.Duration}
+	}
+	return ts
+}
+
 // Clock formats d as minutes and seconds: 3:42.
 func Clock(d time.Duration) string {
 	s := int(d / time.Second)

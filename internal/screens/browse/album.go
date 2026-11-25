@@ -63,24 +63,33 @@ func NewGenrePage(nav screens.Nav, p Player, g *library.Genre) *AlbumPage {
 }
 
 // NewPlaylistPage opens playlist pl: its songs in the file's order, each
-// with its artist.
+// with its artist, and the ones streamed from Spotify marked so.
 func NewPlaylistPage(nav screens.Nav, p Player, pl *library.Playlist) *AlbumPage {
+	// The songs from Spotify say so in their rows; the line under the art
+	// has room only for what's missing.
 	who := "Playlist"
 	if pl.Missing > 0 {
 		who += " · " + strconv.Itoa(pl.Missing) + " not found"
 	}
-	pg := newPage(nav, p, screens.PlaylistArt(pl), pl.Name, who, screens.SongsAndTime(len(pl.Songs), pl.Duration),
-		songTracks(pl.Songs))
-	for i, s := range pl.Songs {
-		pg.rows[i].Subtitle = s.Artist
+	pg := newPage(nav, p, screens.PlaylistArt(pl), pl.Name, who, screens.SongsAndTime(len(pl.Entries), pl.Duration),
+		screens.PlaylistTracks(pl))
+	for i, e := range pl.Entries {
+		if e.Song != nil {
+			pg.rows[i].Subtitle = e.Song.Artist
+		} else {
+			pg.rows[i].Subtitle = "Spotify · " + e.Stream.Artist
+		}
 	}
 	return pg
 }
 
 // playlistLine is a playlist's songs and time, and how many of its entries
-// aren't in the library.
+// stream from Spotify or aren't found.
 func playlistLine(pl *library.Playlist) string {
-	line := screens.SongsAndTime(len(pl.Songs), pl.Duration)
+	line := screens.SongsAndTime(len(pl.Entries), pl.Duration)
+	if pl.Streams > 0 {
+		line += " · " + strconv.Itoa(pl.Streams) + " Spotify"
+	}
 	if pl.Missing > 0 {
 		line += " · " + strconv.Itoa(pl.Missing) + " not found"
 	}
@@ -146,11 +155,11 @@ func (pg *AlbumPage) Draw(u *ui.Context) {
 	y += u.LineHeight(text.Meta)
 	u.Text(u.Fit(pg.length, text.Meta, albumArt), text.Meta, side, y, theme.Ink3)
 
-	playing := pg.p.State().Track.Path
+	playing := pg.p.State().Track
 	u.PushClip(screens.GlowArea)
 	pg.list.Draw(now, listX, contentTop, func(i int, x, y, k float32) {
 		r := pg.rows[i]
-		r.Playing = pg.tracks[i].Path == playing
+		r.Playing = sameTrack(pg.tracks[i], playing)
 		box := gfx.Rect{X: x, Y: y, W: pg.list.CellW, H: widgets.RowHeight}
 		widgets.RowGlow(u, box, widgets.RowRadius, k)
 		u.PushClip(screens.Below(contentTop))
@@ -169,3 +178,12 @@ var albumHints = []widgets.Hint{{Key: "A", Label: "Play"}, {Key: "Y", Label: "Ad
 	{Key: "L1/R1", Label: "Tabs"}}
 
 func (pg *AlbumPage) hints() []widgets.Hint { return albumHints }
+
+// sameTrack reports whether a and b are the same song: the same file, or
+// with no file the same Spotify track.
+func sameTrack(a, b player.Track) bool {
+	if a.Path != "" || b.Path != "" {
+		return a.Path == b.Path
+	}
+	return a.SpotifyID != "" && a.SpotifyID == b.SpotifyID
+}

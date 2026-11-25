@@ -47,9 +47,22 @@ func (p *fakePlayer) Enqueue(ts []player.Track) { p.queued = append(p.queued, pa
 func paths(ts []player.Track) []string {
 	var paths []string
 	for _, t := range ts {
+		if t.Path == "" && t.SpotifyID != "" {
+			paths = append(paths, "spotify:"+t.SpotifyID)
+			continue
+		}
 		paths = append(paths, t.Path)
 	}
 	return paths
+}
+
+// localPlaylist is a playlist of library songs.
+func localPlaylist(pl library.Playlist, songs ...*library.Track) *library.Playlist {
+	for _, s := range songs {
+		pl.Entries = append(pl.Entries, library.PlaylistEntry{Song: s})
+		pl.Songs = append(pl.Songs, s)
+	}
+	return &pl
 }
 
 // fakeNav records pushes and toasts.
@@ -383,11 +396,12 @@ func playlistIndex() *library.Index {
 	for _, t := range ix.Songs {
 		byTitle[t.Title] = t
 	}
-	ix.Playlists = []*library.Playlist{
-		{Name: "Late Drive", Path: "/m/Playlists/Late Drive.m3u", Missing: 2, Duration: 467 * time.Second,
-			Songs: []*library.Track{byTitle["Neon"], byTitle["Rust"]}},
-		{Name: "Morning", Path: "/m/Playlists/Morning.m3u", Songs: []*library.Track{byTitle["Salt"]}},
-	}
+	late := localPlaylist(library.Playlist{Name: "Late Drive", Path: "/m/Playlists/Late Drive.csv", Missing: 2,
+		Streams: 1, Duration: 467*time.Second + 3*time.Minute}, byTitle["Neon"], byTitle["Rust"])
+	late.Entries = append(late.Entries, library.PlaylistEntry{Stream: &library.StreamSong{SpotifyID: "2P7MOgeQ",
+		Title: "Aquatic Ambience", Artist: "Moonlit Hollow", Album: "Aquatic Ambience", Duration: 3 * time.Minute}})
+	ix.Playlists = []*library.Playlist{late,
+		localPlaylist(library.Playlist{Name: "Morning", Path: "/m/Playlists/Morning.m3u"}, byTitle["Salt"])}
 	return ix
 }
 
@@ -403,16 +417,17 @@ func TestLibraryPlaylists(t *testing.T) {
 	if l.filter != playlistsFilter {
 		t.Fatalf("filter %d after three R2, want Playlists", l.filter)
 	}
-	if r := l.row(0); r.subtitle != "2 songs · 7 min · 2 not found" {
+	if r := l.row(0); r.subtitle != "3 songs · 10 min · 1 Spotify · 2 not found" {
 		t.Fatalf("the first row says %q", r.subtitle)
 	}
 	l.Handle(press(input.Y), t0)
-	if len(p.queued) != 1 || !slices.Equal(p.queued[0], []string{"/m/a/1.flac", "/m/Copper Season/Rust.flac"}) {
+	if len(p.queued) != 1 || !slices.Equal(p.queued[0], []string{"/m/a/1.flac", "/m/Copper Season/Rust.flac", "spotify:2P7MOgeQ"}) {
 		t.Fatalf("Y queued %q", p.queued)
 	}
 	l.Handle(press(input.A), t0)
 	pg, ok := nav.pushed[0].(*AlbumPage)
-	if !ok || pg.title != "Late Drive" || pg.who != "Playlist · 2 not found" || pg.rows[0].Title != "Neon" || pg.rows[0].Subtitle != "Kenji Arata" {
+	if !ok || pg.title != "Late Drive" || pg.who != "Playlist · 2 not found" || pg.rows[0].Title != "Neon" || pg.rows[0].Subtitle != "Kenji Arata" ||
+		pg.rows[2].Subtitle != "Spotify · Moonlit Hollow" {
 		t.Fatalf("A opened %+v", nav.pushed[0])
 	}
 	pg.Handle(press(input.A), t0) // Play

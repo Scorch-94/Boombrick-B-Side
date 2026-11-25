@@ -279,7 +279,7 @@ func (l *Library) tracksAt(i int) []player.Track {
 	case artistsFilter:
 		return artistTracks(l.ix.Artists[i])
 	case playlistsFilter:
-		return songTracks(l.ix.Playlists[i].Songs)
+		return screens.PlaylistTracks(l.ix.Playlists[i])
 	case genresFilter:
 		return songTracks(l.ix.Genres[i].Songs)
 	}
