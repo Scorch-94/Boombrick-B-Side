@@ -123,13 +123,17 @@ func Art(u *ui.Context, spec ArtSpec, size int, radius float64, box gfx.Rect) {
 // pixels the style gives it.
 func artGlyph(u *ui.Context, glyph string, size int) (*image.NRGBA, int, int) {
 	s := float64(size)
-	if glyph == "♥" || glyph == "⇄" {
-		hs := int(0.45 * s)
-		name, stroke, filled := "heart", 0.0, true
-		if glyph == "⇄" {
-			name, stroke, filled = "shuffle", 6, false
+	if glyph == "⇄" { // large and centred: the card is the shuffle button
+		hs := int(0.6 * s)
+		img, err := icons.Rasterize("shufflebold", hs, 0.065*float64(hs), false) // as 1.6 of the icon's 24
+		if err != nil {
+			return nil, 0, 0
 		}
-		img, err := icons.Rasterize(name, hs, stroke, filled)
+		return img, (size - hs) / 2, (size - hs) / 2
+	}
+	if glyph == "♥" {
+		hs := int(0.45 * s)
+		img, err := icons.Rasterize("heart", hs, 0, true)
 		if err != nil {
 			return nil, 0, 0
 		}
