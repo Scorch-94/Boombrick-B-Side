@@ -24,6 +24,8 @@ type Spotify interface {
 	// InProgress is Continue listening's episodes, for Home, without
 	// starting the helper.
 	InProgress() ([]spotify.Episode, bool)
+	// FollowedShows is Home's podcasts, without starting the helper.
+	FollowedShows() ([]spotify.Show, bool)
 	Logout()
 	Ready() <-chan struct{}
 }
@@ -95,8 +97,9 @@ func (a *App) signIn() {
 func (a *App) spotifyNews() {
 	pls, _ := a.opts.Spotify.Saved()
 	eps, _ := a.opts.Spotify.InProgress()
-	if !slices.Equal(pls, a.playlists) || !slices.Equal(eps, a.episodes) {
-		a.playlists, a.episodes = pls, eps
+	shows, _ := a.opts.Spotify.FollowedShows()
+	if !slices.Equal(pls, a.playlists) || !slices.Equal(eps, a.episodes) || !slices.Equal(shows, a.shows) {
+		a.playlists, a.episodes, a.shows = pls, eps, shows
 		a.showHome(a.progress)
 	}
 	if st, _ := a.opts.Spotify.Status(); st.State == spotify.Ready {

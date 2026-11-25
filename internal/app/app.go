@@ -9,6 +9,7 @@ import (
 	"image/color"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -264,6 +265,7 @@ type App struct {
 	skipped      atomic.Bool       // and a queued song was dropped, its download failed
 	spotified    atomic.Bool       // the Spotify library has news
 	episodes     []spotify.Episode // podcast episodes in progress, for Continue listening
+	shows        []spotify.Show    // the podcasts followed, for Home's Podcasts
 	random       *home.RandomPicks // Random albums' picks, made afresh each launch
 	handFailed   atomic.Bool       // handing the music over failed, for poll to say
 	handing      atomic.Bool       // the music is being handed over: input waits
@@ -442,6 +444,7 @@ func New(opts Options) (*App, error) {
 		a.forward(opts.Spotify.Ready(), &a.spotified)
 		opts.Spotify.Saved()      // reads the playlists kept, for Home, without starting the helper
 		opts.Spotify.InProgress() // and the podcast episodes in progress
+		opts.Spotify.FollowedShows()
 	}
 	if opts.Radio != nil {
 		a.forward(opts.Radio.Ready(), &a.redraw)
@@ -513,6 +516,7 @@ func (a *App) quickMenu() *quickmenu.Menu {
 			o.Copies = a.env.Import != nil
 		}
 		o.Integrations, o.Switched = a.integrations(), a.switched
+		o.HomeSections, o.HomeSwitched = a.homeSections(), func() { a.showHome(a.progress) }
 		at := a.shell.add(overlay{button: input.None, screen: settingsscreen.New(o)})
 		act.OpenSettings = func() { a.shell.openOverlay(at, time.Now()) }
 	}
@@ -842,22 +846,32 @@ func (a *App) showHome(progress []resume.Progress) {
 		return
 	}
 	var rows []fixture.Row
-	var eps home.Episodes
-	if a.opts.Spotify != nil && a.spotifyOn() && a.env != nil {
-		eps = home.Episodes{List: a.episodes,
-			Play:  func(ep spotify.Episode) { spotifyscreen.PlayEpisode(a.env, ep) },
-			Queue: func(ep spotify.Episode) { spotifyscreen.QueueEpisode(a.env, ep) }}
-	}
-	if row, ok := home.ContinueRow(progress, a.ix, a.resumeAlbum, a.queueAlbum, eps); ok {
-		rows = append(rows, row)
+	sp := a.opts.Spotify != nil && a.spotifyOn()
+	if a.homeShows(keys.HomeContinue) {
+		var eps home.Episodes
+		if sp && a.env != nil && a.homeShows(keys.HomeEpisodes) {
+			eps = home.Episodes{List: a.episodes,
+				Play:  func(ep spotify.Episode) { spotifyscreen.PlayEpisode(a.env, ep) },
+				Queue: func(ep spotify.Episode) { spotifyscreen.QueueEpisode(a.env, ep) }}
+		}
+		if row, ok := home.ContinueRow(progress, a.ix, a.resumeAlbum, a.queueAlbum, eps); ok {
+			rows = append(rows, row)
+		}
 	}
 	if a.random == nil {
 		a.random = home.NewRandomPicks(time.Now().UnixNano())
 	}
-	if row, ok := home.RandomRow(a.random.From(a.ix), a.playAlbum, a.queueAlbum); ok {
-		rows = append(rows, row)
+	if a.homeShows(keys.HomeRandom) {
+		if row, ok := home.RandomRow(a.random.From(a.ix), a.playAlbum, a.queueAlbum); ok {
+			rows = append(rows, row)
+		}
 	}
-	if a.opts.Spotify != nil && a.spotifyOn() {
+	if a.homeShows(keys.HomePlaylists) {
+		if row, ok := home.PlaylistsRow(a.ix.Playlists, a.openLocalPlaylist, a.queuePlaylist); ok {
+			rows = append(rows, row)
+		}
+	}
+	if sp && a.homeShows(keys.HomeSpotify) {
 		var imp func(spotify.Playlist)
 		if a.env.Import != nil && a.youtubeOn() {
 			imp = a.importPlaylist
@@ -866,7 +880,12 @@ func (a *App) showHome(progress []resume.Progress) {
 			rows = append(rows, row)
 		}
 	}
-	if a.radioOn() && a.opts.Stations != nil && a.opts.Player != nil {
+	if sp && a.env != nil && a.homeShows(keys.HomePodcasts) {
+		if row, ok := home.PodcastsRow(a.shows, a.openShow); ok {
+			rows = append(rows, row)
+		}
+	}
+	if a.radioOn() && a.homeShows(keys.HomeRadio) && a.opts.Stations != nil && a.opts.Player != nil {
 		saved := a.opts.Stations.List()
 		tracks := make([]player.Track, len(saved))
 		for i, st := range saved {
@@ -881,11 +900,57 @@ func (a *App) showHome(progress []resume.Progress) {
 			rows = append(rows, row)
 		}
 	}
-	if row, ok := home.AlbumRow(a.ix.Recent, a.playAlbum, a.queueAlbum); ok {
-		rows = append(rows, row)
+	if a.homeShows(keys.HomeRecent) {
+		if row, ok := home.AlbumRow(a.ix.Recent, a.playAlbum, a.queueAlbum); ok {
+			rows = append(rows, row)
+		}
 	}
+	a.home.SetAllOff(!slices.ContainsFunc(a.homeSections(), func(in settingsscreen.Integration) bool {
+		return a.homeShows(in.Key)
+	}))
 	a.home.SetRows(rows)
 }
+
+// homeShows is whether Home's section key is switched on.
+func (a *App) homeShows(key string) bool { return a.opts.Prefs == nil || a.opts.Prefs.Bool(key) }
+
+// homeSections are the Home sections page's switches: the sections that
+// can show, Spotify's with Spotify and Radio with radio.
+func (a *App) homeSections() []settingsscreen.Integration {
+	ins := []settingsscreen.Integration{
+		{Key: keys.HomeContinue, Name: "Continue listening", Icon: "play", About: "Albums you stopped part way through"},
+	}
+	if a.opts.Spotify != nil {
+		ins = append(ins, settingsscreen.Integration{Key: keys.HomeEpisodes, Name: "Podcast episodes in Continue listening",
+			Icon: "back30", About: "Spotify episodes you've started"})
+	}
+	ins = append(ins,
+		settingsscreen.Integration{Key: keys.HomeRandom, Name: "Random albums", Icon: "shuffle", About: "Six albums, new each launch"},
+		settingsscreen.Integration{Key: keys.HomePlaylists, Name: "Playlists", Icon: "music", About: "Your .m3u and .csv playlists"})
+	if a.opts.Spotify != nil {
+		ins = append(ins,
+			settingsscreen.Integration{Key: keys.HomeSpotify, Name: "Spotify playlists", Icon: "stream", About: "Liked Songs and your playlists"},
+			settingsscreen.Integration{Key: keys.HomePodcasts, Name: "Podcasts", Icon: "headphones", About: "Shows you follow on Spotify"})
+	}
+	if a.opts.Radio != nil {
+		ins = append(ins, settingsscreen.Integration{Key: keys.HomeRadio, Name: "Radio", Icon: "radio", About: "Your saved stations"})
+	}
+	return append(ins, settingsscreen.Integration{Key: keys.HomeRecent, Name: "Recently added", Icon: "download",
+		About: "The newest albums in your library"})
+}
+
+// openLocalPlaylist opens a Library playlist's page from Home.
+func (a *App) openLocalPlaylist(pl *library.Playlist) {
+	a.Push(browse.NewPlaylistPage(a, a.player, pl))
+}
+
+func (a *App) queuePlaylist(pl *library.Playlist) {
+	a.opts.Player.Enqueue(screens.PlaylistTracks(pl))
+	a.Toast(screens.AddedToQueue)
+}
+
+// openShow opens a followed podcast's episodes from Home.
+func (a *App) openShow(s spotify.Show) { a.Push(spotifyscreen.NewShowPage(a.env, s)) }
 
 func (a *App) playAlbum(al *library.Album) { playAlbum(a.player, al, 0, 0) }
 

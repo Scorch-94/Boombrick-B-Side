@@ -340,3 +340,55 @@ func TestHomeFollowsSavedStations(t *testing.T) {
 		t.Fatalf("rows %v after removing it", got)
 	}
 }
+
+// Home shows the Library's playlists and the podcasts followed, and each
+// section goes when its switch in Settings is off. With every one off, Home
+// says so rather than that the library is empty.
+func TestHomeSections(t *testing.T) {
+	a, _ := homeApp(t, switchPrefs{})
+	a.opts.Spotify = fakeSpotify{}
+	a.env = &spotifyscreen.Env{}
+	a.playlists = []spotify.Playlist{{URI: "spotify:playlist:p1", Name: "Road trip", Count: 3}}
+	a.shows = []spotify.Show{{URI: "spotify:show:s1", Name: "Night Shift", Publisher: "Low Tide"}}
+	song := &library.Track{Path: "/m/a/1.flac", Title: "Neon"}
+	a.ix.Playlists = []*library.Playlist{{Name: "Late Drive", Entries: []library.PlaylistEntry{{Song: song}},
+		Songs: []*library.Track{song}}}
+	a.showHome(nil)
+	want := []string{"Playlists", "Spotify playlists", "Podcasts", "Recently added"}
+	if got := a.home.RowTitles(); !slices.Equal(got, want) {
+		t.Fatalf("rows %v, want %v", got, want)
+	}
+	a.opts.Prefs.SetBool(keys.HomePlaylists, false)
+	a.opts.Prefs.SetBool(keys.HomePodcasts, false)
+	a.showHome(nil)
+	if got := a.home.RowTitles(); !slices.Equal(got, []string{"Spotify playlists", "Recently added"}) {
+		t.Fatalf("rows %v with Playlists and Podcasts off", got)
+	}
+	for _, in := range a.homeSections() {
+		a.opts.Prefs.SetBool(in.Key, false)
+	}
+	a.showHome(nil)
+	if got := a.home.RowTitles(); len(got) != 0 {
+		t.Fatalf("rows %v with every section off", got)
+	}
+}
+
+// The Home sections page lists Spotify's sections only with Spotify, and
+// Radio's only with radio.
+func TestHomeSectionsList(t *testing.T) {
+	names := func(a *App) []string {
+		var out []string
+		for _, in := range a.homeSections() {
+			out = append(out, in.Name)
+		}
+		return out
+	}
+	bare := &App{}
+	if got := names(bare); !slices.Equal(got, []string{"Continue listening", "Random albums", "Playlists", "Recently added"}) {
+		t.Fatalf("without Spotify or radio: %v", got)
+	}
+	all := &App{opts: Options{Spotify: fakeSpotify{}, Radio: &radio.Directory{}}}
+	if got := names(all); len(got) != 8 || got[1] != "Podcast episodes in Continue listening" || got[6] != "Radio" {
+		t.Fatalf("with both: %v", got)
+	}
+}

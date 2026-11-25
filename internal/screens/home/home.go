@@ -48,6 +48,7 @@ type Home struct {
 	tops     []float64    // each row's heading, from the top of the content
 	set      bool         // rows have been given, even if there are none
 	reading  bool         // the first scan is running with nothing indexed yet
+	off      bool         // every section is switched off in Settings
 	musicDir string       // shown on the empty state
 	rescan   func()
 	state    widgets.Wrapped              // the empty or reading state's description, wrapped
@@ -71,6 +72,10 @@ func New(rows []fixture.Row) *Home {
 
 // SetEmpty sets what the empty state shows and what Y does there.
 func (h *Home) SetEmpty(musicDir string, rescan func()) { h.musicDir, h.rescan = musicDir, rescan }
+
+// SetAllOff says every section is switched off in Settings, so with no rows
+// the screen says so, rather than that the library is empty.
+func (h *Home) SetAllOff(off bool) { h.off = off }
 
 // SetReading says the first scan is running and nothing is indexed yet;
 // until SetRows the screen says the music is being read.
@@ -335,6 +340,55 @@ func SpotifyRow(pls []spotify.Playlist, open, imp func(spotify.Playlist)) (fixtu
 	return fixture.Row{Title: "Spotify playlists", Meta: meta, Cards: true, Spotify: true, Items: items}, true
 }
 
+// PlaylistsRow is Playlists: the playlist files in the Library, in its
+// order. A card opens the playlist's page with open, and Y queues it. It
+// reports false with no playlists.
+func PlaylistsRow(pls []*library.Playlist, open func(*library.Playlist), queue func(*library.Playlist)) (fixture.Row, bool) {
+	if len(pls) == 0 {
+		return fixture.Row{}, false
+	}
+	items := make([]fixture.Item, len(pls))
+	for i, pl := range pls {
+		n := len(pl.Entries)
+		sub := screens.Count(n) + " songs"
+		if n == 1 {
+			sub = "1 song"
+		}
+		items[i] = fixture.Item{Title: pl.Name, Subtitle: sub, Art: screens.PlaylistArt(pl), Play: func() { open(pl) }}
+		if queue != nil && n > 0 {
+			items[i].Queue = func() { queue(pl) }
+		}
+	}
+	meta := fmt.Sprintf("%d playlists", len(pls))
+	if len(pls) == 1 {
+		meta = "1 playlist"
+	}
+	return fixture.Row{Title: "Playlists", Meta: meta, Cards: true, Open: true, Items: items}, true
+}
+
+// PodcastsRow is Podcasts: the shows followed on Spotify, as kept from the
+// last time they were asked for. A card opens the show's episodes with open.
+// It reports false with none, as when signed out.
+func PodcastsRow(shows []spotify.Show, open func(spotify.Show)) (fixture.Row, bool) {
+	if len(shows) == 0 {
+		return fixture.Row{}, false
+	}
+	items := make([]fixture.Item, len(shows))
+	for i, s := range shows {
+		art := widgets.SpecFor(s.Name)
+		if s.Cover != "" {
+			art.Cover = media.Cover{URL: s.Cover}
+		}
+		items[i] = fixture.Item{Title: s.Name, Subtitle: s.Publisher, Art: art, Source: media.Spotify,
+			Play: func() { open(s) }}
+	}
+	meta := fmt.Sprintf("%d shows", len(shows))
+	if len(shows) == 1 {
+		meta = "1 show"
+	}
+	return fixture.Row{Title: "Podcasts", Meta: meta, Cards: true, Spotify: true, Items: items}, true
+}
+
 // RadioRow is the saved stations, the latest saved first; play starts the
 // one at index i with the row as the queue. A card only plays, so X and Y do
 // nothing on it. It reports false when no station is saved.
@@ -443,7 +497,7 @@ func (h *Home) Handle(ev input.Event, now time.Time) bool {
 		return false
 	}
 	if len(h.rows) == 0 {
-		if ev.Button == input.Y && ev.Kind == input.Press && h.set && h.rescan != nil {
+		if ev.Button == input.Y && ev.Kind == input.Press && h.set && !h.off && h.rescan != nil {
 			h.rescan()
 			return true
 		}
@@ -568,6 +622,10 @@ func (h *Home) Draw(u *ui.Context) {
 // first scan is reading the music, then the empty-library state.
 func (h *Home) drawEmpty(u *ui.Context) {
 	switch {
+	case h.set && h.off:
+		widgets.DrawBackground(u, widgets.StateGround)
+		widgets.EmptyState(u, &h.state, "Nothing on Home",
+			"Every section is switched off. Turn some on in Settings, under Home sections.", "")
 	case h.set:
 		widgets.DrawBackground(u, widgets.StateGround)
 		widgets.EmptyState(u, &h.state, "Your library is empty", screens.EmptyLibraryText(), h.musicDir)
@@ -618,7 +676,7 @@ type itemHints struct{ open, imp, queue bool }
 
 func (h *Home) hints() []widgets.Hint {
 	if len(h.rows) == 0 {
-		if h.set {
+		if h.set && !h.off {
 			return rescanHints
 		}
 		return tabHints
@@ -631,7 +689,7 @@ func (h *Home) hints() []widgets.Hint {
 		}
 		return sampleHints
 	}
-	k := itemHints{open: r.Spotify, imp: it.Import != nil, queue: it.Queue != nil}
+	k := itemHints{open: r.Spotify || r.Open, imp: it.Import != nil, queue: it.Queue != nil}
 	if hints, ok := h.hintBars[k]; ok {
 		return hints
 	}

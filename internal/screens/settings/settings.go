@@ -75,6 +75,11 @@ type Options struct {
 	// its rows and cards with it.
 	Integrations []Integration
 	Switched     func(key string, on bool)
+	// HomeSections are the switches the Home sections page lists, in order;
+	// with none there is no Home sections row. HomeSwitched hears of each
+	// flip, after Prefs has it.
+	HomeSections []Integration
+	HomeSwitched func()
 }
 
 // What focus moves between, top to bottom: the rows, then the cards' pills.
@@ -88,6 +93,7 @@ const (
 	rowLevelling
 	rowAlbums
 	rowClock
+	rowHome
 	rowCount
 	pillTool    = rowCount     // the Downloader card's pill
 	pillApp     = rowCount + 1 // the Boombrick card's
@@ -195,6 +201,7 @@ func New(opts Options) *Screen {
 		rowLevelling:    {Icon: "sliders", Label: "Volume levelling"},
 		rowAlbums:       {Icon: "music", Label: "Album view"},
 		rowClock:        {Icon: "clock", Label: "Clock"},
+		rowHome:         {Icon: "grip", Label: "Home sections", Chevron: true},
 	}
 	for _, m := range player.SleepModes {
 		s.sleeps = append(s.sleeps, choice{label: screens.SleepLabel(m)})
@@ -252,7 +259,8 @@ func (s *Screen) readPrefs() {
 	for _, in := range s.opts.Integrations {
 		s.switches[in.Key] = s.opts.Prefs.Bool(in.Key)
 	}
-	s.rows[rowIntegrations].Value = s.switchedOn()
+	s.rows[rowIntegrations].Value = s.switchedOn(s.opts.Integrations)
+	s.rows[rowHome].Value = s.switchedOn(s.opts.HomeSections)
 }
 
 // shown reports whether an item is shown: Integrations with integrations to
@@ -262,6 +270,8 @@ func (s *Screen) shown(item int) bool {
 	switch item {
 	case rowIntegrations:
 		return len(s.opts.Integrations) > 0
+	case rowHome:
+		return len(s.opts.HomeSections) > 0
 	case rowStream:
 		return s.opts.Spotify != nil && s.on(keys.SpotifyOn)
 	case rowPrefer:
@@ -351,6 +361,8 @@ func (s *Screen) act(now time.Time) bool {
 		}
 	case rowIntegrations:
 		s.integrations = newIntegrationsPage(s)
+	case rowHome:
+		s.integrations = newHomePage(s)
 	case rowStorage:
 		s.storage = newStoragePage(s.opts.Space, now)
 	case rowLevelling:
@@ -797,7 +809,7 @@ func (s *Screen) hint() []widgets.Hint {
 	switch {
 	case k.open:
 		h = []widgets.Hint{{Key: "◀ ▶", Label: "Choose"}, {Key: "A", Label: "Done"}}
-	case k.item == rowStorage, k.item == rowIntegrations:
+	case k.item == rowStorage, k.item == rowIntegrations, k.item == rowHome:
 		h = []widgets.Hint{{Key: "A", Label: "Open"}, {Key: "B", Label: "Back"}}
 	case k.item == rowLevelling, k.item == rowPrefer:
 		h = []widgets.Hint{{Key: "A", Label: "Switch"}, {Key: "B", Label: "Back"}}

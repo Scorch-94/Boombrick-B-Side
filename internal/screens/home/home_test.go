@@ -752,3 +752,59 @@ func TestRandomAlbums(t *testing.T) {
 		t.Fatal("no albums, no row")
 	}
 }
+
+// Playlists opens a playlist's page with A and queues it with Y; Podcasts
+// opens a show. Both say Open.
+func TestPlaylistsAndPodcastsRows(t *testing.T) {
+	song := &library.Track{Path: "/m/a/1.flac", Title: "Neon", Album: "Neon"}
+	pls := []*library.Playlist{
+		{Name: "Late Drive", Entries: []library.PlaylistEntry{{Song: song}, {Stream: &library.StreamSong{SpotifyID: "x"}}},
+			Songs: []*library.Track{song}},
+		{Name: "Empty"},
+	}
+	var opened, queued, shown []string
+	row, ok := PlaylistsRow(pls, func(p *library.Playlist) { opened = append(opened, p.Name) },
+		func(p *library.Playlist) { queued = append(queued, p.Name) })
+	if !ok || row.Title != "Playlists" || row.Meta != "2 playlists" || row.Items[0].Subtitle != "2 songs" ||
+		row.Items[1].Queue != nil {
+		t.Fatalf("row %+v", row)
+	}
+	shows := []spotify.Show{{URI: "spotify:show:a", Name: "Night Shift", Publisher: "Low Tide"}}
+	pod, ok := PodcastsRow(shows, func(s spotify.Show) { shown = append(shown, s.Name) })
+	if !ok || pod.Meta != "1 show" || pod.Items[0].Subtitle != "Low Tide" {
+		t.Fatalf("podcasts %+v", pod)
+	}
+	if _, ok := PodcastsRow(nil, nil); ok {
+		t.Fatal("a Podcasts row with no shows")
+	}
+	h := New(nil)
+	h.SetRows([]fixture.Row{row, pod})
+	if hs := h.hints(); hs[0].Label != "Open" || hs[1].Key != "Y" {
+		t.Fatalf("hints %v on a playlist", hs)
+	}
+	h.Handle(press(input.A), t0)
+	h.Handle(press(input.Y), t0)
+	h.Handle(press(input.Down), t0)
+	h.Handle(press(input.A), t0)
+	if !slices.Equal(opened, []string{"Late Drive"}) || !slices.Equal(queued, []string{"Late Drive"}) ||
+		!slices.Equal(shown, []string{"Night Shift"}) {
+		t.Fatalf("opened %v, queued %v, shows %v", opened, queued, shown)
+	}
+}
+
+// With every section switched off, Home says so, and Y doesn't rescan.
+func TestAllSectionsOff(t *testing.T) {
+	h := New(nil)
+	rescans := 0
+	h.SetEmpty("/mnt/SDCARD/Music", func() { rescans++ })
+	h.SetAllOff(true)
+	h.SetRows(nil)
+	if hs := h.hints(); !slices.Equal(hs, tabHints) {
+		t.Fatalf("hints %v", hs)
+	}
+	h.Handle(press(input.Y), t0)
+	if rescans != 0 {
+		t.Fatal("Y rescanned")
+	}
+	uitest.Golden(t, "home-all-off", render(t, h, t0))
+}

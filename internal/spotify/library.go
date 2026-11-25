@@ -225,6 +225,27 @@ func (l *Library) InProgress() ([]Episode, bool) {
 	return es, e.have
 }
 
+// FollowedShows is the podcasts followed, for Home, without starting the
+// helper: asked for while it runs, and read from the store until then.
+func (l *Library) FollowedShows() ([]Show, bool) {
+	l.mu.Lock()
+	running := l.status.State == Ready
+	l.mu.Unlock()
+	if running {
+		ss, have, _ := l.Shows()
+		return ss, have
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	e := l.entry(showsKey)
+	if !e.read && !e.busy {
+		e.busy = true
+		l.wg.Go(func() { l.fill(showsKey, e, nil) })
+	}
+	ss, _ := e.body.([]Show)
+	return ss, e.have
+}
+
 // freshFor is how long key's list is shown before it is asked for again.
 func freshFor(key string) time.Duration {
 	if key == episodesKey+ContinueURI {

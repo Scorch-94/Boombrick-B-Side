@@ -4,6 +4,8 @@ All notable changes to Boombrick. Versions match the release tags.
 
 ## [v0.7.4]
 
+- Settings: Home sections switches each of Home's rows on or off: Continue listening (and, separately, the podcast episodes in it), Random albums, Playlists, Spotify playlists, Podcasts, Radio and Recently added. All are on at first. With every one off, Home says where to turn them back on.
+- Home: a Playlists row shows the Library's playlists; A opens one, Y queues it. A Podcasts row shows the shows you follow on Spotify; A opens a show's episodes.
 - Playlists: `.csv` files in Music/Playlists are playlists too, as Exportify, Soundiiz or TuneMyMusic export them. Songs are matched by the Spotify track the import downloaded, then by title and artist, with album and length to tell versions apart. Songs not in the library play from Spotify, in their place in the playlist, when the file gives their Spotify track (as Exportify's do) and Spotify is set up and online; the rest count as not found.
 - Home: Random albums, under Continue listening, shows six albums from your library picked at random each time the app opens. They stay the same while it runs; one gone in a rescan is replaced. A plays an album, Y queues it.
 - Home: Continue listening includes the Spotify podcast episodes you have started, on any device, beside your albums, the most recently played first, up to six in all. A carries on where you left off.

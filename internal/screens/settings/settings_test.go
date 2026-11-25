@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"github.com/ujjwal313/boombrick/internal/version"
 	"image"
 	"testing"
 	"time"
@@ -119,7 +120,7 @@ func TestTheScreen(t *testing.T) {
 			t.Errorf("row %d says %q, want %q", row, got, v)
 		}
 	}
-	if e.s.footer != "Boombrick 0.4.0 · TrimUI Brick · SD card 59.5 GB" {
+	if e.s.footer != version.Name+" 0.4.0 · TrimUI Brick · SD card 59.5 GB" {
 		t.Errorf("footer %q", e.s.footer)
 	}
 }

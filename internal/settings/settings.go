@@ -22,6 +22,16 @@ const (
 	AlbumView = "library.album_view"
 	// Clock is the status bar clock's format: Clock24 or Clock12.
 	Clock = "display.clock"
+	// Home's sections, each shown or not, and whether Continue listening
+	// includes podcast episodes.
+	HomeContinue  = "home.continue"
+	HomeEpisodes  = "home.continue_episodes"
+	HomeRandom    = "home.random"
+	HomePlaylists = "home.playlists"
+	HomeSpotify   = "home.spotify"
+	HomePodcasts  = "home.podcasts"
+	HomeRadio     = "home.radio"
+	HomeRecent    = "home.recent"
 	// The integrations' switches: an integration switched off is hidden and
 	// does no work, but keeps its data.
 	SpotifyOn = "integrations.spotify"
@@ -53,6 +63,14 @@ var Defaults = map[string]string{
 	SpotifyOn:        "true",
 	YouTubeOn:        "true",
 	RadioOn:          "true",
+	HomeContinue:     "true",
+	HomeEpisodes:     "true",
+	HomeRandom:       "true",
+	HomePlaylists:    "true",
+	HomeSpotify:      "true",
+	HomePodcasts:     "true",
+	HomeRadio:        "true",
+	HomeRecent:       "true",
 }
 
 // Settings keeps the table in memory and writes changes behind the caller.

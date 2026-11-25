@@ -33,6 +33,7 @@ type Row struct {
 	Cards       bool // 200 px cards with captions; otherwise 166 px tiles
 	Continue    bool // cards carry a source badge and a progress strip
 	Spotify     bool // A opens and X imports, instead of play and download
+	Open        bool // A opens a page, as a playlist's, rather than playing
 }
 
 // Status is the status bar of the design frames.
