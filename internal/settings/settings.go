@@ -17,11 +17,21 @@ const (
 	DownloadQuality  = "downloads.quality"
 	PreferDownloaded = "playback.prefer_downloaded"
 	VolumeLevelling  = "playback.volume_levelling"
+	// AlbumView is how the Library shows albums: AlbumGrid, AlbumLarge or
+	// AlbumList.
+	AlbumView = "library.album_view"
 	// The integrations' switches: an integration switched off is hidden and
 	// does no work, but keeps its data.
 	SpotifyOn = "integrations.spotify"
 	YouTubeOn = "integrations.youtube"
 	RadioOn   = "integrations.radio"
+)
+
+// The Library's album views.
+const (
+	AlbumGrid  = "grid"  // four by two, small covers
+	AlbumLarge = "large" // three across, big covers: the original
+	AlbumList  = "list"  // rows, as the songs and artists show
 )
 
 // Defaults holds the value used for a key that has never been set.
@@ -30,6 +40,7 @@ var Defaults = map[string]string{
 	DownloadQuality:  "best",
 	PreferDownloaded: "true",
 	VolumeLevelling:  "true",
+	AlbumView:        AlbumGrid,
 	SpotifyOn:        "true",
 	YouTubeOn:        "true",
 	RadioOn:          "true",

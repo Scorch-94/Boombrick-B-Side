@@ -178,8 +178,41 @@ func TestVolumeLevelling(t *testing.T) {
 	if e.prefs.Bool(keys.VolumeLevelling) || len(e.p.levelling) != 1 || e.p.levelling[0] {
 		t.Fatalf("A on Volume levelling: setting %v, player told %v", e.prefs.Bool(keys.VolumeLevelling), e.p.levelling)
 	}
+	if !e.s.Handle(press(input.Down), t0) || e.s.focus != rowAlbums {
+		t.Fatalf("Down from Volume levelling went to %d, want Album view", e.s.focus)
+	}
 	if e.s.Handle(press(input.Down), t0) {
 		t.Fatal("Down past the last row moved")
+	}
+}
+
+// Album view expands into its three options; Left and Right choose, at
+// once, and the row says which.
+func TestAlbumView(t *testing.T) {
+	e := newEnv(true)
+	for e.s.focus != rowAlbums {
+		e.s.Handle(press(input.Down), t0)
+	}
+	if got := e.s.rows[rowAlbums].Value; got != "4 × 2 grid" {
+		t.Fatalf("Album view says %q at first", got)
+	}
+	e.s.Handle(press(input.A), t0)
+	if e.s.open != rowAlbums {
+		t.Fatal("A should expand Album view")
+	}
+	for _, want := range []string{keys.AlbumLarge, keys.AlbumList} {
+		e.s.Handle(press(input.Right), t0)
+		if got := e.prefs.String(keys.AlbumView); got != want {
+			t.Fatalf("Right chose %q, want %q", got, want)
+		}
+	}
+	if e.s.Handle(press(input.Right), t0) || e.s.rows[rowAlbums].Value != "List" {
+		t.Fatalf("Right past List; the row says %q", e.s.rows[rowAlbums].Value)
+	}
+	e.s.Handle(press(input.Left), t0)
+	e.s.Handle(press(input.Left), t0)
+	if got := e.prefs.String(keys.AlbumView); got != keys.AlbumGrid {
+		t.Fatalf("back to %q, want the grid", got)
 	}
 }
 
@@ -370,11 +403,11 @@ func TestCards(t *testing.T) {
 			t.Errorf("%q, want %q", w.got, w.want)
 		}
 	}
-	for range 4 {
+	for range 5 {
 		e.s.Handle(press(input.Down), t0)
 	}
 	if e.s.focus != pillTool {
-		t.Fatalf("four Downs went to %d, want the Downloader card's pill", e.s.focus)
+		t.Fatalf("five Downs went to %d, want the Downloader card's pill", e.s.focus)
 	}
 	e.s.Handle(press(input.A), t0)
 	if e.dl.updates != 1 {
@@ -593,14 +626,14 @@ func TestScrollComesToRest(t *testing.T) {
 		return e.s.scroll.At(now)
 	}
 	draw()
-	for e.s.focus != rowLevelling {
+	for e.s.focus != rowAlbums {
 		down()
 	}
 	view := float64(screens.ContentBot - listTop(u))
-	if got, want := e.s.scroll.At(now), 6*widgets.SettingHeight-view; got != want {
-		t.Errorf("Volume levelling scrolled to %.1f, want %.1f to bring its bottom in", got, want)
+	if got, want := e.s.scroll.At(now), 7*widgets.SettingHeight-view; got != want {
+		t.Errorf("Album view scrolled to %.1f, want %.1f to bring its bottom in", got, want)
 	}
-	if got, want := down(), float64(6*widgets.SettingHeight+16); e.s.focus != pillTool || got != want {
+	if got, want := down(), float64(7*widgets.SettingHeight+16); e.s.focus != pillTool || got != want {
 		t.Errorf("on %d the scroll rests at %.1f, want %.1f for the Downloader card's top", e.s.focus, got, want)
 	}
 }

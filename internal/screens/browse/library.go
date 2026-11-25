@@ -1,8 +1,10 @@
 package browse
 
 import (
+	keys "github.com/ujjwal313/boombrick/internal/settings"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -50,6 +52,10 @@ type Library struct {
 	noListMsg string                 // that message, made once
 	allSongs  string                 // the Shuffle all row's line: the songs and their time
 	laidOut   bool
+	// albumView says which album view Settings chose; nil is the grid.
+	// shownView is the one the albums' grid is laid out for.
+	albumView func() string
+	shownView string
 	measured  bool            // allCounts is known for this index
 	allCounts bool            // every filter's count fits in the row
 	reading   bool            // the first scan is running with nothing indexed yet
@@ -75,6 +81,42 @@ func New(nav screens.Nav, p Player, musicDir string, rescan func()) *Library {
 	return l
 }
 
+// SetAlbumView has the albums shown as view says, asked as each frame is
+// drawn: keys.AlbumGrid, keys.AlbumLarge or keys.AlbumList.
+func (l *Library) SetAlbumView(view func() string) { l.albumView = view }
+
+// layOutAlbums lays the albums out for the view chosen, the first time and
+// whenever Settings changes it, keeping focus on the same album.
+func (l *Library) layOutAlbums(u *ui.Context) {
+	view := keys.AlbumGrid
+	if l.albumView != nil {
+		view = l.albumView()
+	}
+	if view != keys.AlbumLarge && view != keys.AlbumList {
+		view = keys.AlbumGrid
+	}
+	if l.laidOut && view == l.shownView {
+		return
+	}
+	old := l.views[albumsFilter]
+	var g views.Grid
+	switch view {
+	case keys.AlbumLarge:
+		g = screens.AlbumGrid()
+		screens.LayoutGrid(u, &g, contentBot-listTop)
+	case keys.AlbumList:
+		g = views.Grid{Cols: 1, CellW: theme.ScreenW - 2*side, CellH: widgets.RowHeight, Pad: pad, ViewH: contentBot - listTop}
+	default:
+		g = screens.LibraryAlbumGrid()
+		screens.LayoutLibraryGrid(u, &g, contentBot-listTop)
+	}
+	if l.ix != nil || old.Count() > 0 {
+		g.SetCount(old.Count())
+		g.SetCountFocus(old.Count(), old.Focus())
+	}
+	l.views[albumsFilter], l.laidOut, l.shownView = g, true, view
+}
+
 // SetIndex shows ix, keeping each filter's focus on the same album, artist,
 // song or genre when it is still there. Without genres, the genres filter
 // gives way to the songs.
@@ -84,6 +126,7 @@ func (l *Library) SetIndex(ix *library.Index) {
 	l.counts = [filterCount]string{screens.Count(len(ix.Albums)), screens.Count(len(ix.Artists)),
 		screens.Count(len(ix.Songs)), screens.Count(len(ix.Playlists)), screens.Count(len(ix.Genres))}
 	l.measured = false
+	l.rows[albumsFilter] = make([]listRow, len(ix.Albums))
 	l.rows[artistsFilter] = make([]listRow, len(ix.Artists))
 	l.rows[songsFilter] = make([]listRow, len(ix.Songs))
 	var total time.Duration
@@ -251,10 +294,7 @@ func (l *Library) Animating(now time.Time) bool { return l.views[l.filter].Anima
 
 // Draw renders the frame.
 func (l *Library) Draw(u *ui.Context) {
-	if !l.laidOut {
-		l.laidOut = true
-		screens.LayoutLibraryGrid(u, &l.views[albumsFilter], contentBot-listTop)
-	}
+	l.layOutAlbums(u)
 	switch {
 	case l.empty():
 		widgets.DrawBackground(u, widgets.StateGround)
@@ -310,6 +350,13 @@ func (l *Library) row(i int) *listRow {
 		return r
 	}
 	switch l.filter {
+	case albumsFilter:
+		a := l.ix.Albums[i]
+		r.art, r.subtitle = screens.AlbumArt(a), a.Artist
+		if a.Year > 0 {
+			r.subtitle += " · " + strconv.Itoa(a.Year)
+		}
+		return r
 	case artistsFilter:
 		ar := l.ix.Artists[i]
 		r.art, r.subtitle = screens.ArtistArt(ar), artistLine(len(ar.Albums), ar.Songs)
@@ -334,8 +381,15 @@ func (l *Library) row(i int) *listRow {
 func (l *Library) drawView(u *ui.Context) {
 	g := &l.views[l.filter]
 	if l.filter == albumsFilter {
-		drawLibraryAlbums(u, g, l.ix.Albums, func(i int) string { return l.ix.Albums[i].Artist })
-		return
+		sub := func(i int) string { return l.ix.Albums[i].Artist }
+		switch l.shownView {
+		case keys.AlbumLarge:
+			drawAlbums(u, g, l.ix.Albums, listTop, sub)
+			return
+		case keys.AlbumGrid:
+			drawLibraryAlbums(u, g, l.ix.Albums, sub)
+			return
+		}
 	}
 	if l.filter == playlistsFilter && len(l.ix.Playlists) == 0 {
 		l.drawNoPlaylists(u)
@@ -355,6 +409,8 @@ func (l *Library) drawView(u *ui.Context) {
 		lr := l.row(i)
 		r := widgets.Row{Art: &lr.art, Subtitle: lr.subtitle, Duration: lr.duration}
 		switch l.filter {
+		case albumsFilter:
+			r.Title = l.ix.Albums[i].Title
 		case artistsFilter:
 			r.Title, r.Round = l.ix.Artists[i].Name, true
 		case playlistsFilter:

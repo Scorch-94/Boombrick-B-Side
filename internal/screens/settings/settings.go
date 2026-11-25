@@ -86,6 +86,7 @@ const (
 	rowStorage
 	rowSleep
 	rowLevelling
+	rowAlbums
 	rowCount
 	pillTool    = rowCount     // the Downloader card's pill
 	pillApp     = rowCount + 1 // the Boombrick card's
@@ -129,6 +130,13 @@ var streams = []choice{
 	{"320 kbps", "about 144 MB per hour", "320"},
 }
 
+// albumViews are Album view's options.
+var albumViews = []choice{
+	{"4 × 2 grid", "Small covers", keys.AlbumGrid},
+	{"3 across", "Big covers", keys.AlbumLarge},
+	{"List", "Like Songs", keys.AlbumList},
+}
+
 // Screen is Settings.
 type Screen struct {
 	opts         Options
@@ -142,6 +150,7 @@ type Screen struct {
 	rows         [rowCount]widgets.Setting
 	stream       int // Streaming quality's choice, as last read
 	quality      int // and Download quality's
+	albums       int // and Album view's
 	sleeps       []choice
 	sleep        player.Sleep // the timer as its row last showed it
 	sleptAt      time.Time    // and when
@@ -176,6 +185,7 @@ func New(opts Options) *Screen {
 		rowStorage:      {Icon: "sd", Label: "Storage", Chevron: true},
 		rowSleep:        {Icon: "moon", Label: "Sleep timer"},
 		rowLevelling:    {Icon: "sliders", Label: "Volume levelling"},
+		rowAlbums:       {Icon: "music", Label: "Album view"},
 	}
 	for _, m := range player.SleepModes {
 		s.sleeps = append(s.sleeps, choice{label: screens.SleepLabel(m)})
@@ -218,6 +228,8 @@ func (s *Screen) readPrefs() {
 	s.stream, s.quality = s.streamIndex(), s.qualityIndex()
 	s.rows[rowStream].Value = streams[s.stream].label
 	s.rows[rowQuality].Value = qualities[s.quality].label
+	s.albums = s.albumIndex()
+	s.rows[rowAlbums].Value = albumViews[s.albums].label
 	s.rows[rowLevelling].Value = onOff(s.opts.Prefs.Bool(keys.VolumeLevelling))
 	s.rows[rowPrefer].Value = onOff(s.opts.Prefs.Bool(keys.PreferDownloaded))
 	for _, k := range []string{keys.SpotifyOn, keys.YouTubeOn} {
@@ -317,7 +329,7 @@ func (s *Screen) move(step int, now time.Time) bool {
 // opens Storage, switches levelling, or presses a card's pill.
 func (s *Screen) act(now time.Time) bool {
 	switch s.focus {
-	case rowStream, rowQuality, rowSleep:
+	case rowStream, rowQuality, rowSleep, rowAlbums:
 		if s.open == s.focus {
 			s.open = -1
 		} else {
@@ -370,6 +382,13 @@ func (s *Screen) choose(step int) bool {
 		}
 		s.opts.Prefs.Set(keys.DownloadQuality, qualities[i].value)
 		s.readPrefs()
+	case rowAlbums:
+		i := s.albums + step
+		if i < 0 || i >= len(albumViews) {
+			return false
+		}
+		s.opts.Prefs.Set(keys.AlbumView, albumViews[i].value)
+		s.readPrefs()
 	case rowSleep:
 		// A step passes over the modes a station can't reach.
 		live := s.live()
@@ -390,6 +409,16 @@ func (s *Screen) choose(step int) bool {
 func (s *Screen) qualityIndex() int {
 	if s.opts.Prefs.String(keys.DownloadQuality) == "smaller" {
 		return 1
+	}
+	return 0
+}
+
+func (s *Screen) albumIndex() int {
+	v := s.opts.Prefs.String(keys.AlbumView)
+	for i, c := range albumViews {
+		if c.value == v {
+			return i
+		}
 	}
 	return 0
 }
@@ -678,6 +707,8 @@ func (s *Screen) options(row int) (choices []choice, chosen int, about string, c
 		return streams, s.stream, "Spotify, over Wi-Fi or hotspot", 3
 	case rowQuality:
 		return qualities, s.quality, "YouTube Music downloads", 2
+	case rowAlbums:
+		return albumViews, s.albums, "How the Library shows albums", 3
 	}
 	return s.sleeps, s.sleepIndex(), "Fades out, then pauses", 4
 }

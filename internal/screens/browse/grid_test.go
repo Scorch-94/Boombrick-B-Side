@@ -7,6 +7,7 @@ import (
 	"github.com/ujjwal313/boombrick/internal/library"
 	"github.com/ujjwal313/boombrick/internal/platform/input"
 	"github.com/ujjwal313/boombrick/internal/screens"
+	keys "github.com/ujjwal313/boombrick/internal/settings"
 	"github.com/ujjwal313/boombrick/internal/theme"
 	"github.com/ujjwal313/boombrick/internal/ui/anim"
 	"github.com/ujjwal313/boombrick/internal/ui/uitest"
@@ -38,4 +39,42 @@ func TestLibraryAlbumGridFourByTwo(t *testing.T) {
 		t.Fatalf("focus %d after Down", g.Focus())
 	}
 	uitest.Golden(t, "library-albums-4x2", render(t, l, t0.Add(anim.Focus)))
+}
+
+// Settings' Album view lays the albums out again as it changes, with focus
+// still on the same album: four by two, three across, or a list.
+func TestLibraryAlbumViews(t *testing.T) {
+	var albums []library.Album
+	for i := range 10 {
+		albums = append(albums, library.Album{Artist: fmt.Sprintf("Artist %d", i), Title: fmt.Sprintf("Album %02d", i),
+			Year: 2010 + i, Tracks: []library.Track{{Path: fmt.Sprintf("/m/%d/1.flac", i), Title: "One"}}})
+	}
+	view := keys.AlbumGrid
+	l := New(&fakeNav{}, &fakePlayer{}, "/m", nil)
+	l.SetAlbumView(func() string { return view })
+	l.SetIndex(library.NewIndex(albums))
+	render(t, l, t0)
+	l.Handle(press(input.Down), t0)
+	l.Handle(press(input.Right), t0) // Album 05
+	for _, c := range []struct {
+		view string
+		cols int
+	}{{keys.AlbumLarge, 3}, {keys.AlbumList, 1}, {keys.AlbumGrid, 4}} {
+		view = c.view
+		img := render(t, l, t0.Add(anim.Focus))
+		g := &l.views[albumsFilter]
+		if g.Cols != c.cols || g.Count() != 10 || g.Focus() != 5 {
+			t.Fatalf("%s: %d columns, %d albums, focus %d", c.view, g.Cols, g.Count(), g.Focus())
+		}
+		uitest.Golden(t, "library-albums-"+c.view, img)
+	}
+	view = keys.AlbumList
+	render(t, l, t0)
+	if r := l.row(5); r.subtitle != "Artist 5 · 2015" {
+		t.Fatalf("list row %+v", r)
+	}
+	l.Handle(press(input.A), t0)
+	if pg, ok := l.nav.(*fakeNav).pushed[0].(*AlbumPage); !ok || pg.title != "Album 05" {
+		t.Fatalf("A on the list opened %+v", l.nav.(*fakeNav).pushed)
+	}
 }

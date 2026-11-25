@@ -2,6 +2,10 @@
 
 All notable changes to Boombrick. Versions match the release tags.
 
+## [v0.7.4]
+
+- Settings: Album view chooses how the Library shows albums: a 4 × 2 grid with small covers (the default), 3 across with big covers as in Boombrick, or a list like Songs, with each album's artist and year. It changes at once, staying on the album you were on.
+
 ## [v0.7.3]
 
 - Settings checks this fork's releases for updates. Versions 0.7.0 to 0.7.2 asked the original Boombrick's, so their Update button can't install B-Side, and stalls; install 0.7.3 from its zip once, and updates work from Settings after that.

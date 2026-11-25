@@ -4,6 +4,7 @@ package app
 import (
 	"cmp"
 	"fmt"
+	keys "github.com/ujjwal313/boombrick/internal/settings"
 	"github.com/ujjwal313/boombrick/internal/version"
 	"image/color"
 	"log/slog"
@@ -380,6 +381,9 @@ func New(opts Options) (*App, error) {
 	screens.SetMusicPlace(opts.MusicPlace)
 	a.home.SetEmpty(opts.MusicDir, func() { a.rescan(); a.Toast(screens.Scanning) })
 	a.library = browse.New(a, a.player, opts.MusicDir, a.rescan)
+	if opts.Prefs != nil {
+		a.library.SetAlbumView(func() string { return opts.Prefs.String(keys.AlbumView) })
+	}
 	a.loads = newLoader(opts.Load, opts.Progress, a.wake)
 	if opts.Scanned != nil {
 		go func() {
