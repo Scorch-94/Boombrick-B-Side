@@ -45,12 +45,6 @@ const (
 // lyricsPill is the focus index of the Lyrics pill, under the controls.
 const lyricsPill = controlCount
 
-// The Lyrics pill: 48 high with a 1.5 px border, holding a Y glyph, the
-// lyrics icon and "Lyrics".
-const lyricsH = 48
-
-var lyricsText = text.Style{Face: text.Figtree, Size: 22}
-
 // The Live pill, in a station's progress bar's place: 30 high with a 1.5 px
 // border, holding an 8 px dot and "Live", 8 apart, with padding 12 each side.
 const (
@@ -366,9 +360,6 @@ func (n *NowPlaying) Draw(u *ui.Context) {
 		albumH, barH = 0, liveH
 	}
 	h := 32 + groupGap + titleH + artistH + albumH + groupGap + barH + 8 + timeH + groupGap + ctlRow
-	if n.hasLyrics(s) {
-		h += groupGap + lyricsH
-	}
 	y := top + (bottom-top-h)/2
 
 	// Spotify's and Radio's badges fade while offline.
@@ -400,10 +391,7 @@ func (n *NowPlaying) Draw(u *ui.Context) {
 		drawProgress(u, f, left, right, x, y, w)
 	}
 	y += barH + 8 + timeH + groupGap
-	n.drawControls(u, s, x, y, w)
-	if n.hasLyrics(s) {
-		n.drawLyricsPill(u, x, y+ctlRow+groupGap)
-	}
+	n.drawControls(u, s, x, y, w) // Y for lyrics shows only in the hint bar
 
 	widgets.HintBar(u, n.hints(s))
 }
@@ -529,24 +517,6 @@ func drawControl(u *ui.Context, s player.State, i int, cx, cy float32, box gfx.R
 			u.Text("1", oneStyle, cx+12, cy-26, col)
 		}
 	}
-}
-
-// drawLyricsPill draws the Lyrics pill at (x, y), focusable like a button.
-func (n *NowPlaying) drawLyricsPill(u *ui.Context, x, y float32) {
-	g := widgets.HintRound.Height
-	w := 12 + g + 10 + 24 + 8 + u.TextWidth("Lyrics", lyricsText) + 18
-	box := gfx.Rect{X: x, Y: y, W: w, H: lyricsH}
-	k := float32(n.values[lyricsPill].At(u.Now))
-	u.PushScale(x+w/2, y, 1+0.06*k)
-	defer u.Pop()
-	widgets.FocusGlow(u, box, lyricsH/2, k)
-	widgets.FocusRing(u, box, lyricsH/2, k, theme.Ground)
-	u.Shape(raster.Shape{W: int(w), H: lyricsH, Radius: lyricsH / 2, Kind: raster.Ring, RingOffset: -1.5, RingWidth: 1.5},
-		box, theme.PaperA(0.30))
-	cx := x + 12
-	cx += widgets.KeyGlyph(u, "Y", cx, y+(lyricsH-g)/2, widgets.HintRound, theme.PaperA(0.55)) + 10
-	u.Icon("lyrics", 24, 2, false, cx, y+(lyricsH-24)/2, theme.Paper)
-	u.Text("Lyrics", lyricsText, cx+24+8, u.CenterY(lyricsText, y, lyricsH), theme.Paper)
 }
 
 func (n *NowPlaying) hints(s player.State) []widgets.Hint {
