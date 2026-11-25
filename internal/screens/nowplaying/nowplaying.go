@@ -235,11 +235,11 @@ func (n *NowPlaying) moveTo(f int, now time.Time) {
 	n.values[f].To(1, now, anim.Focus, anim.EaseOutCubic)
 }
 
-// Handle runs the transport straight from the buttons, with play/pause
-// always focused: Left is the previous track and Right the next, A plays or
-// pauses, X switches shuffle and Up or Down steps repeat. L1 and R1 also
-// change track, Y opens lyrics and L2 and R2 seek. B is handled by the app,
-// which closes the screen. A station has no lyrics, and can't seek.
+// Handle runs the transport straight from the buttons: Left is the previous
+// track and Right the next, A plays or pauses, Up switches shuffle and Down
+// steps repeat. L1 and R1 also change track, Y opens lyrics and L2 and R2
+// seek. B is handled by the app, which closes the screen. A station has no
+// lyrics, and can't seek.
 func (n *NowPlaying) Handle(ev input.Event, now time.Time) bool {
 	if n.scrub.Handle(ev, now) {
 		return true
@@ -252,7 +252,7 @@ func (n *NowPlaying) Handle(ev input.Event, now time.Time) bool {
 	// A held D-pad repeats; a track change or a toggle happens once per press.
 	if ev.Kind != input.Press {
 		switch ev.Button {
-		case input.Left, input.Right, input.Up, input.Down, input.A, input.X, input.Y:
+		case input.Left, input.Right, input.Up, input.Down, input.A, input.Y:
 			return true
 		}
 	}
@@ -266,10 +266,10 @@ func (n *NowPlaying) Handle(ev input.Event, now time.Time) bool {
 	case input.A:
 		n.press(playCtl, now)
 		return true
-	case input.X:
+	case input.Up:
 		n.press(shuffleCtl, now)
 		return true
-	case input.Up, input.Down:
+	case input.Down:
 		n.press(repeatCtl, now)
 		return true
 	case input.Y:
@@ -558,8 +558,8 @@ func (n *NowPlaying) hints(s player.State) []widgets.Hint {
 	if n.hintBar != nil && label == n.hintLabel && live == n.hintLive {
 		return n.hintBar
 	}
-	hints := []widgets.Hint{{Key: "A", Label: label}, {Key: "◀ ▶", Label: "Track"}, {Key: "X", Label: "Shuffle"},
-		{Key: "▲ ▼", Label: "Repeat"}}
+	hints := []widgets.Hint{{Key: "A", Label: label}, {Key: "◀ ▶", Label: "Track"}, {Key: "▲", Label: "Shuffle"},
+		{Key: "▼", Label: "Repeat"}}
 	// L2 and R2 still seek, but the bar has no room left for their hint.
 	if n.hasLyrics(s) {
 		hints = append(hints, widgets.Hint{Key: "Y", Label: "Lyrics"})

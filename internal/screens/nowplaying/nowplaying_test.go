@@ -111,14 +111,18 @@ func TestAnimatingSettles(t *testing.T) {
 	}
 }
 
-// A plays or pauses, X switches shuffle, and Up or Down steps repeat.
+// A plays or pauses, Up switches shuffle, Down steps repeat, and X does
+// nothing.
 func TestButtonsRunTheTransport(t *testing.T) {
 	f := playing()
 	n := New(f)
-	for _, b := range []input.Button{input.A, input.X, input.Up, input.Down, input.A} {
+	for _, b := range []input.Button{input.A, input.Up, input.Down, input.Down, input.A} {
 		if !n.Handle(press(b), t0) {
 			t.Fatalf("%v went unhandled", b)
 		}
+	}
+	if n.Handle(press(input.X), t0) {
+		t.Fatal("X should do nothing")
 	}
 	if f.toggles != 2 || len(f.shuffles) != 1 || f.shuffles[0] || f.repeats != 2 || n.focus != playCtl {
 		t.Fatalf("toggles %d, shuffles %v, repeats %d, focus %d", f.toggles, f.shuffles, f.repeats, n.focus)
@@ -174,8 +178,8 @@ func TestScrubDroppedWithR2Up(t *testing.T) {
 func TestHintsShowTheButtons(t *testing.T) {
 	f := playing()
 	n := New(f)
-	want := []widgets.Hint{{Key: "A", Label: "Pause"}, {Key: "◀ ▶", Label: "Track"}, {Key: "X", Label: "Shuffle"},
-		{Key: "▲ ▼", Label: "Repeat"}}
+	want := []widgets.Hint{{Key: "A", Label: "Pause"}, {Key: "◀ ▶", Label: "Track"}, {Key: "▲", Label: "Shuffle"},
+		{Key: "▼", Label: "Repeat"}}
 	if h := n.hints(f.st); !slices.Equal(h, want) {
 		t.Fatalf("hints %v, want %v", h, want)
 	}

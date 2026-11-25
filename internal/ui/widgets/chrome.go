@@ -234,19 +234,21 @@ var (
 )
 
 // arrowIcons draws arrow hints with icons, which the bundled fonts don't cover.
-var arrowIcons = map[string][2]string{"◀ ▶": {"left", "right"}, "▲ ▼": {"up", "down"}}
+// A key may show one arrow or two, 20 apart.
+var arrowIcons = map[string][]string{"◀ ▶": {"left", "right"}, "▲ ▼": {"up", "down"},
+	"▲": {"up"}, "▼": {"down"}, "◀": {"left"}, "▶": {"right"}}
 
 func isFaceButton(key string) bool { return key == "A" || key == "B" || key == "X" || key == "Y" }
 
 // glyphWidth is the width KeyGlyph draws key at.
 func glyphWidth(u *ui.Context, key string, gs GlyphStyle) float32 {
-	_, isArrow := arrowIcons[key]
+	arrows, isArrow := arrowIcons[key]
 	var w float32
 	switch {
 	case isFaceButton(key):
 		w = gs.Height
 	case isArrow:
-		w = 2*gs.Pad + 36
+		w = 2*gs.Pad + float32(20*len(arrows)-4)
 	default:
 		w = max(gs.Height, u.TextWidth(key, gs.Text)+2*gs.Pad)
 	}
@@ -266,8 +268,9 @@ func KeyGlyph(u *ui.Context, key string, x, y float32, gs GlyphStyle, border col
 		gfx.Rect{X: x, Y: y, W: w, H: h}, border)
 	if arrows, ok := arrowIcons[key]; ok {
 		iy := y + (h-16)/2
-		u.Icon(arrows[0], 16, 3, false, x+gs.Pad, iy, theme.Paper)
-		u.Icon(arrows[1], 16, 3, false, x+gs.Pad+20, iy, theme.Paper)
+		for i, a := range arrows {
+			u.Icon(a, 16, 3, false, x+gs.Pad+float32(20*i), iy, theme.Paper)
+		}
 		return w
 	}
 	tw := u.TextWidth(key, gs.Text)

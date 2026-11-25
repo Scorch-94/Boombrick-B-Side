@@ -63,8 +63,8 @@ Put `.m3u` or `.m3u8` files in a `Playlists` folder inside your music folder (`M
 | Y | Add to the queue; on Now Playing, lyrics |
 | D-pad Left, Right (Now Playing) | Previous and next track |
 | A (Now Playing) | Play or pause |
-| X (Now Playing) | Shuffle on or off |
-| D-pad Up, Down (Now Playing) | Step repeat: off, all, one |
+| D-pad Up (Now Playing) | Shuffle on or off |
+| D-pad Down (Now Playing) | Step repeat: off, all, one |
 | L1, R1 | Switch tabs; on Now Playing, previous and next track |
 | L2, R2 | Filters in the Library and YouTube Music; on Now Playing and Lyrics, 10 s back and on, or hold to rewind and fast-forward |
 | Start | Now Playing |
