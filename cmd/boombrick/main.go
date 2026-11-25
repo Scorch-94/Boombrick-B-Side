@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -31,6 +32,7 @@ import (
 	"github.com/ujjwal313/boombrick/internal/perf"
 	"github.com/ujjwal313/boombrick/internal/platform"
 	"github.com/ujjwal313/boombrick/internal/player"
+	"github.com/ujjwal313/boombrick/internal/radio"
 	"github.com/ujjwal313/boombrick/internal/release"
 	"github.com/ujjwal313/boombrick/internal/resume"
 	"github.com/ujjwal313/boombrick/internal/selfupdate"
@@ -124,6 +126,7 @@ func run(started time.Time) error {
 	// music is looked up online while the device is. They close after the
 	// player, so the music stops at once on quitting, and before the database.
 	web := netx.NewClient()
+	rc := radio.NewClient(web, net.DefaultResolver)
 	covers := art.New(art.Options{
 		DB:     db.DB,
 		Dir:    filepath.Join(paths.Data, "cache", "art"),
@@ -217,7 +220,7 @@ func run(started time.Time) error {
 	// in on the next launch.
 	toolReleases := release.NewChecker(web, "yt-dlp/yt-dlp", online, releaseEvery, log)
 	defer toolReleases.Close()
-	releases := release.NewChecker(web, version.Repo, online, releaseEvery, log)
+	releases := release.NewChecker(web, "ujjwal313/boombrick", online, releaseEvery, log)
 	defer releases.Close()
 	var updater app.Updater
 	if paths.OnDevice && dir != "" {
@@ -235,8 +238,19 @@ func run(started time.Time) error {
 	spLib := spotify.NewLibrary(sp, db.DB, log)
 	defer spLib.Close()
 
+	// The radio stations the Radio tab lists, and the ones saved. Both close
+	// after the app, whose loop has ended by then, and before the database:
+	// closing the saved stations waits for the writes still queued.
+	directory := radio.NewDirectory(rc, log)
+	defer directory.Close()
+	kept, err := radio.NewStations(db.DB, log)
+	if err != nil {
+		return err
+	}
+	defer kept.Close()
+
 	notices := make(chan player.Notice, 8)
-	p := newPlayer(db.DB, prefs, sp, online, log, func(n player.Notice) {
+	p := newPlayer(db.DB, prefs, sp, rc, online, log, func(n player.Notice) {
 		select {
 		case notices <- n:
 		default: // a burst of them: the toast shows the latest anyway
@@ -410,6 +424,8 @@ func run(started time.Time) error {
 		Perf:          rec,
 		Notices:       notices,
 		Spotify:       spLib,
+		Radio:         directory,
+		Stations:      kept,
 		Importer:      im,
 		Hold:          dl.SetHeld,
 		ImportOn:      im.SetEnabled,

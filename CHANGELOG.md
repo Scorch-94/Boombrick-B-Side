@@ -4,6 +4,7 @@ All notable changes to Boombrick. Versions match the release tags.
 
 ## [v0.7.1]
 
+- Internet radio is back, as in Boombrick 0.6.0: the Radio tab, saved stations on Home, and its switch in Settings.
 - Now Playing: the Lyrics button under the controls is gone; Y Lyrics shows in the hint bar when a song has lyrics.
 - Now Playing: Up on the D-pad switches shuffle and Down steps repeat. X no longer does anything there.
 - Now Playing: play/pause is no longer highlighted all the time. Like the other controls, it flashes when its button is pressed.

@@ -11,6 +11,7 @@ import (
 const (
 	spotifyName = "Spotify"
 	youtubeName = "YouTube"
+	radioName   = "Radio"
 )
 
 // spotifyOn and youtubeOn read the integrations' switches; without Prefs both
@@ -18,8 +19,10 @@ const (
 func (a *App) spotifyOn() bool { return a.opts.Prefs == nil || a.opts.Prefs.Bool(keys.SpotifyOn) }
 func (a *App) youtubeOn() bool { return a.opts.Prefs == nil || a.opts.Prefs.Bool(keys.YouTubeOn) }
 
-// radioOn is always false: internet radio is removed from this build.
-func (a *App) radioOn() bool { return false }
+// radioOn is whether Radio is there and its switch is on.
+func (a *App) radioOn() bool {
+	return a.opts.Radio != nil && (a.opts.Prefs == nil || a.opts.Prefs.Bool(keys.RadioOn))
+}
 
 // shownTabs is the tabs shown with the switches as given: Home and the
 // Library always, Spotify's with it, and YouTube's and Downloads with
@@ -49,6 +52,10 @@ func (a *App) integrations() []settingsscreen.Integration {
 	if a.opts.YouTube != nil || a.opts.Downloads != nil {
 		ins = append(ins, settingsscreen.Integration{Key: keys.YouTubeOn, Name: youtubeName, Icon: "circleplay",
 			About: "Search YouTube Music and download songs"})
+	}
+	if a.opts.Radio != nil {
+		ins = append(ins, settingsscreen.Integration{Key: keys.RadioOn, Name: radioName, Icon: "radio",
+			About: "Stations from Radio Browser"})
 	}
 	return ins
 }
@@ -86,6 +93,8 @@ func (a *App) switched(key string, on bool) {
 			a.Toast("This song finishes, then Spotify songs are skipped")
 		case key == keys.YouTubeOn && a.opts.Downloads != nil && a.opts.Downloads.Busy():
 			a.Toast("Downloads under way will finish")
+		case key == keys.RadioOn && a.last.Playing && a.last.Track.Live():
+			a.Toast("This station plays until you stop it")
 		}
 	}
 	a.applySwitches()

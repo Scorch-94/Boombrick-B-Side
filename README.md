@@ -1,6 +1,6 @@
 # Boombrick
 
-> **Boombrick B-Side** is a fork of [ujjwal313/boombrick](https://github.com/ujjwal313/boombrick) for NextUI, without internet radio, with direct transport controls on Now Playing, library search, `.m3u` playlists and Shuffle all songs. It installs beside the original: it is `Tools/tg5040/Boombrick B-Side.pak`, keeps its library and settings in `.userdata/tg5040/Boombrick B-Side/` and logs to `Boombrick B-Side.txt`, and Settings checks this fork for its updates. Both read the same `Music` folder, and downloads from either go to `Music/Boombrick`.
+> **Boombrick B-Side** is a fork of [ujjwal313/boombrick](https://github.com/ujjwal313/boombrick) for NextUI, with direct transport controls on Now Playing, library search, `.m3u` playlists and Shuffle all songs. It installs beside the original: it is `Tools/tg5040/Boombrick B-Side.pak`, keeps its library and settings in `.userdata/tg5040/Boombrick B-Side/` and logs to `Boombrick B-Side.txt`, and Settings checks this fork for its updates. Both read the same `Music` folder, and downloads from either go to `Music/Boombrick`.
 >
 > To install, download `Boombrick-B-Side.pak.zip` from this fork's [latest release](https://github.com/Scorch-94/Boombrick-B-Side/releases/latest) and unzip it at the root of the SD card.
 
