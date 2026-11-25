@@ -22,6 +22,8 @@ type CardItem struct {
 	Source          media.Source
 	Badge           bool    // a source badge and progress strip, as on Continue listening
 	Progress        float64 // 0-1
+	// CaptionW is how wide the caption may run; 0 is the art's width.
+	CaptionW float32
 }
 
 // CardHeight is the height of a captioned card with art size px square.
@@ -47,8 +49,12 @@ func Card(u *ui.Context, it CardItem, x, y, size, k float32, caption bool) {
 		return
 	}
 	ty := y + size + CaptionGap
-	u.Text(u.Fit(it.Title, text.Body, size), text.Body, x, ty, theme.Paper)
-	u.Text(u.Fit(it.Subtitle, text.Meta, size), text.Meta, x, ty+u.LineHeight(text.Body)+2, theme.Ink3)
+	cw := size
+	if it.CaptionW > 0 {
+		cw = it.CaptionW
+	}
+	u.Text(u.Fit(it.Title, text.Body, cw), text.Body, x, ty, theme.Paper)
+	u.Text(u.Fit(it.Subtitle, text.Meta, cw), text.Meta, x, ty+u.LineHeight(text.Body)+2, theme.Ink3)
 }
 
 // CardGlow draws the focus glow of the card Card draws at (x, y) with size

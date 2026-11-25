@@ -98,6 +98,21 @@ func drawAlbums(u *ui.Context, g *views.Grid, albums []*library.Album, top float
 	u.PopClip()
 }
 
+// drawLibraryAlbums draws the Library's four-by-two album grid: small covers,
+// each caption as wide as its column.
+func drawLibraryAlbums(u *ui.Context, g *views.Grid, albums []*library.Album, sub func(i int) string) {
+	u.PushClip(screens.GlowArea)
+	g.Draw(u.Now, screens.LibGridX, listTop, func(i int, x, y, k float32) {
+		a := albums[i]
+		widgets.CardGlow(u, x, y, screens.LibArt, k)
+		u.PushClip(screens.Below(listTop))
+		widgets.Card(u, widgets.CardItem{Title: a.Title, Subtitle: sub(i), Art: screens.AlbumArt(a), CaptionW: screens.LibCellW},
+			x, y, screens.LibArt, k, true)
+		u.PopClip()
+	})
+	u.PopClip()
+}
+
 var artistHints = []widgets.Hint{{Key: "A", Label: "Open"}, {Key: "X", Label: "Shuffle all"}, {Key: "Y", Label: "Add to queue"},
 	{Key: "B", Label: "Back"}, {Key: "L1/R1", Label: "Tabs"}}
 

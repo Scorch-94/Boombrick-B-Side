@@ -21,6 +21,15 @@ const (
 	GridGapX = 36
 	GridGapY = 28
 	GridX    = (theme.ScreenW - 3*GridArt - 2*GridGapX) / 2
+	// The Library's Albums view: four columns and two rows under the
+	// filters, both whole with a focus ring's room (2 × card + gap + 2 × Pad
+	// fits the view, so moving between them doesn't scroll). The covers are
+	// small, so a caption runs the column's width.
+	LibArt   = 92
+	LibCellW = 176
+	LibGapX  = 17
+	LibGapY  = 18
+	LibGridX = (theme.ScreenW - 4*LibCellW - 3*LibGapX) / 2
 	// An album's page: its art in a column on the left with its details and
 	// pills at the column's foot, the tracks on the right.
 	PageArt   = 200
@@ -44,6 +53,16 @@ func Below(y float32) gfx.Rect { return gfx.Rect{X: 0, Y: y, W: theme.ScreenW, H
 // the fonts.
 func AlbumGrid() views.Grid {
 	return views.Grid{Cols: 3, CellW: GridArt, GapX: GridGapX, GapY: GridGapY, Pad: Pad}
+}
+
+// LibraryAlbumGrid is the Library's Albums view: four by two.
+func LibraryAlbumGrid() views.Grid {
+	return views.Grid{Cols: 4, CellW: LibCellW, GapX: LibGapX, GapY: LibGapY, Pad: Pad}
+}
+
+// LayoutLibraryGrid sizes the Library's album cards and view.
+func LayoutLibraryGrid(u *ui.Context, g *views.Grid, viewH float32) {
+	g.CellH, g.ViewH = widgets.CardHeight(u, LibArt), viewH
 }
 
 // LayoutGrid sizes g's cards and view.

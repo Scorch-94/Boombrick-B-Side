@@ -67,7 +67,7 @@ type listRow struct {
 // New creates the tab. It shows nothing but its chrome until SetIndex.
 func New(nav screens.Nav, p Player, musicDir string, rescan func()) *Library {
 	l := &Library{nav: nav, p: p, musicDir: musicDir, rescan: rescan}
-	l.views[albumsFilter] = screens.AlbumGrid()
+	l.views[albumsFilter] = screens.LibraryAlbumGrid()
 	for _, f := range []int{artistsFilter, songsFilter, playlistsFilter, genresFilter} {
 		l.views[f] = views.Grid{Cols: 1, CellW: theme.ScreenW - 2*side, CellH: widgets.RowHeight, Pad: pad,
 			ViewH: contentBot - listTop}
@@ -253,7 +253,7 @@ func (l *Library) Animating(now time.Time) bool { return l.views[l.filter].Anima
 func (l *Library) Draw(u *ui.Context) {
 	if !l.laidOut {
 		l.laidOut = true
-		screens.LayoutGrid(u, &l.views[albumsFilter], contentBot-listTop)
+		screens.LayoutLibraryGrid(u, &l.views[albumsFilter], contentBot-listTop)
 	}
 	switch {
 	case l.empty():
@@ -334,7 +334,7 @@ func (l *Library) row(i int) *listRow {
 func (l *Library) drawView(u *ui.Context) {
 	g := &l.views[l.filter]
 	if l.filter == albumsFilter {
-		drawAlbums(u, g, l.ix.Albums, listTop, func(i int) string { return l.ix.Albums[i].Artist })
+		drawLibraryAlbums(u, g, l.ix.Albums, func(i int) string { return l.ix.Albums[i].Artist })
 		return
 	}
 	if l.filter == playlistsFilter && len(l.ix.Playlists) == 0 {
