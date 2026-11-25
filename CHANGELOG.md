@@ -2,7 +2,7 @@
 
 All notable changes to Boombrick. Versions match the release tags.
 
-## [v0.6.0-fork.1]
+## [v0.7.0]
 
 Forked from Boombrick 0.6.0.
 
