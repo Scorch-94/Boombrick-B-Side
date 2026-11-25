@@ -10,7 +10,6 @@ import (
 	"github.com/ujjwal313/boombrick/internal/screens"
 	"github.com/ujjwal313/boombrick/internal/theme"
 	"github.com/ujjwal313/boombrick/internal/ui"
-	"github.com/ujjwal313/boombrick/internal/ui/anim"
 	"github.com/ujjwal313/boombrick/internal/ui/gfx"
 	"github.com/ujjwal313/boombrick/internal/ui/text"
 	"github.com/ujjwal313/boombrick/internal/ui/views"
@@ -22,17 +21,11 @@ const (
 	albumArt = screens.PageArt
 	albumTop = screens.PageTop
 	listX    = screens.PageListX
-	pillGap  = screens.PillGap
 )
 
-const (
-	playPill = iota
-	shufflePill
-	pillCount
-)
-
-// AlbumPage shows an album's tracks, or a genre's songs laid out the same
-// way. Focus starts on the Play pill.
+// AlbumPage shows an album's tracks, or a genre's or a playlist's songs laid
+// out the same way. Focus starts on the first track: A plays from the one
+// focused, Y queues it.
 type AlbumPage struct {
 	nav    screens.Nav
 	p      Player
@@ -43,9 +36,6 @@ type AlbumPage struct {
 	tracks []player.Track
 	rows   []widgets.Row
 	list   views.Grid
-	onList bool
-	pill   int
-	pills  [pillCount]anim.Value // focus strength
 }
 
 // NewAlbumPage opens album a.
@@ -105,8 +95,6 @@ func newPage(nav screens.Nav, p Player, art widgets.ArtSpec, title, who, length 
 	pg.list = views.Grid{Cols: 1, CellW: theme.ScreenW - side - listX, CellH: widgets.RowHeight, Pad: pad,
 		ViewH: contentBot - contentTop}
 	pg.list.SetCount(len(tracks))
-	pg.list.SetActive(false, time.Time{})
-	pg.pills[playPill].Set(1)
 	for i, t := range tracks {
 		pg.rows[i] = widgets.Row{Index: strconv.Itoa(i + 1), Title: t.Title}
 		if t.Duration > 0 {
@@ -116,91 +104,33 @@ func newPage(nav screens.Nav, p Player, art widgets.ArtSpec, title, who, length 
 	return pg
 }
 
-// Handle moves between the pills and the tracks, plays with A and queues with Y.
+// Handle moves along the tracks, plays from the focused one with A and
+// queues it with Y.
 func (pg *AlbumPage) Handle(ev input.Event, now time.Time) bool {
 	if ev.Kind == input.Release {
 		return false
 	}
 	switch ev.Button {
 	case input.A:
-		if ev.Kind == input.Press {
-			pg.play()
+		if ev.Kind == input.Press && len(pg.tracks) > 0 {
+			pg.p.SetShuffle(false)
+			pg.p.Play(pg.tracks, pg.list.Focus())
 		}
 		return ev.Kind == input.Press
 	case input.Y:
-		if ev.Kind == input.Press {
-			pg.enqueue()
+		if ev.Kind == input.Press && len(pg.tracks) > 0 {
+			f := pg.list.Focus()
+			pg.p.Enqueue(pg.tracks[f : f+1])
+			pg.nav.Toast(screens.AddedToQueue)
 		}
 		return ev.Kind == input.Press
 	}
-	if pg.onList {
-		if pg.list.Move(ev.Button, now) {
-			return true
-		}
-		if ev.Button != input.Left {
-			return false
-		}
-		pg.onList = false
-		pg.list.SetActive(false, now)
-		pg.pills[pg.pill].To(1, now, anim.Focus, anim.EaseOutCubic)
-		return true
-	}
-	next := pg.pill
-	switch ev.Button {
-	case input.Left:
-		next--
-	case input.Right:
-		next++
-	default:
-		return false
-	}
-	switch {
-	case next == pillCount && pg.list.Count() > 0:
-		pg.pills[pg.pill].To(0, now, anim.Focus, anim.EaseOutCubic)
-		pg.onList = true
-		pg.list.SetActive(true, now)
-	case next >= 0 && next < pillCount:
-		pg.pills[pg.pill].To(0, now, anim.Focus, anim.EaseOutCubic)
-		pg.pill = next
-		pg.pills[next].To(1, now, anim.Focus, anim.EaseOutCubic)
-	default:
-		return false
-	}
-	return true
-}
-
-func (pg *AlbumPage) play() {
-	if len(pg.tracks) == 0 {
-		return
-	}
-	switch {
-	case pg.onList:
-		pg.p.SetShuffle(false)
-		pg.p.Play(pg.tracks, pg.list.Focus())
-	case pg.pill == playPill:
-		pg.p.SetShuffle(false)
-		pg.p.Play(pg.tracks, 0)
-	default:
-		shuffle(pg.p, pg.tracks)
-	}
-}
-
-func (pg *AlbumPage) enqueue() {
-	if len(pg.tracks) == 0 {
-		return
-	}
-	ts := pg.tracks
-	if pg.onList {
-		f := pg.list.Focus()
-		ts = ts[f : f+1]
-	}
-	pg.p.Enqueue(ts)
-	pg.nav.Toast(screens.AddedToQueue)
+	return pg.list.Move(ev.Button, now)
 }
 
 // Animating reports whether focus or the list is moving.
 func (pg *AlbumPage) Animating(now time.Time) bool {
-	return pg.list.Animating(now) || !pg.pills[playPill].Done(now) || !pg.pills[shufflePill].Done(now)
+	return pg.list.Animating(now)
 }
 
 // Draw renders the frame.
@@ -215,13 +145,6 @@ func (pg *AlbumPage) Draw(u *ui.Context) {
 	u.Text(u.Fit(pg.who, text.Meta, albumArt), text.Meta, side, y, theme.Ink2)
 	y += u.LineHeight(text.Meta)
 	u.Text(u.Fit(pg.length, text.Meta, albumArt), text.Meta, side, y, theme.Ink3)
-	py := float32(contentBot - pad - widgets.PillHeight)
-	x := float32(side)
-	play, shuffle := float32(pg.pills[playPill].At(now)), float32(pg.pills[shufflePill].At(now))
-	widgets.PillGlow(u, "play", "Play", x, py, play)
-	x += widgets.Pill(u, "play", "Play", x, py, play) + pillGap
-	widgets.PillGlow(u, "shuffle", "", x, py, shuffle)
-	widgets.Pill(u, "shuffle", "", x, py, shuffle)
 
 	playing := pg.p.State().Track.Path
 	u.PushClip(screens.GlowArea)
@@ -241,18 +164,8 @@ func (pg *AlbumPage) Draw(u *ui.Context) {
 	widgets.HintBar(u, pg.hints())
 }
 
-// albumHints are the page's hint bars, by the pill A presses; on the tracks,
-// A plays.
-var albumHints = [pillCount][]widgets.Hint{
-	playPill: {{Key: "A", Label: "Play"}, {Key: "Y", Label: "Add to queue"}, {Key: "B", Label: "Back"},
-		{Key: "L1/R1", Label: "Tabs"}},
-	shufflePill: {{Key: "A", Label: "Shuffle"}, {Key: "Y", Label: "Add to queue"}, {Key: "B", Label: "Back"},
-		{Key: "L1/R1", Label: "Tabs"}},
-}
+// albumHints is the page's hint bar.
+var albumHints = []widgets.Hint{{Key: "A", Label: "Play"}, {Key: "Y", Label: "Add to queue"}, {Key: "B", Label: "Back"},
+	{Key: "L1/R1", Label: "Tabs"}}
 
-func (pg *AlbumPage) hints() []widgets.Hint {
-	if !pg.onList && pg.pill == shufflePill {
-		return albumHints[shufflePill]
-	}
-	return albumHints[playPill]
-}
+func (pg *AlbumPage) hints() []widgets.Hint { return albumHints }

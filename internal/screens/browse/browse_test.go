@@ -118,60 +118,49 @@ func fadesSoftly(t *testing.T, img *image.NRGBA, from, to image.Point) {
 	}
 }
 
-// The first track sits just under the tabs; its glow fades out under them.
+// The first track sits just under the tabs, focused as the page opens; its
+// glow fades out under them.
 func TestAlbumPageFirstTrackGlow(t *testing.T) {
 	pg := NewAlbumPage(&fakeNav{}, &fakePlayer{}, sampleIndex().Album("Odalys", "Copper Season"))
-	pg.Handle(press(input.Right), t0)
-	pg.Handle(press(input.Right), t0) // the first track
 	img := render(t, pg, t0.Add(anim.Focus))
 	uitest.Golden(t, "album-first-track", img)
 	// Between the YouTube and Downloads tabs, down to the track.
 	fadesSoftly(t, img, image.Pt(700, 120), image.Pt(700, 154))
 }
 
+// The page opens on the first track, with no pills: A plays the album in
+// order from the focused track, Y queues that track alone.
 func TestAlbumPage(t *testing.T) {
 	ix := sampleIndex()
 	p, nav := &fakePlayer{playing: "/m/Copper Season/Ember.flac"}, &fakeNav{}
 	pg := NewAlbumPage(nav, p, ix.Album("Odalys", "Copper Season"))
 	uitest.Golden(t, "album", render(t, pg, t0))
-
-	pg.Handle(press(input.A), t0) // Play: in order, from the top
-	if !slices.Equal(p.shuffled, []bool{false}) || p.start[0] != 0 {
-		t.Fatalf("Play pill: shuffle %v, start %v", p.shuffled, p.start)
-	}
-	pg.Handle(press(input.Right), t0) // Shuffle
-	if got := pg.hints()[0]; got.Key != "A" || got.Label != "Shuffle" {
-		t.Fatalf("A's hint on the Shuffle pill = %+v", got)
+	if pg.list.Focus() != 0 {
+		t.Fatalf("focus %d as the page opens, want the first track", pg.list.Focus())
 	}
 	pg.Handle(press(input.A), t0)
-	if p.shuffled[1] != true {
-		t.Fatal("the Shuffle pill should turn shuffle on")
+	if !slices.Equal(p.shuffled, []bool{false}) || p.start[0] != 0 {
+		t.Fatalf("A on the first track: shuffle %v, start %v", p.shuffled, p.start)
 	}
-	pg.Handle(press(input.Right), t0) // into the tracks
 	if got := pg.hints()[0].Label; got != "Play" {
-		t.Fatalf("A's hint on a track = %q", got)
+		t.Fatalf("A's hint = %q", got)
 	}
 	pg.Handle(press(input.Down), t0)
 	pg.Handle(press(input.A), t0)
-	if p.start[2] != 1 {
-		t.Fatalf("A on the second track started at %d", p.start[2])
-	}
-	if !slices.Equal(p.shuffled, []bool{false, true, false}) {
-		t.Fatalf("shuffle set %v: A on a track plays the album in order from it", p.shuffled)
+	if p.start[1] != 1 || !slices.Equal(p.shuffled, []bool{false, false}) {
+		t.Fatalf("A on the second track: start %v, shuffle %v", p.start, p.shuffled)
 	}
 	pg.Handle(press(input.Y), t0)
 	if len(p.queued) != 1 || !slices.Equal(p.queued[0], []string{"/m/Copper Season/Ember.flac"}) || nav.toasts[0] != "Added to queue" {
 		t.Fatalf("Y on a track queued %v, toasts %v", p.queued, nav.toasts)
 	}
+	if pg.Handle(press(input.Left), t0) {
+		t.Fatal("Left has nothing to move to")
+	}
 	img := render(t, pg, t0.Add(anim.Focus))
 	uitest.Golden(t, "album-track-focused", img)
 	// From the art across to the second track.
 	fadesSoftly(t, img, image.Pt(295, 312), image.Pt(322, 312))
-	pg.Handle(press(input.Left), t0) // back to the pills
-	pg.Handle(press(input.Y), t0)
-	if len(p.queued[1]) != 4 {
-		t.Fatalf("Y on the pills should queue the album, queued %v", p.queued[1])
-	}
 }
 
 func TestArtistPage(t *testing.T) {
@@ -523,13 +512,10 @@ func TestGenrePage(t *testing.T) {
 	if pg.title != "Rock" || pg.who != "2 artists" || pg.length != "3 songs · 11 min" || pg.rows[0].Subtitle != "Kenji Arata" {
 		t.Fatalf("page %q, %q, %q; first row %+v", pg.title, pg.who, pg.length, pg.rows[0])
 	}
-	pg.Handle(press(input.A), t0) // Play
-	pg.Handle(press(input.Right), t0)
-	pg.Handle(press(input.A), t0) // Shuffle
-	pg.Handle(press(input.Right), t0)
+	pg.Handle(press(input.A), t0) // the first song
 	pg.Handle(press(input.Down), t0)
 	pg.Handle(press(input.A), t0) // the second song
-	if !slices.Equal(p.shuffled, []bool{false, true, false}) || p.start[0] != 0 || p.start[2] != 1 {
+	if !slices.Equal(p.shuffled, []bool{false, false}) || p.start[0] != 0 || p.start[1] != 1 {
 		t.Fatalf("shuffle %v, starts %v", p.shuffled, p.start)
 	}
 	for _, l := range p.lists {
@@ -703,8 +689,6 @@ func TestEmptyAlbum(t *testing.T) {
 	p, nav := &fakePlayer{}, &fakeNav{}
 	pg := NewAlbumPage(nav, p, &library.Album{Title: "Nothing", Artist: "Nobody"})
 	pg.Handle(press(input.A), t0)
-	pg.Handle(press(input.Right), t0)
-	pg.Handle(press(input.A), t0) // Shuffle
 	pg.Handle(press(input.Y), t0)
 	if len(p.played) != 0 || len(p.queued) != 0 || len(nav.toasts) != 0 {
 		t.Fatalf("an empty album played %v, queued %v, toasted %v", p.played, p.queued, nav.toasts)
