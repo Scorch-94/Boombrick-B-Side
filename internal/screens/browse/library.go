@@ -131,7 +131,7 @@ func (l *Library) SetReading() { l.reading = true }
 func (l *Library) empty() bool { return l.ix != nil && len(l.ix.Albums) == 0 }
 
 // Handle switches filters with L2/R2, moves with the D-pad, opens or plays
-// with A and queues with Y. X shuffles an artist or a genre. The empty
+// with A and queues with Y. X opens the search. The empty
 // library rescans with Y.
 func (l *Library) Handle(ev input.Event, now time.Time) bool {
 	if ev.Kind == input.Release || l.ix == nil {
@@ -170,10 +170,7 @@ func (l *Library) Handle(ev input.Event, now time.Time) bool {
 			}
 			return true
 		case input.X:
-			if l.filter != artistsFilter && l.filter != genresFilter || g.Count() == 0 {
-				return false
-			}
-			shuffle(l.p, l.tracksAt(g.Focus()))
+			l.nav.Push(NewSearch(l.nav, l.p, l.ix))
 			return true
 		}
 	}
@@ -310,11 +307,9 @@ func (l *Library) drawView(u *ui.Context) {
 var (
 	tabHints    = []widgets.Hint{{Key: "L1/R1", Label: "Tabs"}}
 	rescanHints = []widgets.Hint{{Key: "Y", Label: "Rescan SD card"}, {Key: "L1/R1", Label: "Tabs"}}
-	openHints   = []widgets.Hint{{Key: "A", Label: "Open"}, {Key: "Y", Label: "Add to queue"},
+	openHints   = []widgets.Hint{{Key: "A", Label: "Open"}, {Key: "X", Label: "Search"}, {Key: "Y", Label: "Add to queue"},
 		{Key: "L2/R2", Label: "Filter"}, {Key: "L1/R1", Label: "Tabs"}}
-	shuffleHints = []widgets.Hint{{Key: "A", Label: "Open"}, {Key: "X", Label: "Shuffle"}, {Key: "Y", Label: "Add to queue"},
-		{Key: "L2/R2", Label: "Filter"}, {Key: "L1/R1", Label: "Tabs"}}
-	songHints = []widgets.Hint{{Key: "A", Label: "Play"}, {Key: "Y", Label: "Add to queue"},
+	songHints = []widgets.Hint{{Key: "A", Label: "Play"}, {Key: "X", Label: "Search"}, {Key: "Y", Label: "Add to queue"},
 		{Key: "L2/R2", Label: "Filter"}, {Key: "L1/R1", Label: "Tabs"}}
 )
 
@@ -326,8 +321,6 @@ func (l *Library) hints() []widgets.Hint {
 		return rescanHints
 	case l.filter == songsFilter:
 		return songHints
-	case l.filter == artistsFilter, l.filter == genresFilter:
-		return shuffleHints
 	}
 	return openHints
 }

@@ -223,32 +223,124 @@ func TestArtistPageShufflesAll(t *testing.T) {
 	}
 }
 
-// X on an artist in the Library shuffles all their songs; it does nothing on
-// albums or songs.
-func TestLibraryShufflesAnArtist(t *testing.T) {
-	p := &fakePlayer{}
-	l := New(&fakeNav{}, p, "/m", nil)
+// X opens the search from any filter, and the hints say so.
+func TestLibraryXOpensSearch(t *testing.T) {
+	nav := &fakeNav{}
+	l := New(nav, &fakePlayer{}, "/m", nil)
 	l.SetIndex(sampleIndex())
-	if l.Handle(press(input.X), t0) || len(p.lists) != 0 {
-		t.Fatal("X on an album should do nothing")
+	for f := range genresFilter {
+		if !l.Handle(press(input.X), t0) {
+			t.Fatalf("X on filter %d went unhandled", f)
+		}
+		if got := l.hints()[1]; got.Key != "X" || got.Label != "Search" {
+			t.Fatalf("filter %d: the second hint is %+v", f, got)
+		}
+		l.Handle(press(input.R2), t0)
 	}
-	l.Handle(press(input.R2), t0)
-	l.Handle(press(input.Down), t0) // Odalys
-	if !l.Handle(press(input.X), t0) {
-		t.Fatal("X on an artist should be taken")
+	if len(nav.pushed) != 3 {
+		t.Fatalf("pushed %d screens, want 3", len(nav.pushed))
 	}
-	shuffledAll(t, p, odalysSongs)
-	if got := l.hints()[1]; got.Key != "X" || got.Label != "Shuffle" {
-		t.Fatalf("the second hint is %+v", got)
-	}
-	l.Handle(press(input.R2), t0)
-	if l.Handle(press(input.X), t0) || len(p.lists) != 1 {
-		t.Fatal("X on a song should do nothing")
+	if _, ok := nav.pushed[0].(*Search); !ok {
+		t.Fatalf("X pushed %T", nav.pushed[0])
 	}
 }
 
-// With songs tagged, Genres is the last filter: A opens a genre, X shuffles
-// it and Y queues it.
+func typeQuery(s *Search, q string) {
+	for _, r := range q {
+		if r == ' ' {
+			s.space()
+		} else {
+			s.typeRune(r)
+		}
+	}
+}
+
+// The search finds artists, then albums, then songs, every word anywhere in
+// a name, without case or accents.
+func TestSearchFinds(t *testing.T) {
+	s := NewSearch(&fakeNav{}, &fakePlayer{}, sampleIndex())
+	if len(s.hits) != 0 {
+		t.Fatalf("%d hits before typing", len(s.hits))
+	}
+	typeQuery(s, "odalys")
+	kinds := []int{}
+	for _, h := range s.hits {
+		kinds = append(kinds, h.kind)
+	}
+	// Odalys; Copper Season and Northbound; their five songs.
+	want := []int{artistHit, albumHit, albumHit, songHit, songHit, songHit, songHit, songHit}
+	if !slices.Equal(kinds, want) {
+		t.Fatalf("kinds %v, want %v", kinds, want)
+	}
+	s.query = ""
+	typeQuery(s, "TIN cOPPER")
+	if len(s.hits) != 1 || s.hits[0].song == nil || s.hits[0].song.Title != "Tin Roof" {
+		t.Fatalf("hits %+v, want Tin Roof alone", s.hits)
+	}
+	if fold("Beyoncé") != "beyonce" {
+		t.Fatalf("fold(Beyoncé) = %q", fold("Beyoncé"))
+	}
+}
+
+// On the results, A plays a song from the songs found, opens an album or an
+// artist, and Y queues; B goes back to the keyboard, then deletes, and with
+// nothing typed leaves B to the shell.
+func TestSearchResults(t *testing.T) {
+	p, nav := &fakePlayer{}, &fakeNav{}
+	s := NewSearch(nav, p, sampleIndex())
+	if s.Handle(press(input.Y), t0) {
+		t.Fatal("Y went to results with none")
+	}
+	typeQuery(s, "o")
+	if !s.Handle(press(input.Y), t0) || !s.onResults {
+		t.Fatal("Y should go to the results")
+	}
+	s.Handle(press(input.A), t0) // Odalys
+	if _, ok := nav.pushed[0].(*ArtistPage); !ok {
+		t.Fatalf("A on the artist pushed %T", nav.pushed[0])
+	}
+	for s.hits[s.list.Focus()].kind != songHit {
+		s.Handle(press(input.Down), t0)
+	}
+	s.Handle(press(input.Down), t0) // the second song found
+	s.Handle(press(input.A), t0)
+	if len(p.lists) != 1 || len(p.lists[0]) != len(s.songs) || p.start[0] != 1 {
+		t.Fatalf("played %v from %v", p.lists, p.start)
+	}
+	s.Handle(press(input.Y), t0)
+	if len(p.queued) != 1 || len(p.queued[0]) != 1 {
+		t.Fatalf("queued %v", p.queued)
+	}
+	if !s.Back() || s.onResults {
+		t.Fatal("B on the results should go to the keyboard")
+	}
+	if !s.Back() || s.query != "" {
+		t.Fatalf("B should delete, query %q", s.query)
+	}
+	if s.Back() {
+		t.Fatal("B with nothing typed should close the search")
+	}
+}
+
+func TestSearchHintsFit(t *testing.T) {
+	u, _ := uitest.NewContext(t, theme.DeviceW, theme.DeviceH)
+	for _, h := range [][]widgets.Hint{searchTypingHints, searchAloneHints, searchSongHints, searchAlbumHints,
+		searchArtistHints, openHints, songHints} {
+		if w := widgets.HintsWidth(u, h); w > widgets.MaxHintsWidth {
+			t.Errorf("hints %v are %.1f wide, more than %.1f", h, w, widgets.MaxHintsWidth)
+		}
+	}
+}
+
+func TestSearchGolden(t *testing.T) {
+	s := NewSearch(&fakeNav{}, &fakePlayer{}, sampleIndex())
+	typeQuery(s, "o")
+	s.Handle(press(input.Right), t0)
+	uitest.Golden(t, "library-search", render(t, s, t0.Add(anim.Focus)))
+}
+
+// With songs tagged, Genres is the last filter: A opens a genre and Y
+// queues it.
 func TestLibraryGenres(t *testing.T) {
 	p, nav := &fakePlayer{}, &fakeNav{}
 	l := New(nav, p, "/m", nil)
@@ -262,15 +354,10 @@ func TestLibraryGenres(t *testing.T) {
 	for range 3 {
 		l.Handle(press(input.Down), t0) // Folk, Jazz, Pop, Rock
 	}
-	if got := l.hints()[1]; got.Key != "X" || got.Label != "Shuffle" {
-		t.Fatalf("the second hint is %+v", got)
-	}
 	l.Handle(press(input.Y), t0)
 	if len(p.queued) != 1 || !slices.Equal(p.queued[0], rockSongs) || len(nav.toasts) != 1 {
 		t.Fatalf("Y on Rock queued %q, toasts %v", p.queued, nav.toasts)
 	}
-	l.Handle(press(input.X), t0)
-	shuffledAll(t, p, rockSongs)
 	l.Handle(press(input.A), t0)
 	if pg, ok := nav.pushed[0].(*AlbumPage); !ok || pg.title != "Rock" {
 		t.Fatalf("A on Rock opened %+v", nav.pushed)
@@ -492,7 +579,7 @@ func TestLibraryWhileReading(t *testing.T) {
 		t.Fatal("Y while reading should not rescan")
 	}
 	l.SetIndex(sampleIndex())
-	if got := l.hints(); len(got) != 4 {
+	if got := l.hints(); len(got) != 5 {
 		t.Fatalf("hints once the index loads = %v", got)
 	}
 }

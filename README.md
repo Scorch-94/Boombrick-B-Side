@@ -53,7 +53,7 @@ The Downloader card updates yt-dlp, which YouTube Music downloads use, the same 
 | D-pad | Move |
 | A | Play or open |
 | B | Back |
-| X | Download (YouTube Music); shuffle an artist or a genre (Library) |
+| X | Download (YouTube Music); search (Library) |
 | Y | Add to the queue; on Now Playing, lyrics |
 | D-pad Left, Right (Now Playing) | Previous and next track |
 | A (Now Playing) | Play or pause |
