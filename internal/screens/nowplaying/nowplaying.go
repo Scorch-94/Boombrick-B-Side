@@ -237,8 +237,10 @@ func (n *NowPlaying) moveTo(f int, now time.Time) {
 	n.values[f].To(1, now, anim.Focus, anim.EaseOutCubic)
 }
 
-// Handle moves focus along the controls, activates them with A, changes
-// track with L1 and R1 and seeks with L2 and R2. B is handled by the app,
+// Handle runs the transport straight from the buttons, with play/pause
+// always focused: Left is the previous track and Right the next, A plays or
+// pauses, X switches shuffle and Up or Down steps repeat. L1 and R1 also
+// change track, Y opens lyrics and L2 and R2 seek. B is handled by the app,
 // which closes the screen. A station has no lyrics, and can't seek.
 func (n *NowPlaying) Handle(ev input.Event, now time.Time) bool {
 	if n.scrub.Handle(ev, now) {
@@ -249,41 +251,31 @@ func (n *NowPlaying) Handle(ev input.Event, now time.Time) bool {
 	}
 	s := n.p.State()
 	n.keepFocus(s)
+	// A held D-pad repeats; a track change or a toggle happens once per press.
+	if ev.Kind != input.Press {
+		switch ev.Button {
+		case input.Left, input.Right, input.Up, input.Down, input.A, input.X, input.Y:
+			return true
+		}
+	}
 	switch ev.Button {
-	case input.Left, input.Right:
-		if n.focus == lyricsPill {
-			return false
-		}
-		f := n.focus - 1
-		if ev.Button == input.Right {
-			f = n.focus + 1
-		}
-		f = min(max(f, 0), controlCount-1)
-		if f == n.focus {
-			return false
-		}
-		n.moveTo(f, now)
+	case input.Left:
+		n.press(prevCtl, now)
 		return true
-	case input.Down:
-		if !n.hasLyrics(s) || n.focus == lyricsPill {
-			return false
-		}
-		n.moveTo(lyricsPill, now)
-		return true
-	case input.Up:
-		if n.focus != lyricsPill {
-			return false
-		}
-		n.moveTo(playCtl, now)
+	case input.Right:
+		n.press(nextCtl, now)
 		return true
 	case input.A:
-		if ev.Kind != input.Press {
-			return false
-		}
-		n.activate()
+		n.press(playCtl, now)
+		return true
+	case input.X:
+		n.press(shuffleCtl, now)
+		return true
+	case input.Up, input.Down:
+		n.press(repeatCtl, now)
 		return true
 	case input.Y:
-		if ev.Kind != input.Press || !n.hasLyrics(s) {
+		if !n.hasLyrics(s) {
 			return false
 		}
 		n.lyrics()
@@ -296,6 +288,18 @@ func (n *NowPlaying) Handle(ev input.Event, now time.Time) bool {
 		return true
 	}
 	return false
+}
+
+// press runs control c and flashes its ring, so the button pressed shows on
+// screen. Play/pause keeps its ring, as it holds focus.
+func (n *NowPlaying) press(c int, now time.Time) {
+	n.focus = c
+	n.activate()
+	n.focus = playCtl
+	if c != playCtl {
+		n.values[c].Set(1)
+		n.values[c].To(0, now, 3*anim.Focus, anim.EaseOutCubic)
+	}
 }
 
 func (n *NowPlaying) activate() {
@@ -550,26 +554,19 @@ func (n *NowPlaying) drawLyricsPill(u *ui.Context, x, y float32) {
 }
 
 func (n *NowPlaying) hints(s player.State) []widgets.Hint {
-	var label string
-	if n.focus == lyricsPill {
-		label = "Lyrics"
-	} else {
-		label = [controlCount]string{"Shuffle", "Previous", "Pause", "Next", "Repeat"}[n.focus]
-		if n.focus == playCtl && !s.Playing {
-			label = "Play"
-		}
+	label := "Pause"
+	if !s.Playing {
+		label = "Play"
 	}
 	live := s.Track.Live()
 	if n.hintBar != nil && label == n.hintLabel && live == n.hintLive {
 		return n.hintBar
 	}
-	hints := []widgets.Hint{{Key: "A", Label: label}, {Key: "B", Label: "Back"}}
+	hints := []widgets.Hint{{Key: "A", Label: label}, {Key: "◀ ▶", Label: "Track"}, {Key: "X", Label: "Shuffle"},
+		{Key: "▲ ▼", Label: "Repeat"}}
+	// L2 and R2 still seek, but the bar has no room left for their hint.
 	if n.hasLyrics(s) {
 		hints = append(hints, widgets.Hint{Key: "Y", Label: "Lyrics"})
-	}
-	hints = append(hints, widgets.Hint{Key: "L1/R1", Label: "Track"})
-	if !live {
-		hints = append(hints, widgets.Hint{Key: "L2/R2", Label: "Seek"})
 	}
 	n.hintBar, n.hintLabel, n.hintLive = hints, label, live
 	return n.hintBar

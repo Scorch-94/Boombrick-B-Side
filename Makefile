@@ -1,7 +1,9 @@
 GO      ?= go
 VERSION ?= dev
 PKG     := github.com/ujjwal313/boombrick
-LDFLAGS := -s -w -X $(PKG)/internal/version.Version=$(VERSION)
+# The repository Settings checks for updates: the fork building it in CI.
+REPO    ?= $(or $(GITHUB_REPOSITORY),ujjwal313/boombrick)
+LDFLAGS := -s -w -X $(PKG)/internal/version.Version=$(VERSION) -X $(PKG)/internal/version.Repo=$(REPO)
 # SQLite without loadable extensions, which Boombrick never loads.
 TAGS    := sqlite_omit_load_extension
 
@@ -49,10 +51,8 @@ clean:
 DEVICE_IMAGE := boombrick-tg5040
 GO_VERSION   := $(shell $(GO) env GOVERSION 2>/dev/null | sed 's/^go//')
 PAK_DIR      := dist/pak/Tools/tg5040/Boombrick.pak
-CROSSMIX_DIR := dist/crossmix/Apps/Boombrick
-KNULLI_DIR   := dist/knulli/roms/ports/boombrick
 
-.PHONY: device-image device pak crossmix knulli
+.PHONY: device-image device pak
 
 device-image:
 	docker build --build-arg GO_VERSION=$(GO_VERSION) -t $(DEVICE_IMAGE) build/docker
@@ -93,25 +93,3 @@ pak: device dist/qjs/qjs-linux-aarch64
 	cd dist/pak && zip -9qr ../Boombrick.pak.zip Tools
 	cd $(PAK_DIR) && zip -9qr $(CURDIR)/dist/Boombrick-PakStore.zip .
 	@echo "dist/Boombrick.pak.zip dist/Boombrick-PakStore.zip"
-
-# CrossMix lists the app in its Apps menu from config.json, with the icon
-# drawn from the logo.
-crossmix: device dist/qjs/qjs-linux-aarch64
-	rm -rf dist/crossmix
-	$(call app,$(CROSSMIX_DIR),crossmix,launch.sh)
-	cp build/crossmix/config.json $(CROSSMIX_DIR)/
-	$(GO) run ./scripts/appicon $(CROSSMIX_DIR)/icon.png
-	rm -f dist/Boombrick-CrossMix.zip
-	cd dist/crossmix && zip -9qr ../Boombrick-CrossMix.zip Apps
-	@echo "dist/Boombrick-CrossMix.zip"
-
-# Boombrick-Knulli.zip unzips at the root of Knulli's SHARE partition. Ports
-# lists Boombrick.sh, which starts the app in the boombrick folder beside it.
-knulli: device dist/qjs/qjs-linux-aarch64
-	rm -rf dist/knulli
-	$(call app,$(KNULLI_DIR),knulli,launch)
-	cp build/knulli/Boombrick.sh dist/knulli/roms/ports/
-	chmod +x dist/knulli/roms/ports/Boombrick.sh
-	rm -f dist/Boombrick-Knulli.zip
-	cd dist/knulli && zip -9qr ../Boombrick-Knulli.zip roms
-	@echo "dist/Boombrick-Knulli.zip"

@@ -4,9 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"syscall"
 	"testing"
-	"time"
 )
 
 // The firmwares' launch scripts are tested here, beside the code that
@@ -19,8 +17,6 @@ type launchScript struct{ name, src, file string }
 // launchers are the firmwares' launch scripts.
 var launchers = []launchScript{
 	{"NextUI", filepath.Join("..", "..", "build", "pak", "launch.sh"), "launch.sh"},
-	{"CrossMix", filepath.Join("..", "..", "build", "crossmix", "launch.sh"), "launch.sh"},
-	{"Knulli", filepath.Join("..", "..", "build", "knulli", "launch"), "launch"},
 }
 
 func write(t *testing.T, path, body string, mode os.FileMode) {
@@ -152,158 +148,5 @@ func TestLaunchDeletesAnIncompleteStage(t *testing.T) {
 				t.Fatal("the incomplete stage is still there")
 			}
 		})
-	}
-}
-
-// CrossMix's launcher names the firmware, keeps the Brick awake while
-// Boombrick runs, and keeps the early output in the app's logs folder.
-func TestCrossMixLaunch(t *testing.T) {
-	dir := installed(t, launchers[1])
-	write(t, filepath.Join(dir, "boombrick"), `#!/bin/sh
-echo "$BOOMBRICK_PLATFORM" > ran
-[ -f "$BOOMBRICK_TMP/stay_awake" ] && echo awake >> ran
-echo starting
-`, 0o755)
-	tmp := launch(t, filepath.Join(dir, "launch.sh"))
-	if got := read(t, filepath.Join(dir, "ran")); got != "crossmix\nawake\n" {
-		t.Fatalf("the program saw %q", got)
-	}
-	if _, err := os.Stat(filepath.Join(tmp, "stay_awake")); !os.IsNotExist(err) {
-		t.Fatal("stay_awake outlived Boombrick")
-	}
-	if got := read(t, filepath.Join(dir, "logs", "Boombrick.crash.txt")); got != "starting\n" {
-		t.Fatalf("the early output is %q", got)
-	}
-	if _, err := os.Stat(filepath.Join(tmp, "powered-off")); !os.IsNotExist(err) {
-		t.Fatal("powered off though Boombrick didn't ask")
-	}
-}
-
-// Boombrick on CrossMix asks to be powered off with a flag; the launcher
-// powers off once it has exited.
-func TestCrossMixPowersOffWhenAsked(t *testing.T) {
-	dir := installed(t, launchers[1])
-	write(t, filepath.Join(dir, "boombrick"), "#!/bin/sh\ntouch \"$BOOMBRICK_TMP/boombrick-poweroff\"\n", 0o755)
-	tmp := launch(t, filepath.Join(dir, "launch.sh"))
-	if _, err := os.Stat(filepath.Join(tmp, "powered-off")); err != nil {
-		t.Fatal("the launcher didn't power off")
-	}
-	if _, err := os.Stat(filepath.Join(tmp, "boombrick-poweroff")); !os.IsNotExist(err) {
-		t.Fatal("the flag is still there")
-	}
-}
-
-// A flag left by a launcher that was killed before it read it doesn't power
-// off the Brick at the next ordinary quit.
-func TestCrossMixIgnoresAnOldFlag(t *testing.T) {
-	dir := installed(t, launchers[1])
-	cmd, tmp := launcher(t, filepath.Join(dir, "launch.sh"))
-	write(t, filepath.Join(tmp, "boombrick-poweroff"), "", 0o644)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("launch.sh: %v\n%s", err, out)
-	}
-	if _, err := os.Stat(filepath.Join(tmp, "powered-off")); !os.IsNotExist(err) {
-		t.Fatal("powered off for an old flag")
-	}
-}
-
-// A SIGTERM to the launchers of CrossMix and Knulli, which outlive
-// Boombrick, goes on to Boombrick, so it quits as it does when NextUI's
-// launcher, replaced by it, is sent one: saving the queue. Knulli sends one
-// to a port it closes. The keep-awake file goes with Boombrick.
-func TestLaunchPassesOnSIGTERM(t *testing.T) {
-	for _, c := range []struct {
-		l     launchScript
-		awake string // the keep-awake file, under the launcher's /tmp
-	}{
-		{launchers[1], "stay_awake"},
-		{launchers[2], filepath.Join("battery-saver", "boombrick.pause")},
-	} {
-		t.Run(c.l.name, func(t *testing.T) {
-			dir := installed(t, c.l)
-			write(t, filepath.Join(dir, "boombrick"), `#!/bin/sh
-trap 'echo stopped > ran; exit 0' TERM
-touch running
-while :; do sleep 0.05; done
-`, 0o755)
-			cmd, tmp := launcher(t, filepath.Join(dir, c.l.file))
-			if err := os.Mkdir(filepath.Join(tmp, "battery-saver"), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := cmd.Start(); err != nil {
-				t.Fatal(err)
-			}
-			for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
-				if _, err := os.Stat(filepath.Join(dir, "running")); err == nil {
-					break
-				}
-			}
-			if _, err := os.Stat(filepath.Join(tmp, c.awake)); err != nil {
-				t.Fatalf("no keep-awake file while Boombrick runs: %v", err)
-			}
-			cmd.Process.Signal(syscall.SIGTERM)
-			done := make(chan error, 1)
-			go func() { done <- cmd.Wait() }()
-			select {
-			case <-done:
-			case <-time.After(5 * time.Second):
-				cmd.Process.Kill()
-				t.Fatal("the launcher didn't end")
-			}
-			if got := read(t, filepath.Join(dir, "ran")); got != "stopped\n" {
-				t.Fatalf("Boombrick saw %q, want the SIGTERM", got)
-			}
-			if _, err := os.Stat(filepath.Join(tmp, c.awake)); !os.IsNotExist(err) {
-				t.Fatal("the keep-awake file outlived Boombrick")
-			}
-		})
-	}
-}
-
-// Knulli lists Boombrick.sh under Ports and runs it to start the app, in
-// the boombrick folder beside it. The launcher names the firmware, holds
-// off Knulli's battery saver while Boombrick runs, and keeps the early
-// output in the app's logs folder.
-func TestKnulliLaunch(t *testing.T) {
-	ports := t.TempDir()
-	stub, err := os.ReadFile(filepath.Join("..", "..", "build", "knulli", "Boombrick.sh"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	write(t, filepath.Join(ports, "Boombrick.sh"), string(stub), 0o755)
-	dir := installedIn(t, filepath.Join(ports, "boombrick"), launchers[2])
-	write(t, filepath.Join(dir, "boombrick"), `#!/bin/sh
-echo "$BOOMBRICK_PLATFORM" > ran
-[ -f "$BOOMBRICK_RUN/battery-saver/boombrick.pause" ] && echo paused >> ran
-echo starting
-`, 0o755)
-	cmd, run := launcher(t, filepath.Join(ports, "Boombrick.sh"))
-	if err := os.Mkdir(filepath.Join(run, "battery-saver"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Boombrick.sh: %v\n%s", err, out)
-	}
-	if got := read(t, filepath.Join(dir, "ran")); got != "knulli\npaused\n" {
-		t.Fatalf("the program saw %q", got)
-	}
-	if _, err := os.Stat(filepath.Join(run, "battery-saver", "boombrick.pause")); !os.IsNotExist(err) {
-		t.Fatal("the pause file outlived Boombrick")
-	}
-	if got := read(t, filepath.Join(dir, "logs", "Boombrick.crash.txt")); got != "starting\n" {
-		t.Fatalf("the early output is %q", got)
-	}
-}
-
-// Without Knulli's battery saver there is nothing to hold off, and its
-// folder isn't made.
-func TestKnulliLaunchWithoutTheBatterySaver(t *testing.T) {
-	dir := installed(t, launchers[2])
-	run := launch(t, filepath.Join(dir, "launch"))
-	if got := read(t, filepath.Join(dir, "ran")); got != "old\n" {
-		t.Fatalf("the program that ran said %q", got)
-	}
-	if _, err := os.Stat(filepath.Join(run, "battery-saver")); !os.IsNotExist(err) {
-		t.Fatal("the battery saver's folder was made")
 	}
 }

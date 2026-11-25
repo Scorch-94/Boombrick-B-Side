@@ -10,3 +10,10 @@ var Version = "dev"
 func String() string {
 	return "Boombrick " + Version
 }
+
+// Repo is the GitHub repository Settings checks for Boombrick updates, as
+// owner/name. Set at build time to the fork that built it, so an update
+// never swaps this build for upstream's:
+//
+//	-ldflags "-X github.com/ujjwal313/boombrick/internal/version.Repo=you/boombrick"
+var Repo = "ujjwal313/boombrick"

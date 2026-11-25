@@ -1,6 +1,8 @@
 # Boombrick
 
-A music player for the [TrimUI Brick](https://trimui.com) running [NextUI](https://github.com/LoveRetro/NextUI), [CrossMix](https://github.com/cizia64/CrossMix-OS) or [Knulli](https://knulli.org). It plays the music on your SD card, streams your Spotify playlists, finds covers and synced lyrics, and downloads songs and albums from YouTube Music for offline listening. Its colours come from the album that's playing.
+> **This is a fork** of [ujjwal313/boombrick](https://github.com/ujjwal313/boombrick) for NextUI only, without internet radio, and with direct transport controls on Now Playing. Settings checks this fork, not upstream, for updates.
+
+A music player for the [TrimUI Brick](https://trimui.com) running [NextUI](https://github.com/LoveRetro/NextUI). It plays the music on your SD card, streams your Spotify playlists, finds covers and synced lyrics, and downloads songs and albums from YouTube Music for offline listening. Its colours come from the album that's playing.
 
 <p align="center">
   <img src=".github/resources/screenshots/overview.png" alt="Boombrick's screens: Now Playing, synced lyrics, the library, YouTube Music, downloads and the queue">
@@ -53,6 +55,10 @@ The Downloader card updates yt-dlp, which YouTube Music downloads use, the same 
 | B | Back |
 | X | Download (YouTube Music); shuffle an artist or a genre (Library) |
 | Y | Add to the queue; on Now Playing, lyrics |
+| D-pad Left, Right (Now Playing) | Previous and next track |
+| A (Now Playing) | Play or pause |
+| X (Now Playing) | Shuffle on or off |
+| D-pad Up, Down (Now Playing) | Step repeat: off, all, one |
 | L1, R1 | Switch tabs; on Now Playing, previous and next track |
 | L2, R2 | Filters in the Library and YouTube Music; on Now Playing and Lyrics, 10 s back and on, or hold to rewind and fast-forward |
 | Start | Now Playing |

@@ -1,26 +1,13 @@
 package app
 
 import (
-	"io"
-	"log/slog"
-	"path/filepath"
 	"slices"
 	"testing"
-	"time"
 
-	"github.com/ujjwal313/boombrick/internal/audio"
-	"github.com/ujjwal313/boombrick/internal/library"
-	"github.com/ujjwal313/boombrick/internal/platform/input"
 	"github.com/ujjwal313/boombrick/internal/player"
-	"github.com/ujjwal313/boombrick/internal/radio"
 	"github.com/ujjwal313/boombrick/internal/screens"
-	"github.com/ujjwal313/boombrick/internal/screens/home"
-	radioscreen "github.com/ujjwal313/boombrick/internal/screens/radio"
-	settingsscreen "github.com/ujjwal313/boombrick/internal/screens/settings"
 	spotifyscreen "github.com/ujjwal313/boombrick/internal/screens/spotify"
 	keys "github.com/ujjwal313/boombrick/internal/settings"
-	"github.com/ujjwal313/boombrick/internal/spotify"
-	"github.com/ujjwal313/boombrick/internal/store"
 	"github.com/ujjwal313/boombrick/internal/ui"
 	"github.com/ujjwal313/boombrick/internal/ui/widgets"
 )
@@ -65,44 +52,6 @@ func TestShownTabs(t *testing.T) {
 // whether there is one.
 type fakeSpotify struct{ Spotify }
 
-// Radio is the third switch on the Integrations page, there only with the
-// station directory.
-func TestIntegrationsListRadioThird(t *testing.T) {
-	a := &App{opts: Options{Spotify: fakeSpotify{}, Downloads: newLiveQueue(), Radio: &radio.Directory{}}}
-	ins := a.integrations()
-	want := settingsscreen.Integration{Key: keys.RadioOn, Name: "Radio", Icon: "radio", About: "Stations from Radio Browser"}
-	if len(ins) != 3 || ins[2] != want {
-		t.Fatalf("integrations %+v", ins)
-	}
-	a.opts.Radio = nil
-	if got := a.integrations(); len(got) != 2 {
-		t.Fatalf("without the directory there are %d switches, want 2", len(got))
-	}
-}
-
-// Switching Radio off while a station plays says it plays on; at any other
-// time it says nothing.
-func TestSwitchingRadioOffWhileAStationPlays(t *testing.T) {
-	p := switchPrefs{}
-	a, _, _, _ := switchApp(t, p)
-	a.last = player.State{Queued: true, Playing: true, Track: player.Track{StationID: "s1", Stream: "http://x/live"}}
-	p.SetBool(keys.RadioOn, false)
-	a.switched(keys.RadioOn, false)
-	if a.shell.toast != "This station plays until you stop it" {
-		t.Fatalf("toast %q", a.shell.toast)
-	}
-	if slices.Contains(a.ui.Tabs.Shown, widgets.TabRadio) {
-		t.Fatal("the Radio tab is still shown")
-	}
-
-	a.shell.toast = ""
-	a.last = player.State{Queued: true, Playing: true, Track: player.Track{Path: "/music/a.mp3"}}
-	a.switched(keys.RadioOn, false)
-	if a.shell.toast != "" {
-		t.Fatalf("toast %q with no station playing", a.shell.toast)
-	}
-}
-
 func TestSwitchedOffToast(t *testing.T) {
 	if got := noticeText(player.Notice{Kind: player.SwitchedOff, Off: "Spotify"}); got != "Spotify is off" {
 		t.Errorf("the toast says %q", got)
@@ -130,7 +79,7 @@ func switchApp(t *testing.T, p switchPrefs) (*App, *[]bool, *[]bool, *liveQueue)
 	s, _ := sixTabs()
 	var holds, imports []bool
 	q := newLiveQueue()
-	a := &App{shell: s, ui: &ui.Context{}, opts: Options{Prefs: p, Downloads: q, Radio: &radio.Directory{},
+	a := &App{shell: s, ui: &ui.Context{}, opts: Options{Prefs: p, Downloads: q,
 		Hold:     func(on bool) { holds = append(holds, on) },
 		ImportOn: func(on bool) { imports = append(imports, on) }}}
 	a.applySwitches()
@@ -139,7 +88,7 @@ func switchApp(t *testing.T, p switchPrefs) (*App, *[]bool, *[]bool, *liveQueue)
 
 func TestSwitchesAtStart(t *testing.T) {
 	a, holds, imports, _ := switchApp(t, switchPrefs{keys.YouTubeOn: "false"})
-	if !slices.Equal(a.ui.Tabs.Shown, []int{widgets.TabHome, widgets.TabLibrary, widgets.TabSpotify, widgets.TabRadio}) {
+	if !slices.Equal(a.ui.Tabs.Shown, []int{widgets.TabHome, widgets.TabLibrary, widgets.TabSpotify}) {
 		t.Fatalf("tabs %v", a.ui.Tabs.Shown)
 	}
 	if !slices.Equal(*holds, []bool{true}) || !slices.Equal(*imports, []bool{false}) {
@@ -200,143 +149,5 @@ func TestSwitchingOffTheTabUnderSettings(t *testing.T) {
 	a.switched(keys.YouTubeOn, false)
 	if a.shell.tab != widgets.TabHome || a.shell.open != 0 {
 		t.Fatalf("tab %d, overlay %d: want Home under Settings", a.shell.tab, a.shell.open)
-	}
-}
-
-// Without the station directory there is no Radio tab, whatever its switch
-// says.
-func TestNoRadioTabWithoutTheDirectory(t *testing.T) {
-	a := &App{opts: Options{Prefs: switchPrefs{}}}
-	if a.radioOn() {
-		t.Fatal("Radio is on without its directory")
-	}
-	if slices.Contains(shownTabs(a.spotifyOn(), a.youtubeOn(), a.radioOn()), widgets.TabRadio) {
-		t.Fatal("the Radio tab is shown without its directory")
-	}
-	a.opts.Radio = &radio.Directory{}
-	if !a.radioOn() {
-		t.Fatal("Radio is off with its directory and its switch on")
-	}
-}
-
-// With the station directory and the stations saved, the Radio tab's root is
-// the Radio tab; without the stations, a stand-in.
-func TestRadioRootIsTheRadioTab(t *testing.T) {
-	a, _ := homeApp(t, switchPrefs{})
-	root := a.radioTab()
-	if _, ok := root.(*radioscreen.Tab); !ok {
-		t.Fatalf("the Radio root is %T", root)
-	}
-	a.opts.Stations = nil
-	root = a.radioTab()
-	if _, ok := root.(*screens.Placeholder); !ok {
-		t.Fatalf("without the stations, the Radio root is %T", root)
-	}
-	a, _ = homeApp(t, switchPrefs{})
-	a.opts.Player = nil
-	root = a.radioTab()
-	if _, ok := root.(*screens.Placeholder); !ok {
-		t.Fatalf("without a player, the Radio root is %T", root)
-	}
-}
-
-// quietOut is an audio output that plays nothing.
-type quietOut struct{}
-
-func (quietOut) Open(int) error      { return nil }
-func (quietOut) Write([]int16) error { return nil }
-func (quietOut) Drop() (int, error)  { return 0, nil }
-func (quietOut) Close() error        { return nil }
-
-// homeApp is switchApp with a library, a Home and one saved station, as
-// showHome needs them.
-func homeApp(t *testing.T, p switchPrefs) (*App, *[]string) {
-	t.Helper()
-	a, _, _, _ := switchApp(t, p)
-	st, err := store.Open(filepath.Join(t.TempDir(), "boombrick.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	stations, err := radio.NewStations(st.DB, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { stations.Close(); st.Close() })
-	a.opts.Stations = stations
-	pl := player.New(quietOut{}, func(string) (audio.Source, error) { return nil, io.EOF },
-		slog.New(slog.NewTextHandler(io.Discard, nil)))
-	a.opts.Player = pl
-	t.Cleanup(func() { pl.Close() })
-	a.ix = &library.Index{Recent: []*library.Album{{Title: "Album", Artist: "Artist"}}}
-	a.home = home.New(nil)
-	var played []string
-	a.play = func(tracks []player.Track, start int) { played = append(played, tracks[start].Title) }
-	return a, &played
-}
-
-func TestHomeRadioRow(t *testing.T) {
-	station := radio.Station{ID: "u1", Name: "Radio X", URL: "http://s/x", Country: "India"}
-	a, played := homeApp(t, switchPrefs{})
-	a.opts.Stations.Toggle(station)
-	a.opts.Stations.Toggle(radio.Station{ID: "u2", Name: "Radio Y", URL: "http://s/y"})
-	a.opts.Spotify = fakeSpotify{}
-	a.env = &spotifyscreen.Env{}
-	a.playlists = []spotify.Playlist{{URI: "spotify:playlist:p1", Name: "Road trip", Count: 3}}
-	a.showHome(nil)
-	if got := a.home.RowTitles(); !slices.Equal(got, []string{"Spotify playlists", "Radio", "Recently added"}) {
-		t.Fatalf("rows %v", got)
-	}
-	a.opts.Player.SetShuffle(true) // left on from elsewhere
-	a.home.Handle(input.Event{Button: input.Down, Kind: input.Press}, time.Time{})
-	a.home.Handle(input.Event{Button: input.Right, Kind: input.Press}, time.Time{})
-	a.home.Handle(input.Event{Button: input.A, Kind: input.Press}, time.Time{})
-	if !slices.Equal(*played, []string{"Radio X"}) {
-		t.Fatalf("A played %v, want the first saved station (the latest saved is first)", *played)
-	}
-	if a.opts.Player.State().Shuffle {
-		t.Fatal("the stations were played with shuffle on")
-	}
-
-	a.opts.Prefs.SetBool(keys.RadioOn, false)
-	a.showHome(nil)
-	if got := a.home.RowTitles(); slices.Contains(got, "Radio") {
-		t.Fatalf("rows %v with Radio switched off", got)
-	}
-}
-
-func TestHomeRadioRowNeedsAPlayer(t *testing.T) {
-	a, _ := homeApp(t, switchPrefs{})
-	a.opts.Stations.Toggle(radio.Station{ID: "u1", Name: "Radio X", URL: "http://s/x"})
-	a.opts.Player = nil
-	a.showHome(nil)
-	if got := a.home.RowTitles(); slices.Contains(got, "Radio") {
-		t.Fatalf("rows %v without a player", got)
-	}
-}
-
-func TestHomeRadioRowNeedsASavedStation(t *testing.T) {
-	a, _ := homeApp(t, switchPrefs{})
-	a.showHome(nil)
-	if got := a.home.RowTitles(); !slices.Equal(got, []string{"Recently added"}) {
-		t.Fatalf("rows %v with nothing saved", got)
-	}
-}
-
-func TestHomeFollowsSavedStations(t *testing.T) {
-	a, _ := homeApp(t, switchPrefs{})
-	a.showHome(nil)
-	a.followStations()
-	if got := a.home.RowTitles(); slices.Contains(got, "Radio") {
-		t.Fatalf("rows %v before a station is saved", got)
-	}
-	a.opts.Stations.Toggle(radio.Station{ID: "u1", Name: "Radio X", URL: "http://s/x"})
-	a.followStations()
-	if got := a.home.RowTitles(); !slices.Equal(got, []string{"Radio", "Recently added"}) {
-		t.Fatalf("rows %v after saving a station", got)
-	}
-	a.opts.Stations.Toggle(radio.Station{ID: "u1", Name: "Radio X", URL: "http://s/x"})
-	a.followStations()
-	if got := a.home.RowTitles(); slices.Contains(got, "Radio") {
-		t.Fatalf("rows %v after removing it", got)
 	}
 }

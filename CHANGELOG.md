@@ -2,6 +2,15 @@
 
 All notable changes to Boombrick. Versions match the release tags.
 
+## [v0.6.0-fork.1]
+
+Forked from Boombrick 0.6.0.
+
+- Now Playing: Left and Right on the D-pad are the previous and next track, A plays or pauses, X switches shuffle, and Up or Down steps repeat. Focus no longer moves along the controls; the one pressed flashes.
+- Internet radio is removed: no Radio tab, Home row or Settings switch.
+- NextUI only: the CrossMix and Knulli builds are gone.
+- Settings checks this fork's releases for updates, so an update never puts upstream's build back.
+
 ## [v0.6.0]
 
 ### Added

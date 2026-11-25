@@ -54,18 +54,31 @@ func TestGolden(t *testing.T) {
 	uitest.Golden(t, "nowplaying", off.Image())
 }
 
-func TestFocusMovesAlongTheControls(t *testing.T) {
-	n := New(playing())
-	for range 2 { // play/pause, next, repeat
-		if !n.Handle(press(input.Right), t0) {
-			t.Fatal("Right should move focus from play/pause to repeat")
-		}
+// Left and Right change track at once, and focus stays on play/pause.
+func TestDpadChangesTrack(t *testing.T) {
+	f := playing()
+	n := New(f)
+	if !n.Handle(press(input.Left), t0) || !n.Handle(press(input.Right), t0) || !n.Handle(press(input.Right), t0) {
+		t.Fatal("Left or Right went unhandled")
 	}
-	if n.focus != repeatCtl || n.Handle(press(input.Right), t0) {
-		t.Fatalf("focus = %d; Right past repeat should do nothing", n.focus)
+	if f.prevs != 1 || f.nexts != 2 || n.focus != playCtl {
+		t.Fatalf("prevs %d, nexts %d, focus %d", f.prevs, f.nexts, n.focus)
 	}
 	if !n.Animating(t0.Add(time.Millisecond)) {
-		t.Fatal("focus should be animating")
+		t.Fatal("the pressed control should flash")
+	}
+}
+
+// Holding Left or Right skips once, not once per repeat.
+func TestHeldDpadSkipsOnce(t *testing.T) {
+	f := playing()
+	n := New(f)
+	n.Handle(press(input.Right), t0)
+	for range 5 {
+		n.Handle(input.Event{Button: input.Right, Kind: input.Repeat}, t0)
+	}
+	if f.nexts != 1 {
+		t.Fatalf("nexts %d, want 1", f.nexts)
 	}
 }
 
@@ -75,25 +88,22 @@ func TestAnimatingSettles(t *testing.T) {
 		t.Fatal("a fresh screen should not be animating")
 	}
 	n.Handle(press(input.Right), t0)
-	if n.Animating(t0.Add(anim.Focus + time.Millisecond)) {
-		t.Fatal("focus animation should be done once anim.Focus has passed")
+	if n.Animating(t0.Add(3*anim.Focus + time.Millisecond)) {
+		t.Fatal("the flash should be done once 3 × anim.Focus has passed")
 	}
 }
 
-func TestAActivatesTheFocusedControl(t *testing.T) {
+// A plays or pauses, X switches shuffle, and Up or Down steps repeat.
+func TestButtonsRunTheTransport(t *testing.T) {
 	f := playing()
 	n := New(f)
-	n.Handle(press(input.A), t0) // play/pause
-	n.Handle(press(input.Left), t0)
-	n.Handle(press(input.A), t0) // previous
-	n.Handle(press(input.Left), t0)
-	n.Handle(press(input.A), t0) // shuffle off
-	for i := 0; i < 4; i++ {
-		n.Handle(press(input.Right), t0)
+	for _, b := range []input.Button{input.A, input.X, input.Up, input.Down, input.A} {
+		if !n.Handle(press(b), t0) {
+			t.Fatalf("%v went unhandled", b)
+		}
 	}
-	n.Handle(press(input.A), t0) // repeat
-	if f.toggles != 1 || f.prevs != 1 || len(f.shuffles) != 1 || f.shuffles[0] || f.repeats != 1 {
-		t.Fatalf("toggles %d, prevs %d, shuffles %v, repeats %d", f.toggles, f.prevs, f.shuffles, f.repeats)
+	if f.toggles != 2 || len(f.shuffles) != 1 || f.shuffles[0] || f.repeats != 2 || n.focus != playCtl {
+		t.Fatalf("toggles %d, shuffles %v, repeats %d, focus %d", f.toggles, f.shuffles, f.repeats, n.focus)
 	}
 }
 
@@ -143,12 +153,13 @@ func TestScrubDroppedWithR2Up(t *testing.T) {
 	}
 }
 
-func TestHintsShowSeeking(t *testing.T) {
+func TestHintsShowTheButtons(t *testing.T) {
 	f := playing()
 	n := New(f)
-	h := n.hints(f.st)
-	if last := h[len(h)-1]; last.Key != "L2/R2" || last.Label != "Seek" {
-		t.Fatalf("the last hint is %s %s, want L2/R2 Seek", last.Key, last.Label)
+	want := []widgets.Hint{{Key: "A", Label: "Pause"}, {Key: "◀ ▶", Label: "Track"}, {Key: "X", Label: "Shuffle"},
+		{Key: "▲ ▼", Label: "Repeat"}}
+	if h := n.hints(f.st); !slices.Equal(h, want) {
+		t.Fatalf("hints %v, want %v", h, want)
 	}
 }
 
@@ -163,8 +174,8 @@ func TestHintFollowsFocusAndState(t *testing.T) {
 		t.Fatalf("paused: A hint %q, want Play", h[0].Label)
 	}
 	n.Handle(press(input.Right), t0)
-	if h := n.hints(f.st); h[0].Label != "Next" {
-		t.Fatalf("on next: A hint %q, want Next", h[0].Label)
+	if h := n.hints(f.st); h[0].Label != "Play" {
+		t.Fatalf("after Right: A hint %q, want Play still", h[0].Label)
 	}
 }
 
@@ -184,35 +195,24 @@ func TestGoldenWithArt(t *testing.T) {
 	uitest.Golden(t, "nowplaying-art", off.Image())
 }
 
-func TestLyricsPill(t *testing.T) {
+// Y opens lyrics; the pill shows the button but takes no focus.
+func TestYOpensLyrics(t *testing.T) {
 	f := playing()
 	n := New(f)
 	opened := 0
 	n.SetLyrics(func() { opened++ })
-	if !n.Handle(press(input.Down), t0) || n.focus != lyricsPill {
-		t.Fatalf("Down focused %d, want the Lyrics pill", n.focus)
+	if !n.Handle(press(input.Y), t0) || opened != 1 || n.focus != playCtl {
+		t.Fatalf("Y opened Lyrics %d times, focus %d", opened, n.focus)
 	}
-	if n.Handle(press(input.Left), t0) || n.Handle(press(input.Down), t0) {
-		t.Fatal("focus moved off the pill sideways or down")
-	}
-	if h := n.hints(f.st); h[0].Label != "Lyrics" {
-		t.Fatalf("A hint on the pill: %q", h[0].Label)
-	}
-	n.Handle(press(input.A), t0)
-	n.Handle(press(input.Up), t0)
-	if n.focus != playCtl {
-		t.Fatalf("Up from the pill focused %d, want play/pause", n.focus)
-	}
-	n.Handle(press(input.Y), t0)
-	if opened != 2 {
-		t.Fatalf("A on the pill and Y opened Lyrics %d times, want 2", opened)
+	if h := n.hints(f.st); h[len(h)-1] != (widgets.Hint{Key: "Y", Label: "Lyrics"}) {
+		t.Fatalf("hints %v end without Y Lyrics", h)
 	}
 }
 
 func TestNoLyricsPillWithoutLyrics(t *testing.T) {
 	n := New(playing())
-	if n.Handle(press(input.Down), t0) || n.Handle(press(input.Y), t0) {
-		t.Fatal("Down or Y did something with no Lyrics screen to open")
+	if n.Handle(press(input.Y), t0) {
+		t.Fatal("Y did something with no Lyrics screen to open")
 	}
 }
 
@@ -399,34 +399,6 @@ func TestGoldenStation(t *testing.T) {
 			n.Draw(u)
 			uitest.Golden(t, c.name, off.Image())
 		})
-	}
-}
-
-// A station has no lyrics and can't seek: Y, L2 and R2 do nothing, Down
-// finds no Lyrics pill, and the hints leave them out. A song after it has
-// them back.
-func TestStationHasNoLyricsOrSeek(t *testing.T) {
-	f := station()
-	n := New(f)
-	opened := 0
-	n.SetLyrics(func() { opened++ })
-	for _, b := range []input.Button{input.Y, input.L2, input.R2, input.Down} {
-		if n.Handle(press(b), t0) {
-			t.Errorf("%v did something on a station", b)
-		}
-		n.Handle(input.Event{Button: b, Kind: input.Release}, t0)
-	}
-	if opened != 0 || len(f.seeks) != 0 || n.focus != playCtl {
-		t.Fatalf("opened Lyrics %d times, seeked %v, focus on %d", opened, f.seeks, n.focus)
-	}
-	want := []widgets.Hint{{Key: "A", Label: "Pause"}, {Key: "B", Label: "Back"}, {Key: "L1/R1", Label: "Track"}}
-	if h := n.hints(f.st); !slices.Equal(h, want) {
-		t.Fatalf("a station's hints %v, want %v", h, want)
-	}
-	f.st = playing().st
-	h := n.hints(f.st)
-	if !slices.Contains(h, widgets.Hint{Key: "Y", Label: "Lyrics"}) || h[len(h)-1] != (widgets.Hint{Key: "L2/R2", Label: "Seek"}) {
-		t.Fatalf("a song after the station has the hints %v", h)
 	}
 }
 

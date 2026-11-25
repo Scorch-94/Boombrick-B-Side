@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log/slog"
-	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -14,11 +13,9 @@ import (
 
 	"github.com/ujjwal313/boombrick/internal/background"
 	"github.com/ujjwal313/boombrick/internal/logx"
-	"github.com/ujjwal313/boombrick/internal/netx"
 	"github.com/ujjwal313/boombrick/internal/perf"
 	"github.com/ujjwal313/boombrick/internal/platform"
 	"github.com/ujjwal313/boombrick/internal/player"
-	"github.com/ujjwal313/boombrick/internal/radio"
 	"github.com/ujjwal313/boombrick/internal/resume"
 	"github.com/ujjwal313/boombrick/internal/settings"
 	"github.com/ujjwal313/boombrick/internal/store"
@@ -73,7 +70,7 @@ func runBackground() error {
 	defer prefs.Close()
 	sp := newHelper(dir, paths, log, logFile)
 	defer sp.Close()
-	p := newPlayer(db.DB, prefs, sp, radio.NewClient(netx.NewClient(), net.DefaultResolver), online, log,
+	p := newPlayer(db.DB, prefs, sp, online, log,
 		func(n player.Notice) { log.Info("streaming", "notice", int(n.Kind)) })
 	defer closePlayer(p, log)
 
