@@ -48,6 +48,8 @@ Open Settings from the quick menu (Menu). When a newer release is out, the Boomb
 
 The Downloader card updates yt-dlp, which YouTube Music downloads use, the same way.
 
+A `.csv` playlist, as Exportify, Soundiiz or TuneMyMusic export one, is read by its header row: each song is found by its Spotify track (for songs the Spotify import downloaded), then by title and artist, with the album and length telling versions apart; a title's extras, like `(From "…")` or ` - Piano Version`, are set aside when that leaves only one song. A `Path` column works as an `.m3u` does. Underscores in the file's name become spaces in the playlist's.
+
 ## Podcasts
 
 With Spotify signed in, the **Podcasts** tab lists the podcasts on your Spotify account: **Continue** (episodes you are part way through, on any device), **Shows** (the podcasts you follow) and **Your Episodes** (the ones you saved). L2 and R2 change between them. A plays an episode from where you left off; Y adds it to the queue. Your place goes back to Spotify every 30 seconds while an episode plays, when you pause and when you move on, so the Spotify app on your phone carries on from there. On Now Playing, Left and Right jump 30 seconds back and forward during an episode.
@@ -56,7 +58,7 @@ Only episodes Spotify hosts itself play; the ones it only links to, on the podca
 
 ## Playlists
 
-Put `.m3u` or `.m3u8` files in a `Playlists` folder inside your music folder (`Music/Playlists/` on the SD card). They show under **Playlists** in the Library (called **Lists** when Genres also shows), in the order the file lists them. Each line can be a path relative to the playlist (`../Artist/Album/01 Song.flac`), relative to the music folder (`Artist/Album/01 Song.flac`), or absolute; paths written on a PC (`C:\Users\me\Music\...`) or another device (`/storage/.../Music/...`) work too, from their `Music` folder on. Songs the library doesn't have are counted as "not found". Playlists are read again on every launch and rescan; on an empty Playlists filter, Y rescans.
+Put `.m3u`, `.m3u8` or `.csv` files in a `Playlists` folder inside your music folder (`Music/Playlists/` on the SD card). They show under **Playlists** in the Library (called **Lists** when Genres also shows), in the order the file lists them. Each line can be a path relative to the playlist (`../Artist/Album/01 Song.flac`), relative to the music folder (`Artist/Album/01 Song.flac`), or absolute; paths written on a PC (`C:\Users\me\Music\...`) or another device (`/storage/.../Music/...`) work too, from their `Music` folder on. Songs the library doesn't have are counted as "not found". Playlists are read again on every launch and rescan; on an empty Playlists filter, Y rescans.
 
 ## Controls
 

@@ -446,7 +446,7 @@ func (l *Library) drawShuffleAll(u *ui.Context, box gfx.Rect, k float32) {
 // drawNoPlaylists says where playlists go, in the list's place.
 func (l *Library) drawNoPlaylists(u *ui.Context) {
 	if l.noListMsg == "" {
-		l.noListMsg = "No playlists yet. Put .m3u files in " + filepath.Join(l.musicDir, library.PlaylistDir) +
+		l.noListMsg = "No playlists yet. Put .m3u or .csv files in " + filepath.Join(l.musicDir, library.PlaylistDir) +
 			", then press Y to rescan."
 	}
 	w := float32(theme.ScreenW - 4*side)

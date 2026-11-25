@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-// PlaylistDir is the folder, inside the music folder, whose .m3u and .m3u8
-// files are the Library's playlists.
+// PlaylistDir is the folder, inside the music folder, whose .m3u, .m3u8 and
+// .csv files are the Library's playlists.
 const PlaylistDir = "Playlists"
 
 // Playlist is an .m3u file's songs that are in the library, in the file's
@@ -49,11 +49,27 @@ func ReadPlaylists(music string, ix *Index) []*Playlist {
 		}
 		return byLower[strings.ToLower(p)]
 	}
+	// resolve finds a playlist's path entry: relative to the playlist, to
+	// the music folder, or absolute, from this device or another.
+	resolve := func(entry string) *Track {
+		entry = strings.ReplaceAll(strings.TrimPrefix(entry, "file://"), `\`, "/")
+		if filepath.IsAbs(entry) || hasDrive(entry) {
+			if t := find(entry); t != nil {
+				return t
+			}
+			return find(underMusic(entry, music))
+		}
+		if t := find(filepath.Join(dir, entry)); t != nil {
+			return t
+		}
+		return find(filepath.Join(music, entry))
+	}
+	var songs *songMatcher // made for the first .csv
 	var lists []*Playlist
 	for _, e := range entries {
 		name := e.Name()
 		ext := strings.ToLower(filepath.Ext(name))
-		if e.IsDir() || (ext != ".m3u" && ext != ".m3u8") || strings.HasPrefix(name, ".") {
+		if e.IsDir() || (ext != ".m3u" && ext != ".m3u8" && ext != ".csv") || strings.HasPrefix(name, ".") {
 			continue
 		}
 		path := filepath.Join(dir, name)
@@ -62,19 +78,30 @@ func ReadPlaylists(music string, ix *Index) []*Playlist {
 			continue
 		}
 		pl := &Playlist{Name: strings.TrimSuffix(name, filepath.Ext(name)), Path: path}
-		for _, entry := range parseM3U(data) {
-			var t *Track
-			if filepath.IsAbs(entry) || hasDrive(entry) {
-				t = find(entry)
-				if t == nil {
-					t = find(underMusic(entry, music))
-				}
-			} else {
-				t = find(filepath.Join(dir, entry))
-				if t == nil {
-					t = find(filepath.Join(music, entry))
-				}
+		if ext == ".csv" {
+			if songs == nil {
+				songs = newSongMatcher(ix)
 			}
+			pl.Name = strings.ReplaceAll(pl.Name, "_", " ")
+			for _, row := range parseCSV(data) {
+				var t *Track
+				if row.path != "" {
+					t = resolve(row.path)
+				} else {
+					t = songs.match(row)
+				}
+				if t == nil {
+					pl.Missing++
+					continue
+				}
+				pl.Songs = append(pl.Songs, t)
+				pl.Duration += t.Duration
+			}
+			lists = append(lists, pl)
+			continue
+		}
+		for _, entry := range parseM3U(data) {
+			t := resolve(entry)
 			if t == nil {
 				pl.Missing++
 				continue

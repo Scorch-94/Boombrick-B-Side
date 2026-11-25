@@ -3,6 +3,8 @@ package library
 import (
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -70,5 +72,88 @@ func TestReadPlaylists(t *testing.T) {
 func TestReadPlaylistsWithoutTheFolder(t *testing.T) {
 	if lists := ReadPlaylists(t.TempDir(), NewIndex(nil)); lists != nil {
 		t.Fatalf("playlists %+v without the folder", lists)
+	}
+}
+
+// A .csv playlist, as Exportify writes one, matches by the Spotify track an
+// import downloaded, then by title and artists, telling versions apart by
+// album and length, and by a title's bare form when only one song fits.
+func TestReadPlaylistsCSV(t *testing.T) {
+	music := t.TempDir()
+	tr := func(rel, title, artist, album string, d time.Duration, spotifyID string) Track {
+		return Track{Path: filepath.Join(music, rel), Title: title, Artist: artist, Album: album, Duration: d, SpotifyID: spotifyID}
+	}
+	ix := NewIndex([]Album{
+		{Artist: "Funk Fiction", Title: "Aquatic Ambience", Tracks: []Track{
+			tr("ff/1.flac", "Aquatic Ambience", "Funk Fiction", "Aquatic Ambience", 194*time.Second, "")}},
+		{Artist: "Scizzie", Title: "aquatic ambience", Tracks: []Track{
+			tr("sc/1.flac", "aquatic ambience", "Scizzie", "aquatic ambience", 123*time.Second, ""),
+			tr("sc/2.flac", "aquatic ambience - slowed + reverb", "Scizzie", "aquatic ambience (Remixes)", 154*time.Second, "")}},
+		{Artist: "Helynt", Title: "Super Lofi World", Tracks: []Track{
+			tr("hl/1.flac", "Aquatic Ambience", "Helynt, GameChops", "Super Lofi World", 165*time.Second, "")}},
+		{Artist: "Helynt", Title: "Super Ambient World", Tracks: []Track{
+			tr("ha/1.flac", "Aquatic Ambience", "Helynt", "Super Ambient World", 216*time.Second, "")}},
+		{Artist: "Smooth McGroove", Title: "Remixed 2", Tracks: []Track{
+			tr("sm/1.opus", "Aquatic Ambience", "Smooth McGroove", "Remixed 2", 217*time.Second, "")}},
+		{Artist: "Koreskape", Title: "Aquatic Ambiance", Tracks: []Track{
+			tr("Boombrick/ko.opus", "Whatever the tags say", "Someone", "Something", 193*time.Second, "4m4Rh5mdcYDspyCEncdtPX")}},
+	})
+	dir := filepath.Join(music, PlaylistDir)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	csvText := "\ufeffTrack URI,ISRC,Track Name,Album Name,Artist Name(s),Release Date,Duration (ms),Popularity\n" +
+		`spotify:track:3zF1RvARE71MBXeWETPoEk,QZES91874867,"Aquatic Ambience","Aquatic Ambience","Funk Fiction",2019-01-15,194000,43` + "\n" +
+		`spotify:track:65u6c5NBv75ynFeJG4XA5Z,QZ22B1739607,"Aquatic Ambience (From ""Donkey Kong Country"")","Smooth McGroove Remixed 2","GameChops;Smooth McGroove;Holder",2017-01-13,217612,21` + "\n" +
+		`spotify:track:4m4Rh5mdcYDspyCEncdtPX,QZK6Q2003901,"Aquatic Ambiance","Aquatic Ambiance","Koreskape;GameChops",2020-08-07,193491,25` + "\n" +
+		`spotify:track:0imko8mKmhQJlvBVZWgP4K,USANG2224442,"aquatic ambience - slowed + reverb","aquatic ambience (Remixes)","Scizzie",2022-10-31,154419,59` + "\n" +
+		`spotify:track:1AeAJE0BNsq9jyssQDsUZ9,USANG2218395,"aquatic ambience","aquatic ambience","Scizzie",2022-10-15,123535,67` + "\n" +
+		`spotify:track:41dF02sXROxmP1ld8KmVPp,QZWFQ2582933,"Aquatic Ambience","Super Ambient World","Helynt;GameChops;mellow mode",2025-09-02,216000,24` + "\n" +
+		`spotify:track:0jiZzd2lyWPtn9lc1P3jNh,QZHN41952109,"Aquatic Ambience","Super Lofi World","Helynt;GameChops",2019-10-18,165269,30` + "\n" +
+		`spotify:track:2P7MOgeQVeDDN43ji37XmX,QT6G22502227,"Aquatic Ambience","Aquatic Ambience","Moonlit Hollow",2025-12-19,147935,21` + "\n" +
+		"\n"
+	if err := os.WriteFile(filepath.Join(dir, "Aquatic_Ambiance.csv"), []byte(csvText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lists := ReadPlaylists(music, ix)
+	if len(lists) != 1 || lists[0].Name != "Aquatic Ambiance" {
+		t.Fatalf("playlists %+v", lists)
+	}
+	var got []string
+	for _, s := range lists[0].Songs {
+		got = append(got, strings.TrimPrefix(s.Path, music+"/"))
+	}
+	want := []string{"ff/1.flac", "sm/1.opus", "Boombrick/ko.opus", "sc/2.flac", "sc/1.flac", "ha/1.flac", "hl/1.flac"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("songs %v, want %v", got, want)
+	}
+	if lists[0].Missing != 1 {
+		t.Fatalf("missing %d, want Moonlit Hollow's", lists[0].Missing)
+	}
+}
+
+// A .csv with a path column plays those files, as an .m3u does.
+func TestReadPlaylistsCSVPaths(t *testing.T) {
+	music := t.TempDir()
+	ix := NewIndex([]Album{{Artist: "A", Title: "B", Tracks: []Track{{Path: filepath.Join(music, "A/B/1.flac"), Title: "One"}}}})
+	dir := filepath.Join(music, PlaylistDir)
+	os.MkdirAll(dir, 0o755)
+	os.WriteFile(filepath.Join(dir, "paths.csv"), []byte("Title,Path\nOne,A/B/1.flac\nGone,A/B/9.flac\n"), 0o644)
+	lists := ReadPlaylists(music, ix)
+	if len(lists) != 1 || len(lists[0].Songs) != 1 || lists[0].Missing != 1 {
+		t.Fatalf("playlists %+v", lists[0])
+	}
+}
+
+func TestBareTitle(t *testing.T) {
+	for in, want := range map[string]string{
+		`Aquatic Ambiance (From "Donkey Kong Country") - Piano Version`: "aquatic ambiance",
+		"Donkey Kong Country - Aquatic Ambience":                        "donkey kong country",
+		"AQUATIC/AMBIANCE":                                              "aquatic ambiance",
+		"Café [Live]":                                                   "cafe",
+	} {
+		if got := bareTitle(in); got != want {
+			t.Errorf("bareTitle(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
