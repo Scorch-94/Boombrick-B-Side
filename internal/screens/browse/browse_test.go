@@ -434,6 +434,38 @@ func TestLibraryPlaylists(t *testing.T) {
 	uitest.Golden(t, "playlist-page", render(t, pg, t0.Add(anim.Focus)))
 }
 
+// The songs list opens with Shuffle all songs: A plays every song in the
+// library shuffled, Y queues them all, and the songs follow it.
+func TestLibraryShuffleAllSongs(t *testing.T) {
+	p, nav := &fakePlayer{}, &fakeNav{}
+	l := New(nav, p, "/m", nil)
+	ix := sampleIndex()
+	l.SetIndex(ix)
+	l.filter = songsFilter
+	if l.views[songsFilter].Count() != len(ix.Songs)+1 || l.views[songsFilter].Focus() != 0 {
+		t.Fatalf("count %d, focus %d", l.views[songsFilter].Count(), l.views[songsFilter].Focus())
+	}
+	if h := l.hints()[0]; h.Label != "Shuffle all" {
+		t.Fatalf("A hint %q on the Shuffle all row", h.Label)
+	}
+	l.Handle(press(input.A), t0)
+	all := paths(songTracks(ix.Songs))
+	if len(p.lists) != 1 || !slices.Equal(p.lists[0], all) || !slices.Equal(p.shuffled, []bool{true}) {
+		t.Fatalf("played %v, shuffle %v; want every song shuffled", p.lists, p.shuffled)
+	}
+	l.Handle(press(input.Y), t0)
+	if len(p.queued) != 1 || len(p.queued[0]) != len(ix.Songs) {
+		t.Fatalf("queued %v", p.queued)
+	}
+	l.Handle(press(input.Down), t0) // the first song
+	l.Handle(press(input.A), t0)
+	if len(p.lists) != 2 || p.start[1] != 0 || p.shuffled[1] {
+		t.Fatalf("A on the first song started at %v, shuffle %v", p.start, p.shuffled)
+	}
+	l.Handle(press(input.Up), t0)
+	uitest.Golden(t, "library-shuffle-all", render(t, l, t0.Add(anim.Focus)))
+}
+
 // With no playlists, the filter says where to put them, and Y rescans.
 func TestLibraryNoPlaylists(t *testing.T) {
 	scans, nav := 0, &fakeNav{}
@@ -716,7 +748,7 @@ func TestLibraryKeepsFocusAcrossReloads(t *testing.T) {
 	if a := ix2.Artists[l.views[artistsFilter].Focus()]; a.Name != artist.Name {
 		t.Errorf("artist focus moved to %q, want %q", a.Name, artist.Name)
 	}
-	if s := ix2.Songs[l.views[songsFilter].Focus()]; s.Path != song.Path {
+	if s := ix2.Songs[l.views[songsFilter].Focus()-1]; s.Path != song.Path {
 		t.Errorf("song focus moved to %q, want %q", s.Path, song.Path)
 	}
 	if g := ix2.Genres[l.views[genresFilter].Focus()]; g.Name != genre.Name {

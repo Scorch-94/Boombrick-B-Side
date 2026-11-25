@@ -32,7 +32,7 @@ var filterNames = [filterCount]string{"Albums", "Artists", "Songs", "Playlists",
 const listTop = contentTop + widgets.FiltersHeight
 
 // Library is the Library tab: albums, artists, songs, playlists or genres,
-// chosen with L2 and R2. Genres shows only when some song is tagged with
+// chosen with L2 and R2. The songs list opens with a Shuffle all songs row. Genres shows only when some song is tagged with
 // one. Playlists are the .m3u files in the music folder's Playlists folder.
 type Library struct {
 	nav       screens.Nav
@@ -48,6 +48,7 @@ type Library struct {
 	shownCts  []string               // the shown filters' counts, or only the chosen one's when all don't fit
 	noLists   widgets.Wrapped        // the empty Playlists filter's message, wrapped
 	noListMsg string                 // that message, made once
+	allSongs  string                 // the Shuffle all row's line: the songs and their time
 	laidOut   bool
 	measured  bool            // allCounts is known for this index
 	allCounts bool            // every filter's count fits in the row
@@ -85,6 +86,11 @@ func (l *Library) SetIndex(ix *library.Index) {
 	l.measured = false
 	l.rows[artistsFilter] = make([]listRow, len(ix.Artists))
 	l.rows[songsFilter] = make([]listRow, len(ix.Songs))
+	var total time.Duration
+	for _, t := range ix.Songs {
+		total += t.Duration
+	}
+	l.allSongs = screens.SongsAndTime(len(ix.Songs), total)
 	l.rows[playlistsFilter] = make([]listRow, len(ix.Playlists))
 	l.rows[genresFilter] = make([]listRow, len(ix.Genres))
 	if !slices.Contains(l.shown(), l.filter) {
@@ -93,7 +99,7 @@ func (l *Library) SetIndex(ix *library.Index) {
 	if old == nil {
 		l.views[albumsFilter].SetCount(len(ix.Albums))
 		l.views[artistsFilter].SetCount(len(ix.Artists))
-		l.views[songsFilter].SetCount(len(ix.Songs))
+		l.views[songsFilter].SetCount(len(ix.Songs) + 1) // the Shuffle all row first
 		l.views[playlistsFilter].SetCount(len(ix.Playlists))
 		l.views[genresFilter].SetCount(len(ix.Genres))
 		return
@@ -105,8 +111,11 @@ func (l *Library) SetIndex(ix *library.Index) {
 	g.SetCountFocus(len(ix.Artists), refocus(old.Artists, ix.Artists, g.Focus(),
 		func(a *library.Artist) string { return a.Name }))
 	g = &l.views[songsFilter]
-	g.SetCountFocus(len(ix.Songs), refocus(old.Songs, ix.Songs, g.Focus(),
-		func(s *library.Track) string { return s.Path }))
+	f := g.Focus() // 0 is the Shuffle all row, which stays where it is
+	if f > 0 {
+		f = refocus(old.Songs, ix.Songs, f-1, func(s *library.Track) string { return s.Path }) + 1
+	}
+	g.SetCountFocus(len(ix.Songs)+1, f)
 	g = &l.views[playlistsFilter]
 	g.SetCountFocus(len(ix.Playlists), refocus(old.Playlists, ix.Playlists, g.Focus(),
 		func(p *library.Playlist) string { return p.Path }))
@@ -206,8 +215,12 @@ func (l *Library) open(i int) {
 	case artistsFilter:
 		l.nav.Push(NewArtistPage(l.nav, l.p, l.ix.Artists[i]))
 	case songsFilter:
+		if i == 0 {
+			shuffle(l.p, songTracks(l.ix.Songs))
+			return
+		}
 		l.p.SetShuffle(false)
-		l.p.Play(songTracks(l.ix.Songs), i)
+		l.p.Play(songTracks(l.ix.Songs), i-1)
 	case playlistsFilter:
 		l.nav.Push(NewPlaylistPage(l.nav, l.p, l.ix.Playlists[i]))
 	case genresFilter:
@@ -227,7 +240,10 @@ func (l *Library) tracksAt(i int) []player.Track {
 	case genresFilter:
 		return songTracks(l.ix.Genres[i].Songs)
 	}
-	return []player.Track{screens.TrackOf(l.ix.Songs[i])}
+	if i == 0 { // the Shuffle all row: every song
+		return songTracks(l.ix.Songs)
+	}
+	return []player.Track{screens.TrackOf(l.ix.Songs[i-1])}
 }
 
 // Animating reports whether the current view is moving.
@@ -285,8 +301,9 @@ func (l *Library) drawFilters(u *ui.Context) {
 	widgets.Filters(u, l.names, l.shownCts, at, side, contentTop)
 }
 
-// row is item i's row in the artists, songs or genres, made the first time
-// it shows rather than every frame.
+// row is item i's row in the artists, songs, playlists or genres, made the
+// first time it shows rather than every frame. i counts from the first song,
+// not the Shuffle all row.
 func (l *Library) row(i int) *listRow {
 	r := &l.rows[l.filter][i]
 	if r.subtitle != "" {
@@ -327,6 +344,14 @@ func (l *Library) drawView(u *ui.Context) {
 	playing := l.p.State().Track.Path
 	u.PushClip(screens.GlowArea)
 	g.Draw(u.Now, side, listTop, func(i int, x, y, k float32) {
+		box := gfx.Rect{X: x, Y: y, W: g.CellW, H: widgets.RowHeight}
+		if l.filter == songsFilter {
+			if i == 0 {
+				l.drawShuffleAll(u, box, k)
+				return
+			}
+			i--
+		}
 		lr := l.row(i)
 		r := widgets.Row{Art: &lr.art, Subtitle: lr.subtitle, Duration: lr.duration}
 		switch l.filter {
@@ -340,12 +365,25 @@ func (l *Library) drawView(u *ui.Context) {
 			s := l.ix.Songs[i]
 			r.Title, r.Playing = s.Title, s.Path == playing
 		}
-		box := gfx.Rect{X: x, Y: y, W: g.CellW, H: widgets.RowHeight}
 		widgets.RowGlow(u, box, widgets.RowRadius, k)
 		u.PushClip(screens.Below(listTop))
 		widgets.ListRow(u, r, box, k)
 		u.PopClip()
 	})
+	u.PopClip()
+}
+
+// shuffleArt is the Shuffle all row's square, with the shuffle icon drawn
+// over it.
+var shuffleArt = widgets.ArtSpec{Hue: 20, Variant: 2}
+
+// drawShuffleAll draws the row that shuffles every song in the library.
+func (l *Library) drawShuffleAll(u *ui.Context, box gfx.Rect, k float32) {
+	widgets.RowGlow(u, box, widgets.RowRadius, k)
+	u.PushClip(screens.Below(listTop))
+	widgets.ListRow(u, widgets.Row{Art: &shuffleArt, Title: "Shuffle all songs", Subtitle: l.allSongs}, box, k)
+	// The art is 58 square, 16 in from the row's left, centred down it.
+	u.Icon("shuffle", 30, 2.5, false, box.X+16+14, box.Y+(box.H-30)/2, theme.Paper)
 	u.PopClip()
 }
 
@@ -374,6 +412,9 @@ var (
 		{Key: "L2/R2", Label: "Filter"}, {Key: "L1/R1", Label: "Tabs"}}
 	noPlaylistHints = []widgets.Hint{{Key: "X", Label: "Search"}, {Key: "Y", Label: "Rescan SD card"},
 		{Key: "L2/R2", Label: "Filter"}, {Key: "L1/R1", Label: "Tabs"}}
+	// The tab row shows L1 and R1 itself; there is no room for their hint.
+	shuffleAllHints = []widgets.Hint{{Key: "A", Label: "Shuffle all"}, {Key: "X", Label: "Search"},
+		{Key: "Y", Label: "Add to queue"}, {Key: "L2/R2", Label: "Filter"}}
 	songHints = []widgets.Hint{{Key: "A", Label: "Play"}, {Key: "X", Label: "Search"}, {Key: "Y", Label: "Add to queue"},
 		{Key: "L2/R2", Label: "Filter"}, {Key: "L1/R1", Label: "Tabs"}}
 )
@@ -386,6 +427,8 @@ func (l *Library) hints() []widgets.Hint {
 		return rescanHints
 	case l.filter == playlistsFilter && len(l.ix.Playlists) == 0:
 		return noPlaylistHints
+	case l.filter == songsFilter && l.views[songsFilter].Focus() == 0:
+		return shuffleAllHints
 	case l.filter == songsFilter:
 		return songHints
 	}
