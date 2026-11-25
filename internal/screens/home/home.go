@@ -302,7 +302,7 @@ func RandomRow(albums []*library.Album, play, queue func(*library.Album)) (fixtu
 			items[i].Queue = func() { queue(a) }
 		}
 	}
-	return fixture.Row{Title: "Random albums", Meta: "New picks each launch", Items: items}, true
+	return fixture.Row{Title: "Random albums", Meta: "New picks each launch", Cards: true, Items: items}, true
 }
 
 // SpotifyRow is Spotify playlists: Liked Songs, then the user's playlists,

@@ -741,9 +741,13 @@ func TestRandomAlbums(t *testing.T) {
 	}
 	var played string
 	row, ok := RandomRow(first, func(a *library.Album) { played = a.Title }, nil)
-	if !ok || row.Title != "Random albums" || len(row.Items) != maxRandom {
-		t.Fatalf("row %+v", row)
+	if !ok || row.Title != "Random albums" || len(row.Items) != maxRandom || !row.Cards ||
+		row.Items[0].Title != first[0].Title || row.Items[0].Subtitle != first[0].Artist {
+		t.Fatalf("row %+v: captioned cards, each album over its artist", row)
 	}
+	h := New(nil)
+	h.SetRows([]fixture.Row{row})
+	uitest.Golden(t, "home-random", render(t, h, t0.Add(anim.Focus)))
 	row.Items[0].Play()
 	if played != first[0].Title {
 		t.Fatalf("played %q", played)
