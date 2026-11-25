@@ -82,6 +82,24 @@ func TestHeldDpadSkipsOnce(t *testing.T) {
 	}
 }
 
+// Nothing is highlighted until a button is pressed, play/pause included,
+// and its flash fades.
+func TestNoControlStaysHighlighted(t *testing.T) {
+	n := New(playing())
+	for i := range controlCount {
+		if v := n.values[i].At(t0); v != 0 {
+			t.Fatalf("control %d starts at %v, want 0", i, v)
+		}
+	}
+	n.Handle(press(input.A), t0)
+	if n.values[playCtl].At(t0) != 1 {
+		t.Fatal("A should flash play/pause")
+	}
+	if v := n.values[playCtl].At(t0.Add(3*anim.Focus + time.Millisecond)); v != 0 {
+		t.Fatalf("play/pause still at %v after the flash", v)
+	}
+}
+
 func TestAnimatingSettles(t *testing.T) {
 	n := New(playing())
 	if n.Animating(t0) {

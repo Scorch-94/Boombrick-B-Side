@@ -114,11 +114,10 @@ type formatKey struct {
 	live       bool
 }
 
-// New creates the screen with focus on play/pause.
+// New creates the screen. No control is highlighted: each flashes as its
+// button is pressed.
 func New(p Player) *NowPlaying {
-	n := &NowPlaying{p: p, focus: playCtl, scrub: screens.NewScrub(p)}
-	n.values[playCtl].Set(1)
-	return n
+	return &NowPlaying{p: p, focus: playCtl, scrub: screens.NewScrub(p)}
 }
 
 // SetHeld tells the screen whether a button is down, so that a scrub whose
@@ -151,7 +150,6 @@ func (n *NowPlaying) keepFocus(s player.State) {
 	if n.focus == lyricsPill && !n.hasLyrics(s) {
 		n.values[lyricsPill].Set(0)
 		n.focus = playCtl
-		n.values[playCtl].Set(1)
 	}
 }
 
@@ -291,15 +289,13 @@ func (n *NowPlaying) Handle(ev input.Event, now time.Time) bool {
 }
 
 // press runs control c and flashes its ring, so the button pressed shows on
-// screen. Play/pause keeps its ring, as it holds focus.
+// screen; then the ring fades out.
 func (n *NowPlaying) press(c int, now time.Time) {
 	n.focus = c
 	n.activate()
 	n.focus = playCtl
-	if c != playCtl {
-		n.values[c].Set(1)
-		n.values[c].To(0, now, 3*anim.Focus, anim.EaseOutCubic)
-	}
+	n.values[c].Set(1)
+	n.values[c].To(0, now, 3*anim.Focus, anim.EaseOutCubic)
 }
 
 func (n *NowPlaying) activate() {

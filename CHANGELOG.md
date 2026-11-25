@@ -2,6 +2,10 @@
 
 All notable changes to Boombrick. Versions match the release tags.
 
+## [v0.7.1]
+
+- Now Playing: play/pause is no longer highlighted all the time. Like the other controls, it flashes when its button is pressed.
+
 ## [v0.7.0]
 
 Forked from Boombrick 0.6.0.
