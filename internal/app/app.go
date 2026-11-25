@@ -242,33 +242,37 @@ type App struct {
 	nowPlaying *nowplaying.NowPlaying
 	music      transport                              // the player, for the buttons heard with the screen off
 	play       func(tracks []player.Track, start int) // starts the tracks at one, as Home's stations do
-	library    *browse.Library
-	queue      *queue.Queue
-	shell      *shell
-	ix         *library.Index
-	last       player.State
-	dirty      bool
-	fade       accentFade
-	grounds    *grounds     // a new accent's backgrounds, rendered before its fade starts
-	accentDue  bool         // what plays changed with the screen off: its accent is due when it is on
-	arts       atomic.Bool  // art finished since poll last looked
-	redraw     atomic.Bool  // lyrics, YouTube Music's answers, Settings' meter or releases, or an import have news to draw
-	downloaded atomic.Bool  // the download queue changed since poll last looked
-	landed     atomic.Bool  // and downloads landed, to show in the library
-	fontsIn    atomic.Bool  // and fonts arrived, for text that drew as missing
-	skipped    atomic.Bool  // and a queued song was dropped, its download failed
-	spotified  atomic.Bool  // the Spotify library has news
-	handFailed atomic.Bool  // handing the music over failed, for poll to say
-	handing    atomic.Bool  // the music is being handed over: input waits
-	volume     atomic.Int32 // a volume level to show, plus one; 0 for none
-	quit       bool
-	drawn      bool
-	drawnAt    time.Time // the start of the frame drawn last
-	dark       bool      // the screen is off: nothing is drawn and only Power is heard
-	lightOff   bool      // the backlight was turned off, to be turned on again
-	powerAt    time.Time // when Power went down, while it is held
-	scanEnded  bool      // a scan has ended, so an empty index is the library
-	wasAnim    bool
+	// player is the player as the screens get it: starting something opens
+	// Now Playing, overlay nowPlayingAt.
+	player       showingPlayer
+	nowPlayingAt int
+	library      *browse.Library
+	queue        *queue.Queue
+	shell        *shell
+	ix           *library.Index
+	last         player.State
+	dirty        bool
+	fade         accentFade
+	grounds      *grounds     // a new accent's backgrounds, rendered before its fade starts
+	accentDue    bool         // what plays changed with the screen off: its accent is due when it is on
+	arts         atomic.Bool  // art finished since poll last looked
+	redraw       atomic.Bool  // lyrics, YouTube Music's answers, Settings' meter or releases, or an import have news to draw
+	downloaded   atomic.Bool  // the download queue changed since poll last looked
+	landed       atomic.Bool  // and downloads landed, to show in the library
+	fontsIn      atomic.Bool  // and fonts arrived, for text that drew as missing
+	skipped      atomic.Bool  // and a queued song was dropped, its download failed
+	spotified    atomic.Bool  // the Spotify library has news
+	handFailed   atomic.Bool  // handing the music over failed, for poll to say
+	handing      atomic.Bool  // the music is being handed over: input waits
+	volume       atomic.Int32 // a volume level to show, plus one; 0 for none
+	quit         bool
+	drawn        bool
+	drawnAt      time.Time // the start of the frame drawn last
+	dark         bool      // the screen is off: nothing is drawn and only Power is heard
+	lightOff     bool      // the backlight was turned off, to be turned on again
+	powerAt      time.Time // when Power went down, while it is held
+	scanEnded    bool      // a scan has ended, so an empty index is the library
+	wasAnim      bool
 	// Spotify: the session-expired dialog, whether it has opened since the
 	// last sign-in, the playlists Home's row was made from, and the albums in
 	// progress Home was last given.
@@ -365,16 +369,17 @@ func New(opts Options) (*App, error) {
 	// The first accent's backgrounds are rendered as the first frames need
 	// them; every later one's ahead, on a goroutine.
 	a.grounds = newGrounds(a.fade.target(), renderGrounds, a.wake)
+	a.player = showingPlayer{Player: opts.Player, show: a.showNowPlaying}
 	if opts.Player != nil {
 		a.music = opts.Player
-		a.play = opts.Player.Play
+		a.play = a.player.Play
 	}
 	if opts.Status != nil {
 		a.reader.Go(func() { watchStatus(opts.Status, statusEvery, a.statuses, a.wake, a.lit, a.stop) })
 	}
 	screens.SetMusicPlace(opts.MusicPlace)
 	a.home.SetEmpty(opts.MusicDir, func() { a.rescan(); a.Toast(screens.Scanning) })
-	a.library = browse.New(a, opts.Player, opts.MusicDir, a.rescan)
+	a.library = browse.New(a, a.player, opts.MusicDir, a.rescan)
 	a.loads = newLoader(opts.Load, opts.Progress, a.wake)
 	if opts.Scanned != nil {
 		go func() {
@@ -412,7 +417,7 @@ func New(opts Options) (*App, error) {
 	var ytTab, dlTab screens.Screen = &screens.Placeholder{Tab: widgets.TabYouTube, Title: "YouTube"}, &screens.Placeholder{Tab: widgets.TabDownloads, Title: "Downloads"}
 	var acts youtube.Downloads // stays nil without a queue
 	if opts.Downloads != nil {
-		acts = ytActions{dl: opts.Downloads, p: opts.Player, toast: a.Toast}
+		acts = ytActions{dl: opts.Downloads, p: a.player, toast: a.Toast}
 		dlTab = downloadsscreen.New(a, opts.Downloads)
 		a.nowPlaying.SetDownloads(opts.Downloads.State, opts.Downloads.Note)
 		a.reader.Go(func() { a.followDownloads(opts.Downloads, opts.Player) })
@@ -447,7 +452,7 @@ func New(opts Options) (*App, error) {
 	if a.expired != nil {
 		a.shell.alert = a.expired
 	}
-	addOverlays(a.shell, a.nowPlaying, a.queue, func() bool { return a.last.Queued }, opts.Player, opts.Lyrics, a.held)
+	a.nowPlayingAt = addOverlays(a.shell, a.nowPlaying, a.queue, func() bool { return a.last.Queued }, opts.Player, opts.Lyrics, a.held)
 	if opts.Lyrics != nil {
 		a.forward(opts.Lyrics.Ready(), &a.redraw)
 	}
@@ -462,7 +467,7 @@ func (a *App) radioTab() screens.Screen {
 	if a.opts.Radio == nil || a.opts.Stations == nil || a.opts.Player == nil {
 		return &screens.Placeholder{Tab: widgets.TabRadio, Title: "Radio"}
 	}
-	return radioscreen.NewTab(&radioscreen.Env{Nav: a, Dir: a.opts.Radio, Saved: a.opts.Stations, Player: a.opts.Player})
+	return radioscreen.NewTab(&radioscreen.Env{Nav: a, Dir: a.opts.Radio, Saved: a.opts.Stations, Player: a.player})
 }
 
 // quickMenu makes the quick menu, and the Settings screen it opens.
@@ -533,17 +538,47 @@ func (a *App) forward(ready <-chan struct{}, flag *atomic.Bool) {
 // screen, which opens from Now Playing and goes back to it, having no button
 // of its own. held tells Now Playing and Lyrics which buttons are down.
 func addOverlays(s *shell, np *nowplaying.NowPlaying, q screens.Screen, queued func() bool, p lyricsscreen.Player, lyrics lyricsscreen.Source,
-	held func(input.Button) bool) {
+	held func(input.Button) bool) int {
 	nowPlayingAt := s.add(overlay{button: input.Start, screen: np, can: queued})
 	s.add(overlay{button: input.Select, screen: q})
 	np.SetHeld(held)
 	if lyrics == nil {
-		return
+		return nowPlayingAt
 	}
 	ly := lyricsscreen.New(p, lyrics, func() { s.openOverlay(nowPlayingAt, time.Now()) })
 	ly.SetHeld(held)
 	lyricsAt := s.add(overlay{button: input.None, screen: ly})
 	np.SetLyrics(func() { s.openOverlay(lyricsAt, time.Now()) })
+	return nowPlayingAt
+}
+
+// showingPlayer is the player as the screens play with it: whatever they
+// start, from a song in a list to an album on Home, opens Now Playing.
+// Queueing, skipping and the like don't.
+type showingPlayer struct {
+	*player.Player
+	show func()
+}
+
+// Play plays tracks from start, and opens Now Playing.
+func (p showingPlayer) Play(tracks []player.Track, start int) {
+	p.Player.Play(tracks, start)
+	p.show()
+}
+
+// PlayFrom plays tracks from start at frame, and opens Now Playing.
+func (p showingPlayer) PlayFrom(tracks []player.Track, start int, frame int64) {
+	p.Player.PlayFrom(tracks, start, frame)
+	p.show()
+}
+
+// showNowPlaying opens Now Playing over the tabs, as Start does.
+func (a *App) showNowPlaying() {
+	if a.shell == nil {
+		return
+	}
+	a.shell.openOverlay(a.nowPlayingAt, time.Now())
+	a.dirty = true
 }
 
 // Push opens s on the current tab.
@@ -816,10 +851,10 @@ func (a *App) showHome(progress []resume.Progress) {
 	a.home.SetRows(rows)
 }
 
-func (a *App) playAlbum(al *library.Album) { playAlbum(a.opts.Player, al, 0, 0) }
+func (a *App) playAlbum(al *library.Album) { playAlbum(a.player, al, 0, 0) }
 
 func (a *App) resumeAlbum(al *library.Album, track int, frame int64) {
-	playAlbum(a.opts.Player, al, track, frame)
+	playAlbum(a.player, al, track, frame)
 }
 
 // albumPlayer is what Home's albums need from the player.

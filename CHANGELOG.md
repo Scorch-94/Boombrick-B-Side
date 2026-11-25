@@ -4,6 +4,7 @@ All notable changes to Boombrick. Versions match the release tags.
 
 ## [v0.7.1]
 
+- Choosing something to play (a song, an album, a playlist, an episode, a station) opens Now Playing. B goes back to where you were.
 - Podcasts: a new Podcasts tab, beside Spotify, for the podcasts on your Spotify account. Continue lists the episodes you are part way through on any device, Shows the podcasts you follow (each opening to its episodes, newest first), and Your Episodes the ones you saved. Episodes play from where you left off, and your place goes back to Spotify as you listen, so your phone picks up from there. On Now Playing, Left and Right jump 30 seconds back and on during an episode. Episodes Spotify only links to, rather than hosts, show "Not playable yet".
 - Album, genre and playlist pages: the Play and Shuffle buttons are gone. The page opens on the first track; A plays from the focused track, Y queues it.
 - Internet radio is back, as in Boombrick 0.6.0: the Radio tab, saved stations on Home, and its switch in Settings.

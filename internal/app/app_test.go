@@ -232,3 +232,19 @@ func TestPrefetchesWhenTheStreamedSongChanges(t *testing.T) {
 		t.Fatal("prefetched with nothing queued")
 	}
 }
+
+// Starting something from a screen opens Now Playing over the tab.
+func TestPlayingOpensNowPlaying(t *testing.T) {
+	s := newShell(&page{name: "home"})
+	p := &stillPlayer{}
+	np := nowplaying.New(p)
+	a := &App{shell: s}
+	a.nowPlayingAt = addOverlays(s, np, &page{name: "queue"}, nil, p, noLyrics{}, nil)
+	shown := 0
+	sp := showingPlayer{show: func() { shown++; a.showNowPlaying() }}
+	sp.show()
+	if s.overlay() != np || shown != 1 {
+		t.Fatalf("%T is open after playing, want Now Playing", s.overlay())
+	}
+	(&App{}).showNowPlaying() // no shell yet: nothing to open, and no panic
+}

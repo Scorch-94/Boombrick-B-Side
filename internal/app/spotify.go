@@ -35,7 +35,7 @@ type Importer interface {
 // spotifyEnv is what the Spotify screens work with. Importing needs the
 // download queue as well as the importer.
 func (a *App) spotifyEnv() *spotifyscreen.Env {
-	e := &spotifyscreen.Env{Nav: a, Src: a.opts.Spotify, Player: a.opts.Player, Importing: a.youtubeOn,
+	e := &spotifyscreen.Env{Nav: a, Src: a.opts.Spotify, Player: a.player, Importing: a.youtubeOn,
 		Online: func() bool { return a.ui.Status.Online }}
 	if a.opts.Importer == nil || a.opts.Downloads == nil {
 		return e
