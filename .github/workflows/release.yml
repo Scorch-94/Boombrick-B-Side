@@ -49,12 +49,19 @@ jobs:
           if grep -q '[^[:space:]]' dist/NOTES.md; then
             printf "\nBoombrick is free. If you'd like to help keep it going, you can [buy me a coffee](https://buymeacoffee.com/ujjwal_).\n" >> dist/NOTES.md
           fi
+      # A release made by hand on GitHub, which made the tag, gets the files
+      # added to it; otherwise the release is made here.
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          files="dist/Boombrick-B-Side.pak.zip dist/Boombrick-B-Side-PakStore.zip dist/SHA256SUMS"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" $files --clobber
+            exit 0
+          fi
           flags="--notes-file dist/NOTES.md"
           grep -q '[^[:space:]]' dist/NOTES.md || flags="--generate-notes"
           case "$GITHUB_REF_NAME" in *-*) flags="$flags --prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" dist/Boombrick-B-Side.pak.zip dist/Boombrick-B-Side-PakStore.zip dist/SHA256SUMS \
+          gh release create "$GITHUB_REF_NAME" $files \
             --title "Boombrick B-Side ${GITHUB_REF_NAME#v}" $flags
