@@ -31,4 +31,4 @@ mkdir -p "$LOGS_PATH"
 syncsettings.elf &
 
 # The app writes its own log; this file only catches crashes before logging starts.
-exec ./boombrick > "$LOGS_PATH/Boombrick.crash.txt" 2>&1
+exec ./boombrick > "$LOGS_PATH/Boombrick B-Side.crash.txt" 2>&1

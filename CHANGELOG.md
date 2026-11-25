@@ -6,6 +6,8 @@ All notable changes to Boombrick. Versions match the release tags.
 
 Forked from Boombrick 0.6.0.
 
+- Named Boombrick B-Side, so it installs beside the original Boombrick: its own pak folder, `Tools/tg5040/Boombrick B-Side.pak`, its own library and settings, and its own log. The first launch scans the music afresh.
+
 - Now Playing: Left and Right on the D-pad are the previous and next track, A plays or pauses, X switches shuffle, and Up or Down steps repeat. Focus no longer moves along the controls; the one pressed flashes.
 - Library: X opens a search. Type on the keyboard and artists, albums and songs that match show beside it as you type, ignoring case and accents. Right or Y goes to them: A plays a song (the rest of the songs found follow it) or opens an artist or album, Y queues, and X on an artist shuffles them. B goes back to the keyboard, deletes, and with nothing typed closes the search. Shuffling an artist from the Library list is now on the artist's page (X), and a genre's on its Shuffle button.
 - Library: a Playlists filter (Lists when Genres shows too) lists the .m3u and .m3u8 files in Music/Playlists. A opens one as a page with Play and Shuffle, Y queues it. Entries can be relative or absolute paths, from a PC or another device; ones not in the library count as not found.

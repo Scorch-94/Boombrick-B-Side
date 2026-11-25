@@ -84,7 +84,7 @@ func run(started time.Time) error {
 			return err
 		}
 	}
-	logFile, err := logx.Open(filepath.Join(paths.Logs, "Boombrick.txt"), 1<<20, 1)
+	logFile, err := logx.Open(filepath.Join(paths.Logs, version.Name+".txt"), 1<<20, 1)
 	if err != nil {
 		return err
 	}

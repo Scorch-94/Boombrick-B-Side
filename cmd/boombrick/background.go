@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/ujjwal313/boombrick/internal/version"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -34,7 +35,7 @@ func runBackground() error {
 	dir := programDir()
 	prof := platform.Detect(dir)
 	paths := prof.Paths
-	logPath := filepath.Join(paths.Logs, "Boombrick.txt")
+	logPath := filepath.Join(paths.Logs, version.Name+".txt")
 	logFile, err := logx.Open(logPath, 1<<20, 1)
 	if err != nil {
 		return err

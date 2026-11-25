@@ -5,6 +5,7 @@
 package platform
 
 import (
+	"github.com/ujjwal313/boombrick/internal/version"
 	"os"
 	"path/filepath"
 
@@ -92,12 +93,12 @@ func Detect(dir string) Profile {
 	if ud := os.Getenv("USERDATA_PATH"); ud != "" {
 		return Profile{Firmware: NextUI, tmp: tmpDir(),
 			Paths: Paths{
-				Data:     filepath.Join(ud, "Boombrick"),
+				Data:     filepath.Join(ud, version.Name),
 				Logs:     envOr("LOGS_PATH", filepath.Join(ud, "logs")),
 				Music:    filepath.Join(envOr("SDCARD_PATH", "/mnt/SDCARD"), "Music"),
 				OnDevice: true,
 			},
-			ReleaseAsset: "Boombrick.pak.zip", ReleaseDir: "Tools/tg5040/Boombrick.pak/", Launcher: "launch.sh"}
+			ReleaseAsset: version.Slug + ".pak.zip", ReleaseDir: "Tools/tg5040/" + version.Name + ".pak/", Launcher: "launch.sh"}
 	}
 	base := envOr("BOOMBRICK_DATA", filepath.Join("dist", "desktop", "data"))
 	return Profile{Firmware: Desktop, tmp: tmpDir(), Paths: Paths{Data: base, Logs: base, Music: filepath.Join(base, "Music")}}

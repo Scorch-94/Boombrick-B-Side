@@ -16,13 +16,13 @@ func TestDetectNextUI(t *testing.T) {
 	t.Setenv("LOGS_PATH", "/mnt/SDCARD/.userdata/tg5040/logs")
 	want := Profile{Firmware: NextUI, tmp: "/tmp",
 		Paths: Paths{
-			Data:     "/mnt/SDCARD/.userdata/tg5040/Boombrick",
+			Data:     "/mnt/SDCARD/.userdata/tg5040/Boombrick B-Side",
 			Logs:     "/mnt/SDCARD/.userdata/tg5040/logs",
 			Music:    "/mnt/SDCARD/Music",
 			OnDevice: true,
 		},
-		ReleaseAsset: "Boombrick.pak.zip", ReleaseDir: "Tools/tg5040/Boombrick.pak/", Launcher: "launch.sh"}
-	if got := Detect("/mnt/SDCARD/Tools/tg5040/Boombrick.pak"); got != want {
+		ReleaseAsset: "Boombrick-B-Side.pak.zip", ReleaseDir: "Tools/tg5040/Boombrick B-Side.pak/", Launcher: "launch.sh"}
+	if got := Detect("/mnt/SDCARD/Tools/tg5040/Boombrick B-Side.pak"); got != want {
 		t.Fatalf("Detect() = %+v, want %+v", got, want)
 	}
 }

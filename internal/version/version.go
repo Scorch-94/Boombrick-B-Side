@@ -6,9 +6,17 @@ package version
 //	-ldflags "-X github.com/ujjwal313/boombrick/internal/version.Version=1.0.0"
 var Version = "dev"
 
+// Name is this fork's name: what NextUI lists in Tools, its pak and data
+// folders, and its log. It differs from upstream's "Boombrick" so the two
+// install side by side, each with its own library and settings.
+const Name = "Boombrick B-Side"
+
+// Slug is Name as release files are named: "Boombrick-B-Side".
+const Slug = "Boombrick-B-Side"
+
 // String returns the name and version shown in Settings and the log.
 func String() string {
-	return "Boombrick " + Version
+	return Name + " " + Version
 }
 
 // Repo is the GitHub repository Settings checks for Boombrick updates, as

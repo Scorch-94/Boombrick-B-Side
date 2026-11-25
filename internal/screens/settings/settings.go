@@ -3,6 +3,7 @@
 package settings
 
 import (
+	"github.com/ujjwal313/boombrick/internal/version"
 	"time"
 
 	"github.com/ujjwal313/boombrick/internal/platform/input"
@@ -604,13 +605,13 @@ func (s *Screen) refresh(now time.Time) {
 			if total > 0 {
 				s.rows[rowStorage].Value = screens.Size(free) + " free"
 			}
-			s.footer = "Boombrick " + s.opts.Version + " · " + s.opts.Device
+			s.footer = version.Name + " " + s.opts.Version + " · " + s.opts.Device
 			if total > 0 {
 				s.footer += " · SD card " + screens.Size(total)
 			}
 		}
 	} else if s.footer == "" {
-		s.footer = "Boombrick " + s.opts.Version + " · " + s.opts.Device
+		s.footer = version.Name + " " + s.opts.Version + " · " + s.opts.Device
 	}
 	sl := s.opts.Player.Sleep()
 	if due, ok := screens.SleepDue(sl, s.sleptAt); sl != s.sleep || s.rows[rowSleep].Value == "" || ok && !now.Before(due) {

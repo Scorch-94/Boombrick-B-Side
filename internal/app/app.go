@@ -4,6 +4,7 @@ package app
 import (
 	"cmp"
 	"fmt"
+	"github.com/ujjwal313/boombrick/internal/version"
 	"image/color"
 	"log/slog"
 	"path/filepath"
@@ -300,7 +301,7 @@ func New(opts Options) (*App, error) {
 	if opts.Fullscreen {
 		flags |= sdl.WINDOW_FULLSCREEN
 	}
-	win, err := sdl.CreateWindow("Boombrick", sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED, theme.DeviceW, theme.DeviceH, flags)
+	win, err := sdl.CreateWindow(version.Name, sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED, theme.DeviceW, theme.DeviceH, flags)
 	if err != nil {
 		sdl.Quit()
 		return nil, fmt.Errorf("create window: %w", err)

@@ -50,7 +50,11 @@ clean:
 
 DEVICE_IMAGE := boombrick-tg5040
 GO_VERSION   := $(shell $(GO) env GOVERSION 2>/dev/null | sed 's/^go//')
-PAK_DIR      := dist/pak/Tools/tg5040/Boombrick.pak
+# The fork's name, as NextUI lists it in Tools; it has a space, so every use
+# of a path holding it is quoted. SLUG names the release zips.
+NAME         := Boombrick B-Side
+SLUG         := Boombrick-B-Side
+PAK_DIR      := dist/pak/Tools/tg5040/$(NAME).pak
 
 .PHONY: device-image device pak
 
@@ -71,25 +75,25 @@ device: device-image
 # helper, the libraries the device lacks (Opus and Ogg for Boombrick; FLAC
 # and mpg123, which go-librespot links, for the helper), and the licences.
 define app
-	rm -rf $(1)
-	mkdir -p $(1)/bin
-	cp dist/tg5040/boombrick build/$(2)/$(3) LICENSE NOTICE assets/fonts/OFL-*.txt $(1)/
-	scripts/licenses.sh dist/tg5040/boombrick dist/tg5040/boombrick-spotify > $(1)/THIRD-PARTY.txt
-	chmod +x $(1)/boombrick $(1)/$(3)
-	cp dist/qjs/qjs-linux-aarch64 $(1)/bin/qjs
-	cp dist/tg5040/boombrick-spotify $(1)/bin/
+	rm -rf "$(1)"
+	mkdir -p "$(1)/bin"
+	cp dist/tg5040/boombrick build/$(2)/$(3) LICENSE NOTICE assets/fonts/OFL-*.txt "$(1)/"
+	scripts/licenses.sh dist/tg5040/boombrick dist/tg5040/boombrick-spotify > "$(1)/THIRD-PARTY.txt"
+	chmod +x "$(1)/boombrick" "$(1)/$(3)"
+	cp dist/qjs/qjs-linux-aarch64 "$(1)/bin/qjs"
+	cp dist/tg5040/boombrick-spotify "$(1)/bin/"
 	docker run --rm -v "$$(pwd)":/src $(DEVICE_IMAGE) sh -c \
-		'mkdir -p $(1)/lib && cd $$SYSROOT/usr/lib && cp -L libopus.so.0 libogg.so.0 libFLAC.so.8 libmpg123.so.0 \
-			/src/$(1)/lib/'
+		'mkdir -p "/src/$(1)/lib" && cd $$SYSROOT/usr/lib && cp -L libopus.so.0 libogg.so.0 libFLAC.so.8 libmpg123.so.0 \
+			"/src/$(1)/lib/"'
 endef
 
-# Boombrick.pak.zip unzips at the root of the SD card, and is what Boombrick
+# $(SLUG).pak.zip unzips at the root of the SD card, and is what the app
 # updates itself from. The Pak Store unzips its own zip into the pak's folder,
 # so that one holds the same files at its root.
 pak: device dist/qjs/qjs-linux-aarch64
 	rm -rf dist/pak
 	$(call app,$(PAK_DIR),pak,launch.sh)
-	rm -f dist/Boombrick.pak.zip dist/Boombrick-PakStore.zip
-	cd dist/pak && zip -9qr ../Boombrick.pak.zip Tools
-	cd $(PAK_DIR) && zip -9qr $(CURDIR)/dist/Boombrick-PakStore.zip .
-	@echo "dist/Boombrick.pak.zip dist/Boombrick-PakStore.zip"
+	rm -f "dist/$(SLUG).pak.zip" "dist/$(SLUG)-PakStore.zip"
+	cd dist/pak && zip -9qr "../$(SLUG).pak.zip" Tools
+	cd "$(PAK_DIR)" && zip -9qr "$(CURDIR)/dist/$(SLUG)-PakStore.zip" .
+	@echo "dist/$(SLUG).pak.zip dist/$(SLUG)-PakStore.zip"

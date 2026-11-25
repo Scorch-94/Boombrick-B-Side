@@ -1,6 +1,7 @@
 package settings
 
 import (
+	appversion "github.com/ujjwal313/boombrick/internal/version"
 	"image/color"
 	"math"
 	"strconv"
@@ -151,7 +152,7 @@ type appState struct {
 // release ("" until known) and the update's status; canUpdate says whether
 // there is an updater to offer it.
 func (c *card) setApp(version, latest string, st selfupdate.Status, canUpdate bool) {
-	c.title = "Boombrick"
+	c.title = appversion.Name
 	switch {
 	case version == "dev":
 		c.line = "Development build"
