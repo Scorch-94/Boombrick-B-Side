@@ -148,7 +148,7 @@ func TestRowsOfAnIntegrationSwitchedOffAreHidden(t *testing.T) {
 
 var homeSections = []Integration{
 	{Key: keys.HomeContinue, Name: "Continue listening", Icon: "play", About: "Albums you stopped part way through"},
-	{Key: keys.HomeEpisodes, Name: "Podcast episodes in Continue listening", Icon: "back30", About: "Spotify episodes you've started"},
+	{Key: keys.HomeEpisodes, Name: "Podcast episodes in Continue listening", Icon: "back30", About: "Spotify episodes you've started", Attached: true},
 	{Key: keys.HomeShuffle, Name: "Shuffle all songs", Icon: "shuffle", About: "Every song on your SD card, shuffled"},
 	{Key: keys.HomeRandom, Name: "Random albums", Icon: "refresh", About: "Six albums, new each launch"},
 	{Key: keys.HomePlaylists, Name: "Playlists", Icon: "music", About: "Your .m3u and .csv playlists"},
@@ -193,5 +193,62 @@ func TestTheHomeSectionsPage(t *testing.T) {
 	}
 	if New(Options{Prefs: p, Player: &fakePlayer{}}).shown(rowHome) {
 		t.Fatal("a Home sections row with no sections")
+	}
+}
+
+// On Home sections, X picks a section up, Up and Down move it, and A drops
+// it, saving the order; B puts it back. Podcast episodes move with Continue
+// listening, and can't be picked up alone.
+func TestReorderHomeSections(t *testing.T) {
+	p := prefs{}
+	homes := 0
+	s := New(Options{Prefs: p, Player: &fakePlayer{}, HomeSections: homeSections, HomeSwitched: func() { homes++ }})
+	for s.focus != rowHome {
+		s.Handle(press(input.Down), t0)
+	}
+	s.Handle(press(input.A), t0)
+	pg := s.integrations
+	names := func() []string {
+		var out []string
+		for _, in := range pg.items {
+			out = append(out, in.Name)
+		}
+		return out
+	}
+	if s.Handle(press(input.Down), t0); s.Handle(press(input.X), t0) || pg.moving {
+		t.Fatal("X picked up Podcast episodes alone")
+	}
+	s.Handle(press(input.Up), t0)
+	s.Handle(press(input.X), t0) // Continue listening, with its episodes
+	if !pg.moving || pg.rows[0].Value != "Moving" || pg.rows[1].Value != "Moving" {
+		t.Fatalf("moving %v, rows %v", pg.moving, pg.rows[:2])
+	}
+	s.Handle(press(input.Down), t0)
+	s.Handle(press(input.Down), t0)
+	uitest.Golden(t, "home-sections-moving", render(t, &env{prefs: p, p: &fakePlayer{}, s: s}, t0.Add(anim.Focus)))
+	want := []string{"Shuffle all songs", "Random albums", "Continue listening", "Podcast episodes in Continue listening", "Playlists"}
+	if got := names(); !slices.Equal(got[:5], want) || pg.focus != 2 {
+		t.Fatalf("order %v, focus %d", got, pg.focus)
+	}
+	s.Handle(press(input.A), t0)
+	if pg.moving || homes != 1 || p[keys.HomeOrder] != "home.shuffle,home.random,home.continue,home.playlists,home.spotify,home.podcasts,home.radio,home.recent" {
+		t.Fatalf("dropped: moving %v, Home told %d, order %q", pg.moving, homes, p[keys.HomeOrder])
+	}
+	// Moved again and cancelled, it goes back.
+	s.Handle(press(input.X), t0)
+	s.Handle(press(input.Up), t0)
+	s.Back()
+	if got := names(); !slices.Equal(got[:3], want[:3]) || pg.moving || s.integrations == nil || pg.focus != 2 {
+		t.Fatalf("cancelled: %v, focus %d", got, pg.focus)
+	}
+	// Opened again, the page keeps the order.
+	s.Back()
+	s.Handle(press(input.A), t0)
+	pg = s.integrations
+	if got := names(); !slices.Equal(got[:5], want) {
+		t.Fatalf("reopened: %v", got)
+	}
+	if s.Handle(press(input.X), t0); s.Handle(press(input.Up), t0) {
+		t.Fatal("moved above the top")
 	}
 }

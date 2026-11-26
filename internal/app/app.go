@@ -845,84 +845,97 @@ func (a *App) showHome(progress []resume.Progress) {
 	if a.ix == nil {
 		return
 	}
-	var rows []fixture.Row
-	sp := a.opts.Spotify != nil && a.spotifyOn()
-	if a.homeShows(keys.HomeContinue) {
-		var eps home.Episodes
-		if sp && a.env != nil && a.homeShows(keys.HomeEpisodes) {
-			eps = home.Episodes{List: a.episodes,
-				Play:  func(ep spotify.Episode) { spotifyscreen.PlayEpisode(a.env, ep) },
-				Queue: func(ep spotify.Episode) { spotifyscreen.QueueEpisode(a.env, ep) }}
-		}
-		if row, ok := home.ContinueRow(progress, a.ix, a.resumeAlbum, a.queueAlbum, eps); ok {
-			rows = append(rows, row)
-		}
-	}
-	if a.homeShows(keys.HomeShuffle) {
-		play := func() { browse.ShuffleAll(a.player, a.ix) }
-		queue := func() {
-			ts := make([]player.Track, len(a.ix.Songs))
-			for i, s := range a.ix.Songs {
-				ts[i] = screens.TrackOf(s)
-			}
-			a.opts.Player.Enqueue(ts)
-			a.Toast(screens.AddedToQueue)
-		}
-		if row, ok := home.ShuffleRow(len(a.ix.Songs), play, queue); ok {
-			rows = append(rows, row)
-		}
-	}
 	if a.random == nil {
 		a.random = home.NewRandomPicks(time.Now().UnixNano())
 	}
-	if a.homeShows(keys.HomeRandom) {
-		if row, ok := home.RandomRow(a.random.From(a.ix), a.playAlbum, a.queueAlbum); ok {
-			rows = append(rows, row)
-		}
+	sp := a.opts.Spotify != nil && a.spotifyOn()
+	// Each section's row, if it has one; Home shows them in the order chosen
+	// in Settings.
+	sections := map[string]func() (fixture.Row, bool){
+		keys.HomeContinue: func() (fixture.Row, bool) {
+			var eps home.Episodes
+			if sp && a.env != nil && a.homeShows(keys.HomeEpisodes) {
+				eps = home.Episodes{List: a.episodes,
+					Play:  func(ep spotify.Episode) { spotifyscreen.PlayEpisode(a.env, ep) },
+					Queue: func(ep spotify.Episode) { spotifyscreen.QueueEpisode(a.env, ep) }}
+			}
+			return home.ContinueRow(progress, a.ix, a.resumeAlbum, a.queueAlbum, eps)
+		},
+		keys.HomeShuffle: func() (fixture.Row, bool) {
+			play := func() { browse.ShuffleAll(a.player, a.ix) }
+			queue := func() {
+				ts := make([]player.Track, len(a.ix.Songs))
+				for i, s := range a.ix.Songs {
+					ts[i] = screens.TrackOf(s)
+				}
+				a.opts.Player.Enqueue(ts)
+				a.Toast(screens.AddedToQueue)
+			}
+			return home.ShuffleRow(len(a.ix.Songs), play, queue)
+		},
+		keys.HomeRandom: func() (fixture.Row, bool) {
+			return home.RandomRow(a.random.From(a.ix), a.playAlbum, a.queueAlbum)
+		},
+		keys.HomePlaylists: func() (fixture.Row, bool) {
+			return home.PlaylistsRow(a.ix.Playlists, a.openLocalPlaylist, a.queuePlaylist)
+		},
+		keys.HomeSpotify: func() (fixture.Row, bool) {
+			if !sp {
+				return fixture.Row{}, false
+			}
+			var imp func(spotify.Playlist)
+			if a.env.Import != nil && a.youtubeOn() {
+				imp = a.importPlaylist
+			}
+			return home.SpotifyRow(a.playlists, a.openPlaylist, imp)
+		},
+		keys.HomePodcasts: func() (fixture.Row, bool) {
+			if !sp || a.env == nil {
+				return fixture.Row{}, false
+			}
+			return home.PodcastsRow(a.shows, a.openShow)
+		},
+		keys.HomeRadio: func() (fixture.Row, bool) {
+			if !a.radioOn() || a.opts.Stations == nil || a.opts.Player == nil {
+				return fixture.Row{}, false
+			}
+			saved := a.opts.Stations.List()
+			tracks := make([]player.Track, len(saved))
+			for i, st := range saved {
+				tracks[i] = st.Track()
+			}
+			// Stations play in order, as Home's albums do.
+			play := func(i int) {
+				a.opts.Player.SetShuffle(false)
+				a.play(tracks, i)
+			}
+			return home.RadioRow(saved, play)
+		},
+		keys.HomeRecent: func() (fixture.Row, bool) {
+			return home.AlbumRow(a.ix.Recent, a.playAlbum, a.queueAlbum)
+		},
 	}
-	if a.homeShows(keys.HomePlaylists) {
-		if row, ok := home.PlaylistsRow(a.ix.Playlists, a.openLocalPlaylist, a.queuePlaylist); ok {
-			rows = append(rows, row)
+	var rows []fixture.Row
+	for _, k := range keys.Order(a.homeOrder()) {
+		if !a.homeShows(k) {
+			continue
 		}
-	}
-	if sp && a.homeShows(keys.HomeSpotify) {
-		var imp func(spotify.Playlist)
-		if a.env.Import != nil && a.youtubeOn() {
-			imp = a.importPlaylist
-		}
-		if row, ok := home.SpotifyRow(a.playlists, a.openPlaylist, imp); ok {
-			rows = append(rows, row)
-		}
-	}
-	if sp && a.env != nil && a.homeShows(keys.HomePodcasts) {
-		if row, ok := home.PodcastsRow(a.shows, a.openShow); ok {
-			rows = append(rows, row)
-		}
-	}
-	if a.radioOn() && a.homeShows(keys.HomeRadio) && a.opts.Stations != nil && a.opts.Player != nil {
-		saved := a.opts.Stations.List()
-		tracks := make([]player.Track, len(saved))
-		for i, st := range saved {
-			tracks[i] = st.Track()
-		}
-		// Stations play in order, as Home's albums do.
-		play := func(i int) {
-			a.opts.Player.SetShuffle(false)
-			a.play(tracks, i)
-		}
-		if row, ok := home.RadioRow(saved, play); ok {
-			rows = append(rows, row)
-		}
-	}
-	if a.homeShows(keys.HomeRecent) {
-		if row, ok := home.AlbumRow(a.ix.Recent, a.playAlbum, a.queueAlbum); ok {
+		if row, ok := sections[k](); ok {
 			rows = append(rows, row)
 		}
 	}
 	a.home.SetAllOff(!slices.ContainsFunc(a.homeSections(), func(in settingsscreen.Integration) bool {
-		return a.homeShows(in.Key)
+		return !in.Attached && a.homeShows(in.Key)
 	}))
 	a.home.SetRows(rows)
+}
+
+// homeOrder is the order of Home's sections saved in Settings.
+func (a *App) homeOrder() string {
+	if a.opts.Prefs == nil {
+		return ""
+	}
+	return a.opts.Prefs.String(keys.HomeOrder)
 }
 
 // homeShows is whether Home's section key is switched on.
@@ -936,7 +949,7 @@ func (a *App) homeSections() []settingsscreen.Integration {
 	}
 	if a.opts.Spotify != nil {
 		ins = append(ins, settingsscreen.Integration{Key: keys.HomeEpisodes, Name: "Podcast episodes in Continue listening",
-			Icon: "back30", About: "Spotify episodes you've started"})
+			Icon: "back30", About: "Spotify episodes you've started", Attached: true})
 	}
 	ins = append(ins,
 		settingsscreen.Integration{Key: keys.HomeShuffle, Name: "Shuffle all songs", Icon: "shuffle",

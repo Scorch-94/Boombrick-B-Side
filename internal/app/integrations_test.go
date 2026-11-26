@@ -394,3 +394,17 @@ func TestHomeSectionsList(t *testing.T) {
 		t.Fatalf("with both: %v", got)
 	}
 }
+
+// Home shows its sections in the order saved in Settings.
+func TestHomeOrder(t *testing.T) {
+	a, _ := homeApp(t, switchPrefs{})
+	song := &library.Track{Path: "/m/a/1.flac", Title: "Neon"}
+	a.ix.Songs = []*library.Track{song}
+	a.ix.Playlists = []*library.Playlist{{Name: "Late Drive", Entries: []library.PlaylistEntry{{Song: song}},
+		Songs: []*library.Track{song}}}
+	a.opts.Prefs.Set(keys.HomeOrder, "home.recent,home.playlists,home.continue,home.random,home.shuffle,home.spotify,home.podcasts,home.radio")
+	a.showHome(nil)
+	if got := a.home.RowTitles(); !slices.Equal(got, []string{"Recently added", "Playlists", "Shuffle"}) {
+		t.Fatalf("rows %v", got)
+	}
+}

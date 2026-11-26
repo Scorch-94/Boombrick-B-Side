@@ -7,7 +7,9 @@ package settings
 import (
 	"database/sql"
 	"log/slog"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -33,6 +35,9 @@ const (
 	HomePodcasts  = "home.podcasts"
 	HomeRadio     = "home.radio"
 	HomeRecent    = "home.recent"
+	// HomeOrder is the order of Home's sections: their keys, comma
+	// separated. See Order.
+	HomeOrder = "home.order"
 	// The integrations' switches: an integration switched off is hidden and
 	// does no work, but keeps its data.
 	SpotifyOn = "integrations.spotify"
@@ -209,4 +214,33 @@ func (s *Settings) flush() {
 		s.dirty[k] = true // with its value as it will be then
 	}
 	s.mu.Unlock()
+}
+
+// HomeSections are Home's sections' keys in their first order, top to bottom.
+// Podcast episodes go with Continue listening, so have no place of their
+// own.
+var HomeSections = []string{HomeContinue, HomeShuffle, HomeRandom, HomePlaylists, HomeSpotify, HomePodcasts,
+	HomeRadio, HomeRecent}
+
+// Order is Home's sections in the order saved, a HomeOrder value. Keys it
+// doesn't know are dropped, and a section it doesn't name, as one added in a
+// later version, goes after the one before it in HomeSections.
+func Order(saved string) []string {
+	var out []string
+	for _, k := range strings.Split(saved, ",") {
+		if k = strings.TrimSpace(k); slices.Contains(HomeSections, k) && !slices.Contains(out, k) {
+			out = append(out, k)
+		}
+	}
+	for i, k := range HomeSections {
+		if slices.Contains(out, k) {
+			continue
+		}
+		at := 0
+		if i > 0 {
+			at = slices.Index(out, HomeSections[i-1]) + 1
+		}
+		out = slices.Insert(out, at, k)
+	}
+	return out
 }

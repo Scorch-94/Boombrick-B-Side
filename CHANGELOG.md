@@ -4,6 +4,7 @@ All notable changes to Boombrick. Versions match the release tags.
 
 ## [v0.7.5]
 
+- Settings: Home sections reorders Home's rows. X picks a section up, Up and Down move it, A drops it there and B puts it back. Podcast episodes stay with Continue listening. Home follows at once.
 - Bluetooth headphones and speakers control playback: play/pause, next and previous from their buttons or taps (AirPods' and Beats' included) play, pause and skip, with the screen on or off and in background play; on a podcast episode they skip 30 seconds. Boombrick registers with BlueZ as the media player, so headphones know whether music is playing, as their pause on taking an earbud out needs, and see the track's title and artist. Each command is logged as a `bluetooth remote` line.
 - Home: Random albums shows each album's title and artist under its cover, on cards like Continue listening's.
 

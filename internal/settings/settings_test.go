@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -145,5 +146,21 @@ func TestInvalidValueFallsBackToDefault(t *testing.T) {
 	s.Set(StreamingKbps, "lots")
 	if got := s.Int(StreamingKbps); got != 160 {
 		t.Errorf("StreamingKbps = %d, want default 160", got)
+	}
+}
+
+func TestOrder(t *testing.T) {
+	for saved, want := range map[string][]string{
+		"": HomeSections,
+		"home.recent,home.continue": {HomeRecent, HomeContinue, HomeShuffle, HomeRandom, HomePlaylists, HomeSpotify,
+			HomePodcasts, HomeRadio},
+		// Unknown keys and repeats go; a section added since keeps its
+		// place after the one before it.
+		"home.shuffle, nonsense ,home.continue,home.shuffle,home.recent,home.radio,home.podcasts,home.spotify,home.random": {
+			HomeShuffle, HomeContinue, HomeRecent, HomeRadio, HomePodcasts, HomeSpotify, HomeRandom, HomePlaylists},
+	} {
+		if got := Order(saved); !slices.Equal(got, want) {
+			t.Errorf("Order(%q) = %v, want %v", saved, got, want)
+		}
 	}
 }

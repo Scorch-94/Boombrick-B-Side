@@ -21,7 +21,7 @@ See [CHANGELOG.md](CHANGELOG.md) for what each release adds.
 - **YouTube Music:** search, browse albums and artists, and download songs as tagged Opus files with covers and lyrics. A song that is still downloading plays as soon as it lands.
 - **Spotify** (Premium): sign in with a code on your phone, then play Liked Songs and your playlists, Spotify's own mixes included, in the same queue as your music. Streams play at 96, 160 or 320 kbps over Wi-Fi.
 - **Spotify import:** download your playlists' songs, or Liked Songs, from YouTube Music to keep them offline. Each song is matched by its ISRC, or its title, artist and length, and you check the doubtful ones. A Spotify song with a downloaded copy plays the copy, without Wi-Fi.
-- **Home, your way:** Continue listening, Shuffle (all songs), Random albums, Playlists, Spotify playlists, Podcasts, Radio and Recently added, each switched on or off in Settings → Home sections.
+- **Home, your way:** Continue listening, Shuffle (all songs), Random albums, Playlists, Spotify playlists, Podcasts, Radio and Recently added, each switched on or off, and put in the order you like (X to pick one up, ▲ ▼ to move it, A to drop it), in Settings → Home sections.
 - **Sleep timer:** 15 to 60 minutes, or the end of the track or album, with a fade.
 - **Play in background** from the quick menu: the music goes on after you leave Boombrick, as while you play a game, with the volume keys as usual. Open Boombrick again to take it back.
 - **Screen off** with Power, with the music still playing and the buttons for skipping and pausing still working.

@@ -480,6 +480,9 @@ func (s *Screen) sleepIndex() int {
 // or leaves the Storage or Integrations page, before B closes Settings.
 func (s *Screen) Back() bool {
 	switch {
+	case s.integrations != nil && s.integrations.moving:
+		s.integrations.cancel(s, time.Now())
+		return true
 	case s.integrations != nil:
 		s.integrations = nil
 		return true
