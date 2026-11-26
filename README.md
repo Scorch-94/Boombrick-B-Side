@@ -172,7 +172,7 @@ On the desktop the keyboard stands in for the Brick's buttons:
 
 ### Releasing
 
-Add a section for the version to [CHANGELOG.md](CHANGELOG.md) and set the same version in `pak.json`, then publish a GitHub release with a tag such as `v0.7.6`. The Release workflow builds the zips with that version and attaches them to the release, with their `SHA256SUMS`. Bricks running an older version are offered it in Settings.
+Add a section for the version to [CHANGELOG.md](CHANGELOG.md) and set the same version in `pak.json`, then publish a GitHub release with a tag such as `v0.7.6` (`V0.7.6` works too, from v0.7.5 on, but Bricks on older versions only see a small v). The Release workflow builds the zips with that version and attaches them to the release, with their `SHA256SUMS`. Bricks running an older version are offered it in Settings.
 
 A tag with a suffix, such as `v0.8.0-beta.1`, is published as a pre-release, which Settings never offers: it is for testers, who install it by hand.
 

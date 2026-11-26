@@ -26,8 +26,14 @@ type Release struct {
 	Assets map[string]string // file name to download address
 }
 
-// Version is the tag without a leading "v".
-func (r Release) Version() string { return strings.TrimPrefix(r.Tag, "v") }
+// Version is the tag without a leading "v", or "V" as a release made on
+// GitHub may be tagged.
+func (r Release) Version() string {
+	if strings.HasPrefix(r.Tag, "v") || strings.HasPrefix(r.Tag, "V") {
+		return r.Tag[1:]
+	}
+	return r.Tag
+}
 
 // Latest asks GitHub for the latest release of repo, "owner/name". base is
 // API, or a test server.

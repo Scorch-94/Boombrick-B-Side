@@ -170,3 +170,16 @@ func TestCheckerClose(t *testing.T) {
 		t.Fatal("Ready is still open")
 	}
 }
+
+// A release tagged V0.7.5, as one made on GitHub can be, is 0.7.5 all the
+// same, so it is offered as an update.
+func TestVersionCapitalV(t *testing.T) {
+	for tag, want := range map[string]string{"v0.7.5": "0.7.5", "V0.7.5": "0.7.5", "0.7.5": "0.7.5"} {
+		if got := (Release{Tag: tag}).Version(); got != want {
+			t.Errorf("%s: %q, want %q", tag, got, want)
+		}
+	}
+	if !Newer((Release{Tag: "V0.7.5"}).Version(), "0.7.4") {
+		t.Fatal("V0.7.5 isn't newer than 0.7.4")
+	}
+}

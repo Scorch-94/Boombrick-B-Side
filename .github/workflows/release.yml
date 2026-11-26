@@ -8,7 +8,7 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags: ['v*', 'V*'] # V0.7.5 as well as v0.7.5, as a release made on GitHub may be tagged
 
 permissions:
   contents: write
@@ -18,11 +18,15 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      # VERSION_TAG is the tag with a small v, as pak.json and CHANGELOG.md
+      # write it; the release itself keeps the tag it was made with.
+      - name: Version
+        run: echo "VERSION_TAG=v${GITHUB_REF_NAME#[vV]}" >> "$GITHUB_ENV"
       - name: Pak Store version
         run: |
-          case "$GITHUB_REF_NAME" in *-*) exit 0 ;; esac
+          case "$VERSION_TAG" in *-*) exit 0 ;; esac
           v="$(jq -r .version pak.json)"
-          [ "$v" = "$GITHUB_REF_NAME" ] || { echo "pak.json says $v, the tag is $GITHUB_REF_NAME" >&2; exit 1; }
+          [ "$v" = "$VERSION_TAG" ] || { echo "pak.json says $v, the tag is $GITHUB_REF_NAME" >&2; exit 1; }
       # The Makefile builds the toolchain image with the Go that go.mod asks for.
       - uses: actions/setup-go@v5
         with:
@@ -37,7 +41,7 @@ jobs:
       - name: Build
         run: |
           mkdir -p dist/tg5040 dist/qjs
-          make pak VERSION="${GITHUB_REF_NAME#v}"
+          make pak VERSION="${VERSION_TAG#v}"
       - name: Checksums
         working-directory: dist
         run: sha256sum Boombrick-B-Side.pak.zip Boombrick-B-Side-PakStore.zip > SHA256SUMS
@@ -46,7 +50,7 @@ jobs:
       # there is none.
       - name: Release notes
         run: |
-          awk -v head="## [$GITHUB_REF_NAME]" '
+          awk -v head="## [$VERSION_TAG]" '
             index($0, "## [") == 1 { if (on) exit; on = ($0 == head); next }
             on
           ' CHANGELOG.md > dist/NOTES.md
@@ -68,4 +72,4 @@ jobs:
           grep -q '[^[:space:]]' dist/NOTES.md || flags="--generate-notes"
           case "$GITHUB_REF_NAME" in *-*) flags="$flags --prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" $files \
-            --title "Boombrick B-Side ${GITHUB_REF_NAME#v}" $flags
+            --title "Boombrick B-Side ${VERSION_TAG#v}" $flags
