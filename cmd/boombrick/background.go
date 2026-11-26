@@ -20,6 +20,7 @@ import (
 	"github.com/ujjwal313/boombrick/internal/platform"
 	"github.com/ujjwal313/boombrick/internal/player"
 	"github.com/ujjwal313/boombrick/internal/radio"
+	"github.com/ujjwal313/boombrick/internal/remote"
 	"github.com/ujjwal313/boombrick/internal/resume"
 	"github.com/ujjwal313/boombrick/internal/settings"
 	"github.com/ujjwal313/boombrick/internal/store"
@@ -104,6 +105,10 @@ func runBackground() error {
 		followEpisodes(followCtx, p, sp, nil, log)
 	}()
 	defer func() { stopFollowing(); <-followed }()
+	// Headphones' taps play, pause and skip while the screen is off too.
+	remoteCtx, stopRemote := context.WithCancel(context.Background())
+	remoteDone := remote.New(p, log).Start(remoteCtx)
+	defer func() { stopRemote(); <-remoteDone }()
 	saver := resume.NewSaver(db.DB)
 	err = background.Run(ctx, background.Options{
 		Player:     p,

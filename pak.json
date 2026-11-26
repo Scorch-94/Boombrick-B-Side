@@ -7,7 +7,7 @@
   "repo_url": "https://github.com/Scorch-94/Boombrick-B-Side",
   "release_filename": "Boombrick-B-Side-PakStore.zip",
   "changelog": {
-    "v0.7.5": "Home's Random albums shows each album's title and artist under its cover.",
+    "v0.7.5": "Bluetooth headphones' buttons and taps play, pause and skip, Beats and AirPods included. Home's Random albums shows each album's title and artist under its cover.",
     "v0.7.4": "Settings has a Home sections page to switch each of Home's rows on or off, and Home gains Shuffle all songs, Playlists and Podcasts rows. Settings also has an Album view option for the Library: a 4 × 2 grid, 3 across with big covers as before, or a list like Songs. And a Clock option: 24-hour or 12-hour. Home's Continue listening includes Spotify podcast episodes you've started, and a Random albums row picks six albums anew each launch. Playlists can be .csv files, as Exportify exports them; songs you don't have play from Spotify.",
     "v0.7.3": "Settings now checks this fork for updates. Earlier versions asked the original Boombrick, so their Update button can't install B-Side: install 0.7.3 by hand once.",
     "v0.7.2": "New Podcasts tab: continue episodes, followed shows and saved episodes from Spotify, synced places, 30 s skips. Choosing something to play opens Now Playing. Library albums in a 4 × 2 grid. Album pages open on the first track, without Play and Shuffle buttons.",

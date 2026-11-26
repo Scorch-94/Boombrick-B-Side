@@ -83,6 +83,8 @@ Put `.m3u`, `.m3u8` or `.csv` files in a `Playlists` folder inside your music fo
 
 With the screen off, L1 and R1 skip back and on, and A plays or pauses. Each screen shows its buttons along the bottom.
 
+Bluetooth headphones and speakers control playback too, with the screen on or off and in background play: their play/pause, next and previous (on AirPods and Beats, the taps you've set for them) play, pause and skip, and on a podcast episode skip 30 seconds back and on. Boombrick tells them what is playing, so a pause when you take an earbud out works on headphones that send one. Each command they send is written to the log as a `bluetooth remote` line, if one doesn't seem to arrive.
+
 On Knulli, Power is Knulli's own: a press puts the Brick to sleep and holding it shuts down. Turn the screen off from the quick menu instead; any button other than A, L1 and R1 turns it back on. Menu and Start together quit, as they do Knulli's other ports.
 
 ## Files

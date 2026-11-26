@@ -34,6 +34,7 @@ import (
 	"github.com/ujjwal313/boombrick/internal/player"
 	"github.com/ujjwal313/boombrick/internal/radio"
 	"github.com/ujjwal313/boombrick/internal/release"
+	"github.com/ujjwal313/boombrick/internal/remote"
 	"github.com/ujjwal313/boombrick/internal/resume"
 	"github.com/ujjwal313/boombrick/internal/selfupdate"
 	"github.com/ujjwal313/boombrick/internal/settings"
@@ -259,6 +260,11 @@ func run(started time.Time) error {
 		}
 	})
 	defer closePlayer(p, log)
+	// Bluetooth headphones' and speakers' buttons play, pause and skip, and
+	// they are told what plays. It stops before the player closes.
+	remoteCtx, stopRemote := context.WithCancel(context.Background())
+	remoteDone := remote.New(p, log).Start(remoteCtx)
+	defer func() { stopRemote(); <-remoteDone }()
 
 	// A background player gives the music back before the saved queue is
 	// read; neither must hold up the first frame. Every later release keeps
