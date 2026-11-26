@@ -109,7 +109,21 @@ func ReadPlaylists(music string, ix *Index) []*Playlist {
 				songs = newSongMatcher(ix)
 			}
 			pl.Name = strings.ReplaceAll(pl.Name, "_", " ")
+			// A file naming its rows' playlists, as TuneMyMusic's, is one
+			// playlist for each name, in the file's order; rows naming none
+			// are the file's own.
+			byName := map[string]*Playlist{}
+			var order []*Playlist
 			for _, row := range parseCSV(data) {
+				p := byName[row.playlist]
+				if p == nil {
+					p = &Playlist{Name: pl.Name, Path: path}
+					if row.playlist != "" {
+						p.Name = row.playlist
+					}
+					byName[row.playlist] = p
+					order = append(order, p)
+				}
 				var t *Track
 				if row.path != "" {
 					t = resolve(row.path)
@@ -118,17 +132,20 @@ func ReadPlaylists(music string, ix *Index) []*Playlist {
 				}
 				switch {
 				case t != nil:
-					pl.add(t)
+					p.add(t)
 				case row.spotifyID != "" && row.title != "":
-					pl.Entries = append(pl.Entries, PlaylistEntry{Stream: &StreamSong{SpotifyID: row.spotifyID,
-						Title: row.title, Artist: strings.Join(row.artists, ", "), Album: row.album, Duration: row.duration}})
-					pl.Streams++
-					pl.Duration += row.duration
+					p.Entries = append(p.Entries, PlaylistEntry{Stream: &StreamSong{SpotifyID: row.spotifyID,
+						Title: row.title, Artist: row.artist, Album: row.album, Duration: row.duration}})
+					p.Streams++
+					p.Duration += row.duration
 				default:
-					pl.Missing++
+					p.Missing++
 				}
 			}
-			lists = append(lists, pl)
+			if len(order) == 0 {
+				order = append(order, pl) // an empty file is still a playlist
+			}
+			lists = append(lists, order...)
 			continue
 		}
 		for _, entry := range parseM3U(data) {

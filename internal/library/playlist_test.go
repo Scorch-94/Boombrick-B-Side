@@ -1,6 +1,7 @@
 package library
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -161,5 +162,118 @@ func TestBareTitle(t *testing.T) {
 		if got := bareTitle(in); got != want {
 			t.Errorf("bareTitle(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// csvIndex is the library the .csv tests match against: versions of Aquatic
+// Ambience from several albums, one downloaded by the Spotify import.
+func csvIndex(music string) *Index {
+	tr := func(rel, title, artist, album string, d time.Duration, spotifyID string) Track {
+		return Track{Path: filepath.Join(music, rel), Title: title, Artist: artist, Album: album, Duration: d, SpotifyID: spotifyID}
+	}
+	return NewIndex([]Album{
+		{Artist: "Funk Fiction", Title: "Aquatic Ambience", Tracks: []Track{
+			tr("ff/1.flac", "Aquatic Ambience", "Funk Fiction", "Aquatic Ambience", 194*time.Second, "")}},
+		{Artist: "Scizzie", Title: "aquatic ambience", Tracks: []Track{
+			tr("sc/1.flac", "aquatic ambience", "Scizzie", "aquatic ambience", 123*time.Second, ""),
+			tr("sc/2.flac", "aquatic ambience - slowed + reverb", "Scizzie", "aquatic ambience (Remixes)", 154*time.Second, "")}},
+		{Artist: "Helynt", Title: "Super Lofi World", Tracks: []Track{
+			tr("hl/1.flac", "Aquatic Ambience", "Helynt, GameChops", "Super Lofi World", 165*time.Second, "")}},
+		{Artist: "Helynt", Title: "Super Ambient World", Tracks: []Track{
+			tr("ha/1.flac", "Aquatic Ambience", "Helynt", "Super Ambient World", 216*time.Second, "")}},
+		{Artist: "Smooth McGroove", Title: "Remixed 2", Tracks: []Track{
+			tr("sm/1.opus", "Aquatic Ambience", "Smooth McGroove", "Remixed 2", 217*time.Second, "")}},
+		{Artist: "Koreskape", Title: "Aquatic Ambiance", Tracks: []Track{
+			tr("Boombrick/ko.opus", "Whatever the tags say", "Someone", "Something", 193*time.Second, "4m4Rh5mdcYDspyCEncdtPX")}},
+	})
+}
+
+// TuneMyMusic's export (testdata/tunemymusic.csv, as it wrote one): its
+// columns are known, its bare Spotify IDs find the import's downloads and
+// stream the rest, and the playlist takes the name its rows give rather
+// than the file's. Its rows credit one artist, so a title that only fits
+// another album's version once its extras are off isn't taken for it.
+func TestReadPlaylistsTuneMyMusic(t *testing.T) {
+	music := t.TempDir()
+	dir := filepath.Join(music, PlaylistDir)
+	data, err := os.ReadFile("testdata/tunemymusic.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "My_Spotify_Library6.csv"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lists := ReadPlaylists(music, csvIndex(music))
+	if len(lists) != 1 || lists[0].Name != "An Entire Playlist of Just Aquatic Ambiance from Donkey Kong Country for SNES" {
+		t.Fatalf("playlists %+v", lists)
+	}
+	pl := lists[0]
+	var got []string
+	for _, s := range pl.Songs {
+		got = append(got, strings.TrimPrefix(s.Path, music+"/"))
+	}
+	want := []string{"ff/1.flac", "Boombrick/ko.opus", "sc/1.flac", "hl/1.flac", "sc/2.flac", "sc/1.flac", "ha/1.flac"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("songs %v, want %v", got, want)
+	}
+	if len(pl.Entries) != 46 || pl.Streams != 39 || pl.Missing != 0 {
+		t.Fatalf("%d entries, %d streamed, %d missing", len(pl.Entries), pl.Streams, pl.Missing)
+	}
+	// The second row, Smooth McGroove's version credited to GameChops, isn't
+	// Helynt's on Super Lofi World: it streams.
+	if s := pl.Entries[1].Stream; s == nil || s.SpotifyID != "65u6c5NBv75ynFeJG4XA5Z" || s.Artist != "GameChops" {
+		t.Fatalf("second entry %+v", pl.Entries[1])
+	}
+}
+
+// A file naming several playlists in its rows is one playlist for each, in
+// the file's order, and rows naming none are the file's own.
+func TestReadPlaylistsSeveralInOneCSV(t *testing.T) {
+	music := t.TempDir()
+	dir := filepath.Join(music, PlaylistDir)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	text := "Track name,Artist name,Album,Playlist name,Type,ISRC,Spotify - id\n" +
+		`"Aquatic Ambience","Funk Fiction","Aquatic Ambience","Water","Playlist","X","3zF1RvARE71MBXeWETPoEk"` + "\n" +
+		`"aquatic ambience","Scizzie","aquatic ambience","Lofi","Playlist","X","1AeAJE0BNsq9jyssQDsUZ9"` + "\n" +
+		`"Aquatic Ambience","Helynt","Super Ambient World","Water","Playlist","X","41dF02sXROxmP1ld8KmVPp"` + "\n" +
+		`"Aquatic Ambiance","Koreskape","Aquatic Ambiance","","Favorite","X","4m4Rh5mdcYDspyCEncdtPX"` + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "Library.csv"), []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lists := ReadPlaylists(music, csvIndex(music))
+	var names []string
+	for _, pl := range lists {
+		names = append(names, fmt.Sprintf("%s:%d", pl.Name, len(pl.Songs)))
+	}
+	if !slices.Equal(names, []string{"Library:1", "Lofi:1", "Water:2"}) {
+		t.Fatalf("playlists %v", names)
+	}
+}
+
+func TestSpotifyTrackAndArtists(t *testing.T) {
+	for in, want := range map[string]string{
+		"spotify:track:3zF1RvARE71MBXeWETPoEk":                          "3zF1RvARE71MBXeWETPoEk",
+		"3zF1RvARE71MBXeWETPoEk":                                        "3zF1RvARE71MBXeWETPoEk",
+		"https://open.spotify.com/track/3zF1RvARE71MBXeWETPoEk?si=abc":  "3zF1RvARE71MBXeWETPoEk",
+		"https://open.spotify.com/intl-de/track/3zF1RvARE71MBXeWETPoEk": "3zF1RvARE71MBXeWETPoEk",
+		"spotify:episode:3zF1RvARE71MBXeWETPoEk":                        "",
+		"QZES91874867":                                                  "",
+	} {
+		if got := spotifyTrack(in); got != want {
+			t.Errorf("spotifyTrack(%q) = %q, want %q", in, got, want)
+		}
+	}
+	shown, each := splitArtists("Helynt, GameChops")
+	if shown != "Helynt, GameChops" || !slices.Equal(each, []string{"Helynt, GameChops", "Helynt", "GameChops"}) {
+		t.Fatalf("%q %q", shown, each)
+	}
+	shown, each = splitArtists("GameChops;Smooth McGroove")
+	if shown != "GameChops, Smooth McGroove" || !slices.Equal(each, []string{"GameChops", "Smooth McGroove"}) {
+		t.Fatalf("%q %q", shown, each)
 	}
 }

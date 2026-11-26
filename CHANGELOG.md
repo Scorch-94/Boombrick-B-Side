@@ -2,6 +2,11 @@
 
 All notable changes to Boombrick. Versions match the release tags.
 
+## [v0.7.6]
+
+- Playlists: TuneMyMusic's `.csv` exports work. Their bare Spotify IDs find the songs the Spotify import downloaded and stream the rest, and a file holding several playlists becomes one playlist for each, named as in the file. Spotify links in a `.csv` work too.
+- Playlists: a song matched by its title without extras, as "Aquatic Ambience" for "Aquatic Ambience (From …)", is no longer taken for a version on another album or of another length; it streams from Spotify, or counts as not found.
+
 ## [v0.7.5]
 
 - Updates: a release tagged with a capital V, as `V0.7.6`, is offered like `v0.7.6`, and its files are built for it.

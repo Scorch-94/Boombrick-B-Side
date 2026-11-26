@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -13,25 +14,30 @@ import (
 )
 
 // csvRow is one song of a .csv playlist, as exported by Exportify, Soundiiz,
-// TuneMyMusic and the like: by its Spotify URI where it has one, by title
-// and artists, or by a file's path.
+// TuneMyMusic and the like: by its Spotify track where it has one, by title
+// and artists, or by a file's path. A TuneMyMusic file can hold several
+// playlists, each row naming its own.
 type csvRow struct {
 	spotifyID string
 	title     string
 	album     string
-	artists   []string
+	artist    string        // as written, for showing
+	artists   []string      // each artist, to match by
 	duration  time.Duration // 0 if not given
 	path      string
+	playlist  string // "" when the file doesn't say
 }
 
-// The header names each column is known by, lower-cased.
+// The header names each column is known by, compared as foldText makes
+// them, so "Spotify - id", "Spotify – ID" and "spotify_id" are one.
 var csvColumns = map[string][]string{
-	"uri":      {"track uri", "spotify uri", "uri", "spotify track uri"},
+	"uri":      {"track uri", "spotify uri", "uri", "spotify track uri", "spotify id", "spotify track id"},
 	"title":    {"track name", "title", "track", "name", "song", "song name", "track title"},
 	"artist":   {"artist name(s)", "artist name", "artists", "artist", "artist(s)"},
 	"album":    {"album name", "album", "album title"},
 	"duration": {"duration (ms)", "duration_ms", "duration ms"},
 	"path":     {"path", "file", "location", "filename", "file path"},
+	"playlist": {"playlist name", "playlist"},
 }
 
 // parseCSV reads a playlist .csv by its header row; columns it doesn't know
@@ -50,7 +56,7 @@ func parseCSV(data []byte) []csvRow {
 	NAMES:
 		for _, n := range names {
 			for i, h := range head {
-				if strings.EqualFold(strings.TrimSpace(h), n) {
+				if foldText(h) == foldText(n) {
 					col[what] = i
 					break NAMES
 				}
@@ -72,24 +78,72 @@ func parseCSV(data []byte) []csvRow {
 		if err != nil {
 			continue
 		}
-		row := csvRow{title: field(rec, "title"), album: field(rec, "album"), path: field(rec, "path")}
+		row := csvRow{title: field(rec, "title"), album: field(rec, "album"), path: field(rec, "path"),
+			playlist: field(rec, "playlist")}
 		if row.title == "" && row.path == "" {
 			continue
 		}
-		if u := field(rec, "uri"); strings.HasPrefix(u, "spotify:track:") {
-			row.spotifyID = strings.TrimPrefix(u, "spotify:track:")
-		}
-		for _, a := range strings.FieldsFunc(field(rec, "artist"), func(r rune) bool { return r == ';' }) {
-			if a = strings.TrimSpace(a); a != "" {
-				row.artists = append(row.artists, a)
-			}
-		}
+		row.spotifyID = spotifyTrack(field(rec, "uri"))
+		row.artist, row.artists = splitArtists(field(rec, "artist"))
 		if ms, err := strconv.ParseInt(field(rec, "duration"), 10, 64); err == nil && ms > 0 {
 			row.duration = time.Duration(ms) * time.Millisecond
 		}
 		rows = append(rows, row)
 	}
 	return rows
+}
+
+// spotifyTrack is the track ID in a Spotify URI ("spotify:track:…"), link
+// ("https://open.spotify.com/track/…?si=…") or a bare ID, as TuneMyMusic
+// writes; "" for anything else.
+func spotifyTrack(s string) string {
+	switch {
+	case strings.HasPrefix(s, "spotify:track:"):
+		s = strings.TrimPrefix(s, "spotify:track:")
+	case strings.Contains(s, "open.spotify.com/"):
+		_, s, _ = strings.Cut(s, "/track/")
+		s, _, _ = strings.Cut(s, "?")
+	}
+	if len(s) != 22 {
+		return ""
+	}
+	for _, r := range s {
+		if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z') {
+			return ""
+		}
+	}
+	return s
+}
+
+// splitArtists is an artist column as one line for showing, and its artists
+// to match by. Exportify separates them with ";"; others with ", " or " & ",
+// which some names have in them, so a credit is matched whole as well as by
+// each part.
+func splitArtists(s string) (shown string, each []string) {
+	parts := strings.FieldsFunc(s, func(r rune) bool { return r == ';' })
+	var names []string
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			names = append(names, p)
+		}
+	}
+	shown = strings.Join(names, ", ")
+	for _, n := range names {
+		each = append(each, n)
+		if len(names) > 1 {
+			continue
+		}
+		for _, sep := range []string{", ", " & ", " feat. ", " ft. ", " x "} {
+			if strings.Contains(n, sep) {
+				for _, part := range strings.Split(n, sep) {
+					if part = strings.TrimSpace(part); part != "" && !slices.Contains(each, part) {
+						each = append(each, part)
+					}
+				}
+			}
+		}
+	}
+	return shown, each
 }
 
 // songMatcher finds a .csv row's song in the library.
@@ -125,9 +179,10 @@ func (m *songMatcher) match(row csvRow) *Track {
 		return t
 	}
 	// Without its extras a title can fit other versions too: one song fits,
-	// or the album or the length has to say which.
+	// as long as its album and length don't say it's another version, or
+	// the album or the length has to say which.
 	c := byArtist(m.bare[bareTitle(row.title)], row.artists)
-	if len(c) == 1 {
+	if len(c) == 1 && (sameAlbum(c[0], row) || sameLength(c[0], row) || !otherAlbum(c[0], row) && !otherLength(c[0], row)) {
 		return c[0]
 	}
 	if t := best(c, row); t != nil && (sameAlbum(t, row) || sameLength(t, row)) {
@@ -138,6 +193,16 @@ func (m *songMatcher) match(row csvRow) *Track {
 
 func sameAlbum(t *Track, row csvRow) bool {
 	return row.album != "" && foldText(t.Album) == foldText(row.album)
+}
+
+// otherAlbum and otherLength report that the row says t is another release:
+// both give an album, or a length, and they differ.
+func otherAlbum(t *Track, row csvRow) bool {
+	return row.album != "" && t.Album != "" && !sameAlbum(t, row)
+}
+
+func otherLength(t *Track, row csvRow) bool {
+	return row.duration > 0 && t.Duration > 0 && !sameLength(t, row)
 }
 
 func sameLength(t *Track, row csvRow) bool {
