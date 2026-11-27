@@ -196,6 +196,12 @@ func (h *Helper) Tracks(ctx context.Context, uri string) ([]Track, error) {
 }
 
 // Shows lists the podcasts the user follows.
+// Search finds songs, albums and artists on Spotify.
+func (h *Helper) Search(ctx context.Context, q string) (Results, error) {
+	var r Results
+	return r, h.call(ctx, http.MethodGet, "/search?q="+url.QueryEscape(q), &r)
+}
+
 // Releases lists the latest releases of the artists the user follows,
 // newest first.
 func (h *Helper) Releases(ctx context.Context) ([]Release, error) {

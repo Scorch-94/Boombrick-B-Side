@@ -90,6 +90,11 @@ func (f *fakeClient) Tracks(_ context.Context, uri string) ([]Track, error) {
 	return f.tracks[uri], f.err
 }
 
+func (f *fakeClient) Search(_ context.Context, q string) (Results, error) {
+	f.count(searchKey + q)
+	return Results{Artists: []Artist{{Name: q}}}, f.err
+}
+
 func (f *fakeClient) Releases(context.Context) ([]Release, error) {
 	f.count(releasesKey)
 	f.mu.Lock()

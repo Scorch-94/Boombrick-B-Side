@@ -85,6 +85,20 @@ type Release struct {
 	Tracks   int    `json:"tracks"`
 }
 
+// Artist is an artist, as a search finds one.
+type Artist struct {
+	URI   string `json:"uri"` // spotify:artist:<id>
+	Name  string `json:"name"`
+	Cover string `json:"cover,omitempty"`
+}
+
+// Results are what a search found: songs, albums and artists.
+type Results struct {
+	Tracks  []Track   `json:"tracks"`
+	Albums  []Release `json:"albums"`
+	Artists []Artist  `json:"artists"`
+}
+
 // MaxShowEpisodes is how many of a show's episodes are listed: its newest.
 const MaxShowEpisodes = 200
 

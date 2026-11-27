@@ -23,6 +23,7 @@ type Client interface {
 	Shows(ctx context.Context) ([]Show, error)
 	Episodes(ctx context.Context, uri string) ([]Episode, error)
 	Releases(ctx context.Context) ([]Release, error)
+	Search(ctx context.Context, q string) (Results, error)
 }
 
 const (
@@ -41,6 +42,8 @@ const (
 	showsKey = "podcasts:shows"
 	// releasesKey is the followed artists' latest releases' key.
 	releasesKey = "music:releases"
+	// searchKey heads a search's key; searches aren't kept in the store.
+	searchKey   = "search:"
 	episodesKey = "podcasts:episodes:"
 	// freshContinue is how long Continue listening is shown before it is
 	// asked for again: places in episodes move as they're listened to.
@@ -258,6 +261,14 @@ func (l *Library) Releases() (rs []Release, have bool, err error) {
 	v, have, err := l.get(releasesKey, func(ctx context.Context) (any, error) { return l.c.Releases(ctx) })
 	rs, _ = v.([]Release)
 	return rs, have, err
+}
+
+// Search is what Spotify finds for q, as Playlists: asked for the first time
+// q is, and kept a while, but not in the store.
+func (l *Library) Search(q string) (r Results, have bool, err error) {
+	v, have, err := l.get(searchKey+q, func(ctx context.Context) (any, error) { return l.c.Search(ctx, q) })
+	r, _ = v.(Results)
+	return r, have, err
 }
 
 // LatestReleases is the followed artists' latest releases, for Home, as
@@ -536,6 +547,9 @@ func (l *Library) load(key string) (any, time.Time, bool) {
 // save keeps key's list, asked for in generation gen, in the store, unless
 // the lists have been forgotten since.
 func (l *Library) save(key string, v any, gen int) {
+	if strings.HasPrefix(key, searchKey) {
+		return
+	}
 	body, err := json.Marshal(v)
 	if err != nil {
 		l.log.Warn("keep spotify list", "key", key, "err", err)

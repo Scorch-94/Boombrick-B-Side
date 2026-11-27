@@ -44,6 +44,9 @@ type fakeSource struct {
 	shows     []spotify.Show
 	episodes  map[string][]spotify.Episode
 	podErr    error
+	results   map[string]spotify.Results // by query; one not here is still being searched
+	searched  []string
+	searchErr error
 }
 
 func (s *fakeSource) Status() (spotify.Status, error) { s.asked++; return s.status, s.statusErr }
@@ -60,6 +63,11 @@ func (s *fakeSource) Shows() ([]spotify.Show, bool, error) {
 func (s *fakeSource) Episodes(uri string) ([]spotify.Episode, bool, error) {
 	es, ok := s.episodes[uri]
 	return es, ok, s.podErr
+}
+func (s *fakeSource) Search(q string) (spotify.Results, bool, error) {
+	s.searched = append(s.searched, q)
+	r, ok := s.results[q]
+	return r, ok, s.searchErr
 }
 func (s *fakeSource) Retry()          { s.retries++ }
 func (s *fakeSource) Login()          { s.logins++ }

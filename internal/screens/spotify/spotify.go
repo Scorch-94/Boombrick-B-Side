@@ -26,6 +26,8 @@ type Source interface {
 	// Shows and Episodes are the podcasts, as Playlists and Tracks.
 	Shows() ([]spotify.Show, bool, error)
 	Episodes(uri string) ([]spotify.Episode, bool, error)
+	// Search is what Spotify finds for q, as Playlists.
+	Search(q string) (spotify.Results, bool, error)
 	Retry()
 	Login()
 	// LoginErr is why the last sign-in failed, until the next one starts.

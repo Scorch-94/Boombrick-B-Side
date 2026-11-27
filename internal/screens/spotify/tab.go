@@ -36,9 +36,9 @@ var (
 
 // The tab's hints, kept so that no frame builds them.
 var (
-	libraryHints   = []widgets.Hint{{Key: "A", Label: "Open"}, tabsHint}
+	libraryHints   = []widgets.Hint{{Key: "A", Label: "Open"}, {Key: "X", Label: "Search"}, tabsHint}
 	retryListHints = []widgets.Hint{{Key: "A", Label: "Open"}, {Key: "X", Label: "Retry"}, tabsHint}
-	importHints    = []widgets.Hint{{Key: "A", Label: "Open"}, {Key: "Y", Label: "Import"}, tabsHint}
+	importHints    = []widgets.Hint{{Key: "A", Label: "Open"}, {Key: "X", Label: "Search"}, {Key: "Y", Label: "Import"}, tabsHint}
 	signInHints    = []widgets.Hint{{Key: "A", Label: "Sign in"}, tabsHint}
 	failedHints    = []widgets.Hint{retryHint, tabsHint}
 	offlineHints   = []widgets.Hint{{Key: "A", Label: "Open Downloads"}, tabsHint}
@@ -184,7 +184,8 @@ func (t *Tab) Handle(ev input.Event, now time.Time) bool {
 				t.retry()
 				return true
 			}
-			return false
+			t.e.Nav.Push(NewSearch(t.e))
+			return true
 		case input.Y:
 			if !t.e.CanImport() {
 				return false

@@ -33,6 +33,7 @@ type Session interface {
 	// Shows lists the podcasts the user follows.
 	Shows(ctx context.Context) ([]spotify.Show, error)
 	Releases(ctx context.Context) ([]spotify.Release, error)
+	Search(ctx context.Context, q string) (spotify.Results, error)
 	// Episodes lists a show's episodes, or spotify.ContinueURI's or
 	// spotify.YourEpisodesURI's, with the user's place in each.
 	Episodes(ctx context.Context, uri string) ([]spotify.Episode, error)
@@ -84,6 +85,10 @@ func Handler(s Session, log *slog.Logger) http.Handler {
 	mux.HandleFunc("GET /tracks", func(w http.ResponseWriter, r *http.Request) {
 		ts, err := s.Tracks(r.Context(), r.URL.Query().Get("uri"))
 		reply(w, ts, err)
+	})
+	mux.HandleFunc("GET /search", func(w http.ResponseWriter, r *http.Request) {
+		rs, err := s.Search(r.Context(), r.URL.Query().Get("q"))
+		reply(w, rs, err)
 	})
 	mux.HandleFunc("GET /releases", func(w http.ResponseWriter, r *http.Request) {
 		rs, err := s.Releases(r.Context())

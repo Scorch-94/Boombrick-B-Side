@@ -21,6 +21,7 @@ The screenshots are of the original Boombrick. See [CHANGELOG.md](CHANGELOG.md) 
 - **Library management:** Settings → Library lists your duplicate songs and albums, deletes songs and albums from the card, and deletes every download you also have elsewhere in one go. [More below](#library-management).
 - **No duplicate downloads:** YouTube Music marks songs already in your library, from anywhere in your music folder, with "In library", and downloading skips them (X again downloads anyway). Playing one plays your copy.
 - **Library search:** X in the Library searches artists, albums and songs as you type.
+- **Spotify search:** X on the Spotify tab searches Spotify for songs, albums and artists. A plays a song or opens an album or artist; Y queues a song.
 - **Shuffle all songs:** at the top of the Library's Songs list, and as a card on Home. It plays only the songs on your SD card, never Spotify streams.
 - **A Home you arrange:** switch each section on or off and put them in your order, in Settings → Home sections. Besides the original's sections, Home can show:
   - **Shuffle**: all your songs, shuffled.
@@ -120,7 +121,7 @@ If a button doesn't seem to do anything, each command that arrives is written to
 | D-pad | Move |
 | A | Play or open |
 | B | Back |
-| X | Download (YouTube Music); search (Library); move a section (Settings → Home sections) |
+| X | Download (YouTube Music); search (Library, Spotify); move a section (Settings → Home sections) |
 | A (Settings → Library) | Delete the song or album, after a dialog |
 | X (Settings → Library) | Search |
 | Y | Add to the queue; on Now Playing, lyrics |

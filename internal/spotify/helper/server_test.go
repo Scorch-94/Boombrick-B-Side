@@ -51,6 +51,9 @@ func (f *fake) Tracks(_ context.Context, uri string) ([]spotify.Track, error) {
 	return f.tracks[uri], f.err
 }
 func (f *fake) Shows(context.Context) ([]spotify.Show, error) { return f.shows, f.err }
+func (f *fake) Search(_ context.Context, q string) (spotify.Results, error) {
+	return spotify.Results{Artists: []spotify.Artist{{Name: q}}}, f.err
+}
 func (f *fake) Releases(context.Context) ([]spotify.Release, error) {
 	return f.releases, f.err
 }
