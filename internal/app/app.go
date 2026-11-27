@@ -18,6 +18,7 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 
 	"github.com/ujjwal313/boombrick/assets"
+	"github.com/ujjwal313/boombrick/internal/audiobooks"
 	"github.com/ujjwal313/boombrick/internal/fixture"
 	"github.com/ujjwal313/boombrick/internal/library"
 	lrc "github.com/ujjwal313/boombrick/internal/lyrics"
@@ -465,7 +466,13 @@ func New(opts Options) (*App, error) {
 	}
 	var bookTab screens.Screen = &screens.Placeholder{Tab: widgets.TabAudiobooks, Title: "Audiobooks"}
 	if opts.Audiobooks != nil && opts.Player != nil {
-		bookTab = audiobookscreen.New(a, opts.Player, opts.Audiobooks, opts.AudiobookDir)
+		books := audiobookscreen.New(a, a.player, opts.Audiobooks, opts.AudiobookDir)
+		bookTab = books
+		// Now Playing's Y lists the book's chapters on the Audiobooks tab.
+		a.nowPlaying.SetChapters(audiobookscreen.NewChapters(a.player, func(b audiobooks.Book) {
+			a.ShowTab(widgets.TabAudiobooks)
+			a.Push(books.Chapters(b))
+		}))
 	}
 	a.shell = newShell(a.home,
 		a.library,
@@ -599,6 +606,12 @@ func (p showingPlayer) Play(tracks []player.Track, start int) {
 // PlayFrom plays tracks from start at frame, and opens Now Playing.
 func (p showingPlayer) PlayFrom(tracks []player.Track, start int, frame int64) {
 	p.Player.PlayFrom(tracks, start, frame)
+	p.show()
+}
+
+// PlayAt plays tracks from start, at time at into it, and opens Now Playing.
+func (p showingPlayer) PlayAt(tracks []player.Track, start int, at time.Duration) {
+	p.Player.PlayAt(tracks, start, at)
 	p.show()
 }
 

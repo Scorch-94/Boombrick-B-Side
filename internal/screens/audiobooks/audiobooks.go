@@ -24,6 +24,8 @@ type Player interface {
 	PlayAt(tracks []player.Track, start int, at time.Duration)
 	SetShuffle(on bool)
 	State() player.State
+	Seek(d time.Duration)
+	Toggle()
 }
 
 // Places keeps where the listener is in each book. *audiobooks.Places is
@@ -111,14 +113,19 @@ func (t *Tab) refresh(now time.Time) {
 	for _, b := range t.books {
 		t.rows = append(t.rows, widgets.Row{Title: b.Title, Subtitle: subtitle(b, at[b.Path]),
 			Duration: progress(b, at[b.Path])})
-		art := widgets.SpecFor(b.Title)
-		art.Cover = media.Cover{Artist: b.Author, Album: b.Title, Path: b.Parts[0].Path}
-		t.arts = append(t.arts, art)
+		t.arts = append(t.arts, bookArt(b))
 	}
 	for i := range t.rows {
 		t.rows[i].Art = &t.arts[i]
 	}
 	t.list.SetCountFocus(len(t.rows), min(t.list.Focus(), max(len(t.rows)-1, 0)))
+}
+
+// bookArt is b's cover: its first part's.
+func bookArt(b audiobooks.Book) widgets.ArtSpec {
+	art := widgets.SpecFor(b.Title)
+	art.Cover = media.Cover{Artist: b.Author, Album: b.Title, Path: b.Parts[0].Path}
+	return art
 }
 
 // order is the books under way first, most recently heard first, then
@@ -156,6 +163,11 @@ func subtitle(b audiobooks.Book, pl audiobooks.Place) string {
 		where = "Finished"
 	case pl.Part != "":
 		where = hours(b.Left(pl)) + " left"
+		if n := len(b.Chapters); n > 1 {
+			if i := b.ChapterAt(b.Part(pl.Part), pl.Position); i >= 0 {
+				where = "Ch. " + strconv.Itoa(i+1) + " of " + strconv.Itoa(n) + " · " + where
+			}
+		}
 	default:
 		where = hours(b.Duration)
 	}
@@ -187,11 +199,22 @@ func hours(d time.Duration) string {
 	return strconv.Itoa(h) + " hr " + strconv.Itoa(m) + " min"
 }
 
-// Handle plays a book from its place with A, starts it over with X, and
-// rescans with Y.
+// Claims Select, to list the focused book's chapters, when it has some.
+func (t *Tab) Claims(b input.Button) bool {
+	return b == input.Select && len(t.books) > 0 && len(t.books[t.list.Focus()].Chapters) > 1
+}
+
+// Handle plays a book from its place with A, starts it over with X, lists
+// its chapters with Select and rescans with Y.
 func (t *Tab) Handle(ev input.Event, now time.Time) bool {
 	if ev.Kind == input.Press {
 		switch ev.Button {
+		case input.Select:
+			if !t.Claims(input.Select) {
+				return false
+			}
+			t.nav.Push(t.Chapters(t.books[t.list.Focus()]))
+			return true
 		case input.Y:
 			t.Rescan()
 			t.nav.Toast(screens.Scanning)
@@ -217,6 +240,18 @@ func (t *Tab) Handle(ev input.Event, now time.Time) bool {
 	return t.list.Move(ev.Button, now)
 }
 
+// Chapters is b's chapter list, on the chapter playing, or else the one last
+// heard.
+func (t *Tab) Chapters(b audiobooks.Book) *ChapterPage {
+	at := 0
+	if s := t.p.State(); s.Queued && audiobooks.BookOf(s.Track.Path) == b.Path {
+		at = b.ChapterAt(b.Part(s.Track.Path), s.Elapsed)
+	} else if pl, ok := t.at[b.Path]; ok && !pl.Finished {
+		at = b.ChapterAt(b.Part(pl.Part), pl.Position)
+	}
+	return NewChapterPage(t.p, b, at)
+}
+
 // Animating reports whether focus is moving, or a scan is under way: frames
 // keep coming so its books show as soon as it ends.
 func (t *Tab) Animating(now time.Time) bool {
@@ -227,8 +262,9 @@ func (t *Tab) Animating(now time.Time) bool {
 }
 
 var (
-	bookHints  = []widgets.Hint{{Key: "A", Label: "Play"}, {Key: "X", Label: "Start over"}, {Key: "Y", Label: "Rescan"}, {Key: "L1/R1", Label: "Tabs"}}
-	emptyHints = []widgets.Hint{{Key: "Y", Label: "Rescan"}, {Key: "L1/R1", Label: "Tabs"}}
+	bookHints      = []widgets.Hint{{Key: "A", Label: "Play"}, {Key: "X", Label: "Start over"}, {Key: "Y", Label: "Rescan"}, {Key: "L1/R1", Label: "Tabs"}}
+	chapteredHints = []widgets.Hint{{Key: "A", Label: "Play"}, {Key: "X", Label: "Start over"}, {Key: "Select", Label: "Chapters"}, {Key: "Y", Label: "Rescan"}}
+	emptyHints     = []widgets.Hint{{Key: "Y", Label: "Rescan"}, {Key: "L1/R1", Label: "Tabs"}}
 )
 
 // Draw renders the frame.
@@ -248,6 +284,9 @@ func (t *Tab) Draw(u *ui.Context) {
 		screens.Message(u, &t.msg, s, gfx.Rect{X: screens.Side, Y: screens.ContentTop, W: t.list.CellW,
 			H: screens.ContentBot - screens.ContentTop})
 	} else {
+		if t.Claims(input.Select) {
+			hints = chapteredHints
+		}
 		playing := t.p.State().Track.Path
 		u.PushClip(screens.GlowArea)
 		t.list.Draw(u.Now, screens.Side, screens.ContentTop, func(i int, x, y, k float32) {

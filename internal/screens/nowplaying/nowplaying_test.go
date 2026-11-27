@@ -544,3 +544,45 @@ func TestGoldenWithLyricsPill(t *testing.T) {
 	n.Draw(u)
 	uitest.Golden(t, "nowplaying-lyrics", off.Image())
 }
+
+// fakeChapters is a book of chapters, the second playing from 1:00.
+type fakeChapters struct {
+	steps []int
+	lists int
+}
+
+func (c *fakeChapters) At(player.State) (Chapter, bool) {
+	return Chapter{Book: "Dune", Title: "Book One: Dune", Line: "Frank Herbert · Chapter 2 of 48",
+		Start: time.Minute, Length: 20 * time.Minute}, true
+}
+func (c *fakeChapters) Step(_ player.State, d int) bool { c.steps = append(c.steps, d); return true }
+func (c *fakeChapters) List(player.State) bool          { c.lists++; return true }
+
+// In a book of chapters L1 and R1 change chapter, Y lists them, and the bar
+// runs through the chapter.
+func TestChapters(t *testing.T) {
+	f := playing()
+	n := New(f)
+	n.SetLyrics(func() { t.Fatal("Y opened the lyrics") })
+	c := &fakeChapters{}
+	n.SetChapters(c)
+	n.Handle(press(input.L1), t0)
+	n.Handle(press(input.R1), t0)
+	n.Handle(press(input.Y), t0)
+	if !slices.Equal(c.steps, []int{-1, 1}) || c.lists != 1 || f.nexts+f.prevs != 0 {
+		t.Fatalf("steps %v, lists %d, tracks %d", c.steps, c.lists, f.nexts+f.prevs)
+	}
+	if h := n.hints(f.st); h[len(h)-1].Label != "Chapters" {
+		t.Errorf("hints %v", h)
+	}
+
+	u, off := uitest.NewContext(t, theme.DeviceW, theme.DeviceH)
+	u.Accent = theme.Derive(fixture.PlayingHue, fixture.PlayingChroma)
+	u.Status = fixture.Status()
+	u.Now = t0
+	n.Draw(u)
+	uitest.Golden(t, "nowplaying-chapter", off.Image())
+	if a := testing.AllocsPerRun(10, func() { n.Draw(u) }); a != 0 {
+		t.Errorf("a chapter's frame allocates %v times", a)
+	}
+}

@@ -16,7 +16,7 @@ The screenshots are of the original Boombrick. See [CHANGELOG.md](CHANGELOG.md) 
 ## What B-Side adds
 
 - **Podcasts tab:** your Spotify podcasts, in three lists: episodes you're part way through on any device, the shows you follow, and your saved episodes. Episodes play from where you left off, and your place goes back to Spotify as you listen, so your phone picks up from there. Left and Right on Now Playing jump 30 seconds during an episode. [More below](#podcasts).
-- **Audiobooks tab:** your `.m4b` and `.m4a` audiobooks from the `Audiobooks` folder on the SD card, each picked up where you left it, even after quitting. Left and Right on Now Playing jump 30 seconds. [More below](#audiobooks).
+- **Audiobooks tab:** your `.m4b` and `.m4a` audiobooks from the `Audiobooks` folder on the SD card, each picked up where you left it, even after quitting, with its chapters: L1 and R1 go from chapter to chapter, and Left and Right on Now Playing jump 30 seconds. [More below](#audiobooks).
 - **Bluetooth headphone controls:** play/pause, next and previous from headphones and speakers, AirPods' and Beats' taps included, with the screen on or off and in background play. Boombrick tells them what's playing, for headphones that pause when you take an earbud out. [More below](#bluetooth-headphones).
 - **Playlists:** `.m3u`, `.m3u8` and `.csv` files in `Music/Playlists` become playlists in the Library. A `.csv` exported from Spotify by Exportify or TuneMyMusic is matched to your songs by Spotify track, title, artist, album and length, and songs you don't have stream from Spotify in their place. [More below](#playlists).
 - **Library management:** Settings → Library lists your duplicate songs and albums, deletes songs and albums from the card, and deletes every download you also have elsewhere in one go. [More below](#library-management).
@@ -97,7 +97,9 @@ Only episodes Spotify hosts itself play; the ones it only links to, on the podca
 
 The **Audiobooks** tab, to the right of Podcasts, lists the books in the `Audiobooks` folder at the top of the SD card, beside `Music`. A book is either a single file (an `.m4b`, or an `.m4a`, `.mp3`, `.flac` or `.opus`) or a folder of them, one book per folder, played in the order of their track tags, then their file names. The title and author come from the tags (album, then title; album artist, then artist), or the file or folder name. Books aren't added to the music library.
 
-Books you're part way through come first, the one you last listened to at the top, with how much is left and how far through you are; then the ones you haven't started, then the finished ones. A plays a book from where you left it, a few seconds back so you hear where you were; X starts it over from the beginning; Y looks for new books. Your place is kept every 15 seconds while a book plays, and at once when you pause, move to another chapter file, play something else or quit, background play included. On Now Playing and with headphone buttons, Left and Right jump 30 seconds back and forward. A book played to the end, or left within 30 seconds of it, is marked Finished.
+Books you're part way through come first, the one you last listened to at the top, with how much is left and how far through you are; then the ones you haven't started, then the finished ones. A plays a book from where you left it, a few seconds back so you hear where you were; X starts it over from the beginning; Select lists its chapters; Y looks for new books. Your place is kept every 15 seconds while a book plays, and at once when you pause, move to another chapter file, play something else or quit, background play included. On Now Playing and with headphone buttons, Left and Right jump 30 seconds back and forward. A book played to the end, or left within 30 seconds of it, is marked Finished.
+
+**Chapters** come from the chapter list inside an `.m4b` or `.m4a` (Apple's chapter track, or a Nero chapter list), or for a book without one, its files: each file is a chapter. While a book plays, Now Playing shows the book's title over the chapter's, then "Author · Chapter 3 of 40", and the bar and times run through the chapter. L1 and R1 go to the next chapter and back (back starts the chapter again once you're a few seconds in, as with tracks), and Y lists the chapters, with the one playing focused; A plays from one. The tab shows which chapter you're on, as "Ch. 12 of 40 · 6 hr left".
 
 ## Playlists
 
@@ -133,15 +135,15 @@ If a button doesn't seem to do anything, each command that arrives is written to
 | X | Download (YouTube Music); search (Library, Spotify); start a book over (Audiobooks); move a section (Settings → Home sections) |
 | A (Settings → Library) | Delete the song or album, after a dialog |
 | X (Settings → Library) | Search |
-| Y | Add to the queue; on Now Playing, lyrics |
+| Y | Add to the queue; on Now Playing, lyrics, or an audiobook's chapters |
 | D-pad Left, Right (Now Playing) | Previous and next track; 30 s back and forward in a podcast episode or an audiobook |
 | A (Now Playing) | Play or pause |
 | D-pad Up (Now Playing) | Shuffle on or off |
 | D-pad Down (Now Playing) | Step repeat: off, all, one |
-| L1, R1 | Switch tabs; on Now Playing, previous and next track |
+| L1, R1 | Switch tabs; on Now Playing, previous and next track, or chapter in an audiobook |
 | L2, R2 | Filters in the Library and YouTube Music; on Now Playing and Lyrics, 10 s back and on, or hold to rewind and fast-forward |
 | Start | Now Playing |
-| Select | Queue |
+| Select | Queue; on the Audiobooks tab, the book's chapters |
 | Menu | Quick menu: sleep timer, screen off, play in background, Settings, quit |
 | Menu + Volume up, down | Brighter, dimmer: NextUI's levels 0 to 10, kept after you quit |
 | Menu + Start | Quit |

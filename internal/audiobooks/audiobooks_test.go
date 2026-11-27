@@ -4,9 +4,11 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/ujjwal313/boombrick/internal/audio/decode"
 	"github.com/ujjwal313/boombrick/internal/player"
 	"github.com/ujjwal313/boombrick/internal/store"
 )
@@ -193,5 +195,49 @@ func TestFollowKeepsOnQuit(t *testing.T) {
 	<-done
 	if len(s.got) < 2 || s.got[len(s.got)-1].Position != 10*time.Minute {
 		t.Errorf("saves = %+v", s.got)
+	}
+}
+
+func TestChapters(t *testing.T) {
+	b := Book{Title: "B", Parts: []Part{
+		{Path: "/b/1", Title: "One", Duration: 10 * time.Minute,
+			Chapters: []decode.Chapter{{Title: "Intro", Start: time.Minute}, {Title: "", Start: 4 * time.Minute}, {Title: "Past", Start: time.Hour}}},
+		{Path: "/b/2", Title: "Two", Duration: 5 * time.Minute},
+	}}
+	got := chapters(b)
+	want := []Chapter{
+		{Title: "One", Part: 0, Length: time.Minute},
+		{Title: "Intro", Part: 0, Start: time.Minute, Length: 3 * time.Minute},
+		{Title: "Chapter 2", Part: 0, Start: 4 * time.Minute, Length: 6 * time.Minute},
+		{Title: "Two", Part: 1, Length: 5 * time.Minute},
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("chapters = %+v\nwant %+v", got, want)
+	}
+	b.Chapters = got
+	for _, c := range []struct {
+		part int
+		at   time.Duration
+		want int
+	}{{0, 0, 0}, {0, time.Minute, 1}, {0, 5 * time.Minute, 2}, {1, 0, 3}, {1, time.Hour, 3}, {2, 0, -1}, {-1, 0, -1}} {
+		if got := b.ChapterAt(c.part, c.at); got != c.want {
+			t.Errorf("ChapterAt(%d, %v) = %d, want %d", c.part, c.at, got, c.want)
+		}
+	}
+	if b.Part("/b/2") != 1 || b.Part("/x") != -1 {
+		t.Error("Part")
+	}
+}
+
+func TestLookup(t *testing.T) {
+	d := t.TempDir()
+	SetDir(d)
+	touch(t, filepath.Join(d, "Emma", "01.m4a"))
+	Scan(d)
+	if b, ok := Lookup(filepath.Join(d, "Emma", "01.m4a")); !ok || b.Title != "Emma" || len(b.Chapters) != 1 {
+		t.Errorf("Lookup = %+v, %v", b, ok)
+	}
+	if _, ok := Lookup(filepath.Join(d, "Other.m4b")); ok {
+		t.Error("found a book not scanned")
 	}
 }

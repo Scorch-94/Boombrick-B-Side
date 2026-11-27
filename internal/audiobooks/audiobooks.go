@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -28,6 +29,16 @@ type Book struct {
 	Author   string
 	Parts    []Part
 	Duration time.Duration
+	// Chapters are the chapters its files list, or else one for each file.
+	Chapters []Chapter
+}
+
+// Chapter is a chapter of a book: its title, the part it's in, and where in
+// that part it starts and how long it lasts.
+type Chapter struct {
+	Title         string
+	Part          int
+	Start, Length time.Duration
 }
 
 // Part is one file of a book.
@@ -35,6 +46,7 @@ type Part struct {
 	Path     string
 	Title    string
 	Duration time.Duration
+	Chapters []decode.Chapter // those the file lists, if any
 }
 
 // dir is the Audiobooks folder, once SetDir says; IsBook goes by it.
@@ -89,6 +101,11 @@ func Scan(dir string) []Book {
 		}
 	}
 	slices.SortFunc(books, func(a, b Book) int { return library.Compare(a.Title, b.Title) })
+	m := make(map[string]Book, len(books))
+	for _, b := range books {
+		m[b.Path] = b
+	}
+	known.Store(&m)
 	return books
 }
 
@@ -128,8 +145,9 @@ func read(path string, parts []string, folder bool) (Book, bool) {
 	for i, p := range parts {
 		tg, _ := library.ReadTags(p)
 		d, _ := decode.Duration(p)
+		cs, _ := decode.Chapters(p)
 		name := strings.TrimSuffix(filepath.Base(p), filepath.Ext(p))
-		ts[i] = tagged{Part: Part{Path: p, Title: cmp.Or(tg.Title, name), Duration: d}, disc: tg.Disc, track: tg.Track}
+		ts[i] = tagged{Part: Part{Path: p, Title: cmp.Or(tg.Title, name), Duration: d, Chapters: cs}, disc: tg.Disc, track: tg.Track}
 		if b.Title == "" {
 			b.Title = tg.Album
 			if !folder {
@@ -156,7 +174,74 @@ func read(path string, parts []string, folder bool) (Book, bool) {
 	if b.Title == "" {
 		b.Title = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	}
+	b.Chapters = chapters(b)
 	return b, true
+}
+
+// chapters are b's chapters: those each part lists, else the part itself.
+// A part's list that starts after its start gains a chapter before it, so
+// the whole part is covered.
+func chapters(b Book) []Chapter {
+	var out []Chapter
+	for i, p := range b.Parts {
+		cs := p.Chapters
+		if len(cs) == 0 {
+			title := p.Title
+			if len(b.Parts) == 1 {
+				title = b.Title
+			}
+			out = append(out, Chapter{Title: title, Part: i, Length: p.Duration})
+			continue
+		}
+		if cs[0].Start > 0 {
+			out = append(out, Chapter{Title: p.Title, Part: i, Length: cs[0].Start})
+		}
+		for j, c := range cs {
+			end := p.Duration
+			if j+1 < len(cs) && (p.Duration <= 0 || cs[j+1].Start < p.Duration) {
+				end = cs[j+1].Start
+			}
+			if p.Duration > 0 && c.Start >= p.Duration {
+				break // past the end of the audio: a damaged list
+			}
+			out = append(out, Chapter{Title: cmp.Or(c.Title, "Chapter "+strconv.Itoa(j+1)), Part: i, Start: c.Start,
+				Length: max(end-c.Start, 0)})
+		}
+	}
+	return out
+}
+
+// Part is the index of b's part at path, or -1.
+func (b Book) Part(path string) int {
+	return slices.IndexFunc(b.Parts, func(p Part) bool { return p.Path == path })
+}
+
+// ChapterAt is the index of the chapter playing at time at into part, or -1
+// when b has no such part.
+func (b Book) ChapterAt(part int, at time.Duration) int {
+	found := -1
+	for i, c := range b.Chapters {
+		if c.Part > part {
+			break
+		}
+		if c.Part == part && (found < 0 || c.Start <= at) {
+			found = i
+		}
+	}
+	return found
+}
+
+// known are the books the last scan found, by path, for Lookup.
+var known atomic.Pointer[map[string]Book]
+
+// Lookup is the book path is part of, as the last scan found it.
+func Lookup(path string) (Book, bool) {
+	m := known.Load()
+	if m == nil {
+		return Book{}, false
+	}
+	b, ok := (*m)[BookOf(path)]
+	return b, ok
 }
 
 // Tracks are b's parts as queue entries.

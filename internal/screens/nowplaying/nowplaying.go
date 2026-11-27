@@ -93,6 +93,7 @@ type NowPlaying struct {
 	downloads func(videoID string) (media.DownloadState, float32) // how far a song waited on has got; nil: none
 	note      func() string                                       // why the queue waits, or ""; nil: none
 	scrub     *screens.Scrub                                      // L2 and R2
+	chapters  Chapters                                            // an audiobook's; nil: none
 
 	// What the frames show, made again only when it changes.
 	elapsed, length screens.ClockText
@@ -104,6 +105,39 @@ type NowPlaying struct {
 	hintLabel       string // A's label in hintBar
 	hintLive        bool   // hintBar is a station's, with no lyrics or seeking
 	hintEp          bool   // the hints were made for a podcast episode
+	hintChapters    bool   // the hints were made for a book of chapters
+}
+
+// Chapter is the chapter of an audiobook playing, as Now Playing shows it:
+// the book's title over the chapter's, then a line such as "Frank Herbert ·
+// Chapter 3 of 40", and the bar runs through the chapter.
+type Chapter struct {
+	Book, Title, Line string
+	Start, Length     time.Duration
+}
+
+// Chapters knows the chapters of the audiobook playing.
+type Chapters interface {
+	// At is the chapter playing, if a book of chapters plays. It is asked
+	// each frame, so it shouldn't allocate.
+	At(s player.State) (Chapter, bool)
+	// Step goes to the next chapter (delta 1) or back (-1), reporting
+	// false when no book of chapters plays.
+	Step(s player.State, delta int) bool
+	// List opens the book's chapters, reporting false when it can't.
+	List(s player.State) bool
+}
+
+// SetChapters shows audiobooks' chapters with c: L1 and R1 go from chapter
+// to chapter and Y lists them.
+func (n *NowPlaying) SetChapters(c Chapters) { n.chapters, n.hintBar = c, nil }
+
+// chapter is the chapter playing, if a book of chapters plays.
+func (n *NowPlaying) chapter(s player.State) (Chapter, bool) {
+	if n.chapters == nil {
+		return Chapter{}, false
+	}
+	return n.chapters.At(s)
 }
 
 // formatKey is what formatLine depends on.
@@ -272,16 +306,23 @@ func (n *NowPlaying) Handle(ev input.Event, now time.Time) bool {
 		n.press(repeatCtl, now)
 		return true
 	case input.Y:
+		if n.chapters != nil && n.chapters.List(s) {
+			return true
+		}
 		if !n.hasLyrics(s) {
 			return false
 		}
 		n.lyrics()
 		return true
 	case input.L1:
-		n.p.Prev()
+		if n.chapters == nil || !n.chapters.Step(s, -1) {
+			n.p.Prev()
+		}
 		return true
 	case input.R1:
-		n.p.Next()
+		if n.chapters == nil || !n.chapters.Step(s, 1) {
+			n.p.Next()
+		}
 		return true
 	}
 	return false
@@ -406,9 +447,13 @@ func (n *NowPlaying) Draw(u *ui.Context) {
 	y += 32 + groupGap
 	// A station's song goes over its name and country; with none, its name
 	// over its country.
-	title, artist := s.Track.Title, s.Track.Artist
+	title, artist, album := s.Track.Title, s.Track.Artist, s.Track.Album
 	if live && s.LiveTitle != "" {
 		title, artist = s.LiveTitle, n.stationLine(s.Track)
+	}
+	ch, chaptered := n.chapter(s)
+	if chaptered {
+		title, artist, album = ch.Book, ch.Title, ch.Line
 	}
 	// Lines too long for the room scroll through it.
 	n.lines[0].draw(u, title, titleStyle, x, y, w, theme.Paper)
@@ -416,7 +461,7 @@ func (n *NowPlaying) Draw(u *ui.Context) {
 	n.lines[1].draw(u, artist, artistStyle, x, y, w, theme.Paper)
 	y += artistH
 	if !live {
-		n.lines[2].draw(u, s.Track.Album, albumStyle, x, y, w, theme.Ink2)
+		n.lines[2].draw(u, album, albumStyle, x, y, w, theme.Ink2)
 	} else {
 		n.lines[2].moving = false
 	}
@@ -424,6 +469,9 @@ func (n *NowPlaying) Draw(u *ui.Context) {
 	if live {
 		drawLive(u, s, x, y)
 	} else {
+		if chaptered && !s.Loading && !s.Waiting { // the bar runs through the chapter
+			s.Elapsed, s.Duration = min(max(s.Elapsed-ch.Start, 0), ch.Length), ch.Length
+		}
 		f, left, right := n.progress(s)
 		drawProgress(u, f, left, right, x, y, w)
 	}
@@ -571,7 +619,8 @@ func (n *NowPlaying) hints(s player.State) []widgets.Hint {
 		label = "Play"
 	}
 	live, ep := s.Track.Live(), episode(s.Track)
-	if n.hintBar != nil && label == n.hintLabel && live == n.hintLive && ep == n.hintEp {
+	_, chaptered := n.chapter(s)
+	if n.hintBar != nil && label == n.hintLabel && live == n.hintLive && ep == n.hintEp && chaptered == n.hintChapters {
 		return n.hintBar
 	}
 	track := "Track"
@@ -581,9 +630,12 @@ func (n *NowPlaying) hints(s player.State) []widgets.Hint {
 	hints := []widgets.Hint{{Key: "A", Label: label}, {Key: "◀ ▶", Label: track}, {Key: "▲", Label: "Shuffle"},
 		{Key: "▼", Label: "Repeat"}}
 	// L2 and R2 still seek, but the bar has no room left for their hint.
-	if n.hasLyrics(s) {
+	switch {
+	case chaptered:
+		hints = append(hints, widgets.Hint{Key: "Y", Label: "Chapters"})
+	case n.hasLyrics(s):
 		hints = append(hints, widgets.Hint{Key: "Y", Label: "Lyrics"})
 	}
-	n.hintBar, n.hintLabel, n.hintLive, n.hintEp = hints, label, live, ep
+	n.hintBar, n.hintLabel, n.hintLive, n.hintEp, n.hintChapters = hints, label, live, ep, chaptered
 	return n.hintBar
 }
