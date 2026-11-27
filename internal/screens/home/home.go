@@ -330,12 +330,14 @@ func RandomRow(albums []*library.Album, play, queue func(*library.Album)) (fixtu
 
 // SongsRow is a row of songs, as Recently played and Most played are: each
 // card the song's title over its artist, under its album's cover. play
-// plays the row's songs from the one chosen; queue adds that one. It
-// reports false with no songs.
+// plays the row's songs from the one chosen; queue adds that one. With no
+// songs yet, the row holds a card saying how they come, so a section
+// switched on shows.
 func SongsRow(title, meta string, songs []player.Track, play func(songs []player.Track, i int),
 	queue func(player.Track)) (fixture.Row, bool) {
 	if len(songs) == 0 {
-		return fixture.Row{}, false
+		return fixture.Row{Title: title, Meta: "Fills as you listen", Cards: true, Items: []fixture.Item{{Title: "Nothing yet",
+			Subtitle: "Play a song", Art: widgets.SpecFor(title), Note: true}}}, true
 	}
 	items := make([]fixture.Item, len(songs))
 	for i, t := range songs {
@@ -771,6 +773,9 @@ func (h *Home) hints() []widgets.Hint {
 	}
 	r := &h.rows[h.row]
 	it := &r.Items[h.col]
+	if it.Note {
+		return tabHints
+	}
 	if it.Play == nil {
 		if r.Spotify {
 			return playlistHints

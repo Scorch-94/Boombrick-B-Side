@@ -183,3 +183,13 @@ func TestNewestEnd(t *testing.T) {
 		t.Fatalf("a short show: %v", got)
 	}
 }
+
+// Spotify's audiobooks, kept as shows, aren't podcasts.
+func TestBookChapters(t *testing.T) {
+	yes := true
+	if !isBookChapter(&metadatapb.Episode{IsAudiobookChapter: &yes}) ||
+		!isBookChapter(&metadatapb.Episode{Show: &metadatapb.Show{IsAudiobook: &yes}}) ||
+		isBookChapter(&metadatapb.Episode{Show: &metadatapb.Show{}}) {
+		t.Fatal("isBookChapter")
+	}
+}

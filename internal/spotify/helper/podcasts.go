@@ -61,7 +61,7 @@ func (s *Librespot) Shows(ctx context.Context) ([]spotify.Show, error) {
 	}
 	out := make([]spotify.Show, 0, len(uris))
 	for _, u := range uris {
-		if m := meta[u]; m != nil {
+		if m := meta[u]; m != nil && !m.GetIsAudiobook() { // Spotify's audiobooks follow as shows
 			out = append(out, spotify.Show{URI: u, Name: m.GetName(), Publisher: m.GetPublisher(),
 				Cover: cover(m.GetCoverImage().GetImage())})
 		}
@@ -106,7 +106,7 @@ func (s *Librespot) Episodes(ctx context.Context, uri string) ([]spotify.Episode
 	out := make([]spotify.Episode, 0, len(uris))
 	for _, u := range uris {
 		m := meta[u]
-		if m == nil {
+		if m == nil || isBookChapter(m) {
 			continue
 		}
 		e := episode(strings.TrimPrefix(u, "spotify:episode:"), m)
@@ -143,6 +143,13 @@ func (s *Librespot) SavePosition(ctx context.Context, id string, ms int64, finis
 		err = sess.Spclient().SetResumePositionMs(ctx, *sid, max(ms, 0))
 	}
 	return classify(err)
+}
+
+// isBookChapter reports whether m is a chapter of one of Spotify's
+// audiobooks, which Spotify keeps as a show's episodes: the podcasts leave
+// them out.
+func isBookChapter(m *metadatapb.Episode) bool {
+	return m.GetIsAudiobookChapter() || m.GetShow().GetIsAudiobook()
 }
 
 // episode is an episode's metadata as the helper lists it.

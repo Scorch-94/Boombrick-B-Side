@@ -948,3 +948,13 @@ func TestContinueRowWithBooks(t *testing.T) {
 		t.Fatalf("a book alone: %+v", row)
 	}
 }
+
+// With nothing played yet, a played row still shows, saying how it fills.
+func TestSongsRowEmpty(t *testing.T) {
+	row, ok := SongsRow("Recently played", "Songs you played last", nil, nil, nil)
+	if !ok || len(row.Items) != 1 || row.Items[0].Play != nil || !row.Items[0].Note {
+		t.Fatalf("row %+v", row)
+	}
+	rows := append([]fixture.Row{row}, fixture.Home()[1:]...)
+	uitest.Golden(t, "home-played-empty", render(t, New(rows), time.Unix(1000, 0)))
+}

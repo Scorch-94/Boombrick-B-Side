@@ -2,6 +2,11 @@
 
 All notable changes to Boombrick. Versions match the release tags.
 
+## [v0.7.9]
+
+- Podcasts: Spotify's audiobooks no longer show as podcasts, on the Podcasts tab, in Home's Podcasts row or among episodes in Continue listening. Spotify keeps them as shows; Boombrick now leaves out any it marks as an audiobook, and their chapters. The lists already kept on the Brick follow once the Podcasts tab next asks Spotify.
+- Home: Recently played and Most played show as soon as they're switched on, with a "Nothing yet" card until a song counts, rather than staying hidden until then.
+
 ## [v0.7.8]
 
 - Audiobooks: a new Audiobooks tab, after Podcasts, lists the books in the `Audiobooks` folder at the top of the SD card: each `.m4b` (or `.m4a`, `.mp3`, `.flac`, `.opus`) file, or each folder of them, as one book. A plays a book from where you left it, five seconds back; X starts it over; Y looks for new books. Your place is kept every 15 seconds while it plays, and when you pause, change chapter, play something else or quit, background play included. Books in progress come first, with the time left and how far through; finished ones last. Left and Right on Now Playing, and headphone skips, jump 30 seconds in a book, as in a podcast episode.

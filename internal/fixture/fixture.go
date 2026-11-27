@@ -24,6 +24,7 @@ type Item struct {
 	Play            func()  // starts the item's music; nil for sample content
 	Queue           func()  // adds the item's music to the queue; nil for sample content
 	Import          func()  // X: imports a Spotify playlist; nil for none
+	Note            bool    // a card that only says something, as an empty row's: A does nothing
 }
 
 // Row is a titled row on Home.
