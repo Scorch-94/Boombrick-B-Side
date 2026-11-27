@@ -113,9 +113,9 @@ func TestFirmwarePower(t *testing.T) {
 	}
 }
 
-// Knulli's ports quit with Function, the Brick's Menu, and Start.
+// Menu and Start quit on Knulli, as its ports do, and on NextUI.
 func TestQuitChord(t *testing.T) {
-	for f, want := range map[Firmware]bool{NextUI: false, CrossMix: false, Desktop: false, Knulli: true} {
+	for f, want := range map[Firmware]bool{NextUI: true, CrossMix: false, Desktop: false, Knulli: true} {
 		if got := (Profile{Firmware: f}).QuitChord(); got != want {
 			t.Errorf("%v: %v", f, got)
 		}

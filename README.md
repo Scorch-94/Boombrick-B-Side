@@ -30,6 +30,7 @@ The screenshots are of the original Boombrick. See [CHANGELOG.md](CHANGELOG.md) 
   - **Podcasts**: the shows you follow.
   - **Latest releases**: the newest albums, EPs and singles of the artists you follow on Spotify, from the last six months, each over its artist; A opens one.
   - Spotify **podcast episodes you've started**, in Continue listening.
+- **Hotkeys:** Menu + volume sets the screen's brightness; Menu + Start quits.
 - **Album view setting:** the Library's albums as a 4 × 2 grid (the default), three across with big covers as in the original, or a list.
 - **Clock setting:** the time at the top left on the 24-hour or the 12-hour clock.
 
@@ -135,6 +136,8 @@ If a button doesn't seem to do anything, each command that arrives is written to
 | Start | Now Playing |
 | Select | Queue |
 | Menu | Quick menu: sleep timer, screen off, play in background, Settings, quit |
+| Menu + Volume up, down | Brighter, dimmer: NextUI's levels 0 to 10, kept after you quit |
+| Menu + Start | Quit |
 | Power | Screen off and on; hold for a second to power off |
 
 With the screen off, L1 and R1 skip back and on, and A plays or pauses. Each screen shows its buttons along the bottom.

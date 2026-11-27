@@ -147,6 +147,8 @@ type lamp struct {
 	off       bool
 	fail      bool
 	offs, ons int
+	level     int
+	steps     []int
 }
 
 func (l *lamp) Off() error {
@@ -158,6 +160,12 @@ func (l *lamp) Off() error {
 }
 
 func (l *lamp) On() error { l.off, l.ons = false, l.ons+1; return nil }
+
+func (l *lamp) Step(delta int) (int, error) {
+	l.level = min(max(l.level+delta, 0), 10)
+	l.steps = append(l.steps, delta)
+	return l.level, nil
+}
 
 func darkApp(light Backlight) (*App, *page) {
 	tab := &page{name: "home"}
@@ -501,5 +509,35 @@ func TestVolumeChangedWithTheScreenOffShowsNothing(t *testing.T) {
 	a.volumeNews(t0)
 	if a.shell.volumeOn || a.volume.Load() != 0 {
 		t.Fatal("the pill showed with the screen off, or the news was kept")
+	}
+}
+
+// Menu held with the volume buttons steps the brightness, saying the level,
+// and Menu coming up after doesn't open the quick menu; Menu and Start quit.
+func TestMenuChords(t *testing.T) {
+	light := &lamp{level: 5}
+	a, _ := darkApp(light)
+	a.opts.QuitChord = true
+	a.dispatch(press(input.Menu))
+	a.dispatch(press(input.VolUp))
+	a.dispatch(input.Event{Button: input.VolUp, Kind: input.Repeat})
+	a.dispatch(release(input.VolUp))
+	a.dispatch(press(input.VolDown))
+	a.dispatch(release(input.VolDown))
+	a.dispatch(release(input.Menu))
+	if len(light.steps) != 3 || light.level != 6 || a.shell.toast != "Brightness 6 of 10" {
+		t.Fatalf("steps %v, level %d, toast %q", light.steps, light.level, a.shell.toast)
+	}
+	if a.shell.menu != nil && a.shell.menu.IsOpen() {
+		t.Fatal("the quick menu opened after the chord")
+	}
+	a.dispatch(press(input.VolUp)) // without Menu: the volume's, not ours
+	if len(light.steps) != 3 {
+		t.Fatal("the volume button alone stepped the brightness")
+	}
+	a.dispatch(press(input.Menu))
+	a.dispatch(press(input.Start))
+	if !a.quit {
+		t.Fatal("Menu and Start should quit")
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -171,6 +172,9 @@ type Space interface {
 type Backlight interface {
 	Off() error
 	On() error
+	// Step makes the screen a level brighter or dimmer, returning the level,
+	// 0 to 10.
+	Step(delta int) (int, error)
 }
 
 // Fonts keeps the fonts downloaded for other scripts and emoji, and fetches
@@ -1228,6 +1232,22 @@ func (a *App) dispatch(e input.Event) {
 	}
 	if a.opts.QuitChord && a.held(input.Menu) && e.Button == input.Start && e.Kind == input.Press {
 		a.quit = true
+		return
+	}
+	// Menu held with the volume buttons sets the screen's brightness, as a
+	// chord: the quick menu doesn't open when Menu comes up.
+	if a.held(input.Menu) && (e.Button == input.VolUp || e.Button == input.VolDown) &&
+		e.Kind != input.Release && !a.dark && a.opts.Backlight != nil {
+		a.shell.menuDown = false
+		delta := 1
+		if e.Button == input.VolDown {
+			delta = -1
+		}
+		if level, err := a.opts.Backlight.Step(delta); err == nil {
+			a.Toast("Brightness " + strconv.Itoa(level) + " of 10")
+		} else if a.opts.Log != nil {
+			a.opts.Log.Warn("brightness", "err", err)
+		}
 		return
 	}
 	if a.dark {

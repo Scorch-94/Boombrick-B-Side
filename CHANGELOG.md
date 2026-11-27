@@ -4,6 +4,7 @@ All notable changes to Boombrick. Versions match the release tags.
 
 ## [v0.7.7]
 
+- Hotkeys: hold Menu and press volume up or down to make the screen brighter or dimmer, through NextUI's levels 0 to 10, which NextUI keeps after you quit; Menu and Start quits Boombrick. Menu alone still opens the quick menu.
 - Everywhere: the selected card's or row's title and subtitle, when too long, scroll to show the rest half a second after it's selected, as on Now Playing: on Home, in the Library, Spotify, Podcasts, YouTube Music and Settings lists. Frames are drawn only while a line slides.
 - Now Playing: a title, artist or album too long for the screen scrolls left to show the rest, after resting at its start for a couple of seconds, then starts again, rather than being cut off with "…".
 - Spotify: X on the Spotify tab searches Spotify for songs, albums and artists. Type on the keyboard, then Search (or Y); each search goes to Spotify, so typing alone asks nothing. A on a song plays the songs found from it and Y queues it; A on an album or an artist opens its songs. Searching uses Spotify's Web API with your sign-in; if Spotify limits it, the screen says so.
