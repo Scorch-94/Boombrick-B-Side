@@ -22,6 +22,7 @@ type Client interface {
 	Tracks(ctx context.Context, uri string) ([]Track, error)
 	Shows(ctx context.Context) ([]Show, error)
 	Episodes(ctx context.Context, uri string) ([]Episode, error)
+	Releases(ctx context.Context) ([]Release, error)
 }
 
 const (
@@ -37,11 +38,16 @@ const (
 	playlistsKey = "playlists"
 	// showsKey is the followed podcasts' key; a list of episodes is under
 	// episodesKey and its URI.
-	showsKey    = "podcasts:shows"
+	showsKey = "podcasts:shows"
+	// releasesKey is the followed artists' latest releases' key.
+	releasesKey = "music:releases"
 	episodesKey = "podcasts:episodes:"
 	// freshContinue is how long Continue listening is shown before it is
 	// asked for again: places in episodes move as they're listened to.
 	freshContinue = time.Minute
+	// freshReleases is how long the latest releases are kept: a day's are
+	// few, and finding them asks after every artist followed.
+	freshReleases = 6 * time.Hour
 	// Track lists are kept in memory while in use: the keepTracks asked for
 	// last, and any asked for within idle. The rest are read from the store
 	// again when next asked for.
@@ -246,10 +252,43 @@ func (l *Library) FollowedShows() ([]Show, bool) {
 	return ss, e.have
 }
 
+// Releases are the latest releases of the artists the user follows, as
+// Playlists.
+func (l *Library) Releases() (rs []Release, have bool, err error) {
+	v, have, err := l.get(releasesKey, func(ctx context.Context) (any, error) { return l.c.Releases(ctx) })
+	rs, _ = v.([]Release)
+	return rs, have, err
+}
+
+// LatestReleases is the followed artists' latest releases, for Home, as
+// FollowedShows: asked for while the helper runs, read from the store until
+// then.
+func (l *Library) LatestReleases() ([]Release, bool) {
+	l.mu.Lock()
+	running := l.status.State == Ready
+	l.mu.Unlock()
+	if running {
+		rs, have, _ := l.Releases()
+		return rs, have
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	e := l.entry(releasesKey)
+	if !e.read && !e.busy {
+		e.busy = true
+		l.wg.Go(func() { l.fill(releasesKey, e, nil) })
+	}
+	rs, _ := e.body.([]Release)
+	return rs, e.have
+}
+
 // freshFor is how long key's list is shown before it is asked for again.
 func freshFor(key string) time.Duration {
 	if key == episodesKey+ContinueURI {
 		return freshContinue
+	}
+	if key == releasesKey {
+		return freshReleases
 	}
 	return fresh
 }
@@ -427,7 +466,7 @@ func (l *Library) trim() {
 	}
 	var ts []held
 	for k, e := range l.lists {
-		if k != playlistsKey && k != showsKey && e.have && !e.busy {
+		if k != playlistsKey && k != showsKey && k != releasesKey && e.have && !e.busy {
 			ts = append(ts, held{k, e})
 		}
 	}
@@ -474,6 +513,10 @@ func (l *Library) load(key string) (any, time.Time, bool) {
 		var ss []Show
 		err = json.Unmarshal([]byte(body), &ss)
 		v = ss
+	case key == releasesKey:
+		var rs []Release
+		err = json.Unmarshal([]byte(body), &rs)
+		v = rs
 	case strings.HasPrefix(key, episodesKey):
 		var es []Episode
 		err = json.Unmarshal([]byte(body), &es)

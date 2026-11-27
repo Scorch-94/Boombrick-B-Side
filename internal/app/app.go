@@ -266,6 +266,7 @@ type App struct {
 	spotified    atomic.Bool       // the Spotify library has news
 	episodes     []spotify.Episode // podcast episodes in progress, for Continue listening
 	shows        []spotify.Show    // the podcasts followed, for Home's Podcasts
+	releases     []spotify.Release // the followed artists' latest, for Home's Latest releases
 	random       *home.RandomPicks // Random albums' picks, made afresh each launch
 	handFailed   atomic.Bool       // handing the music over failed, for poll to say
 	handing      atomic.Bool       // the music is being handed over: input waits
@@ -445,6 +446,7 @@ func New(opts Options) (*App, error) {
 		opts.Spotify.Saved()      // reads the playlists kept, for Home, without starting the helper
 		opts.Spotify.InProgress() // and the podcast episodes in progress
 		opts.Spotify.FollowedShows()
+		opts.Spotify.LatestReleases()
 	}
 	if opts.Radio != nil {
 		a.forward(opts.Radio.Ready(), &a.redraw)
@@ -892,6 +894,12 @@ func (a *App) showHome(progress []resume.Progress) {
 			}
 			return home.SpotifyRow(a.playlists, a.openPlaylist, imp)
 		},
+		keys.HomeReleases: func() (fixture.Row, bool) {
+			if !sp || a.env == nil {
+				return fixture.Row{}, false
+			}
+			return home.ReleasesRow(a.releases, a.openRelease)
+		},
 		keys.HomePodcasts: func() (fixture.Row, bool) {
 			if !sp || a.env == nil {
 				return fixture.Row{}, false
@@ -962,6 +970,8 @@ func (a *App) homeSections() []settingsscreen.Integration {
 	if a.opts.Spotify != nil {
 		ins = append(ins,
 			settingsscreen.Integration{Key: keys.HomeSpotify, Name: "Spotify playlists", Icon: "stream", About: "Liked Songs and your playlists"},
+			settingsscreen.Integration{Key: keys.HomeReleases, Name: "Latest releases", Icon: "user",
+				About: "New albums and singles from artists you follow"},
 			settingsscreen.Integration{Key: keys.HomePodcasts, Name: "Podcasts", Icon: "headphones", About: "Shows you follow on Spotify"})
 	}
 	if a.opts.Radio != nil {

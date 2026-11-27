@@ -872,3 +872,27 @@ func TestRandomAlbumsPreferFullOnes(t *testing.T) {
 		}
 	}
 }
+
+// Latest releases shows each release's title over its artist, and A opens it.
+func TestReleasesRow(t *testing.T) {
+	if _, ok := ReleasesRow(nil, nil); ok {
+		t.Fatal("a row with no releases")
+	}
+	var opened string
+	rs := []spotify.Release{
+		{URI: "spotify:album:a", Name: "Holiday Favorites", Artist: "Lindsey Stirling", Type: "Album", Tracks: 24},
+		{URI: "spotify:album:b", Name: "About You Now", Artist: "Dream Tunes", Type: "Single", Tracks: 1},
+		{URI: "spotify:album:c", Name: "Time Flies", Artist: "Ólafur Arnalds, Nils Frahm", Type: "Single", Tracks: 1},
+	}
+	row, ok := ReleasesRow(rs, func(r spotify.Release) { opened = r.URI })
+	if !ok || row.Title != "Latest releases" || !row.Cards || row.Items[2].Subtitle != "Ólafur Arnalds, Nils Frahm" {
+		t.Fatalf("row %+v", row)
+	}
+	h := New(nil)
+	h.SetRows([]fixture.Row{row})
+	uitest.Golden(t, "home-releases", render(t, h, t0.Add(anim.Focus)))
+	h.Handle(press(input.A), t0)
+	if opened != "spotify:album:a" {
+		t.Fatalf("opened %q", opened)
+	}
+}

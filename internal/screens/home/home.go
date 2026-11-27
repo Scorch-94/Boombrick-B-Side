@@ -399,6 +399,26 @@ func PlaylistsRow(pls []*library.Playlist, open func(*library.Playlist), queue f
 	return fixture.Row{Title: "Playlists", Meta: meta, Cards: true, Open: true, Items: items}, true
 }
 
+// ReleasesRow is Latest releases: the newest albums, EPs and singles of the
+// artists followed on Spotify, each card its title over its artist. A card
+// opens the release's songs with open. It reports false with none.
+func ReleasesRow(rs []spotify.Release, open func(spotify.Release)) (fixture.Row, bool) {
+	if len(rs) == 0 {
+		return fixture.Row{}, false
+	}
+	items := make([]fixture.Item, len(rs))
+	for i, r := range rs {
+		art := widgets.SpecFor(r.Name)
+		if r.Cover != "" {
+			art.Cover = media.Cover{URL: r.Cover}
+		}
+		items[i] = fixture.Item{Title: r.Name, Subtitle: r.Artist, Art: art, Source: media.Spotify,
+			Play: func() { open(r) }}
+	}
+	return fixture.Row{Title: "Latest releases", Meta: "From artists you follow", Cards: true, Spotify: true,
+		Items: items}, true
+}
+
 // PodcastsRow is Podcasts: the shows followed on Spotify, as kept from the
 // last time they were asked for. A card opens the show's episodes with open.
 // It reports false with none, as when signed out.

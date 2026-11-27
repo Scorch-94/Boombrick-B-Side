@@ -19,6 +19,7 @@ import (
 
 // fakeClient answers from its fields and counts what it is asked.
 type fakeClient struct {
+	releases  []Release
 	mu        sync.Mutex
 	status    Status
 	playlists []Playlist
@@ -87,6 +88,13 @@ func (f *fakeClient) Tracks(_ context.Context, uri string) ([]Track, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.tracks[uri], f.err
+}
+
+func (f *fakeClient) Releases(context.Context) ([]Release, error) {
+	f.count(releasesKey)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.releases, f.err
 }
 
 func (f *fakeClient) Shows(context.Context) ([]Show, error) {

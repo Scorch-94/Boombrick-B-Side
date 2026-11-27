@@ -196,6 +196,13 @@ func (h *Helper) Tracks(ctx context.Context, uri string) ([]Track, error) {
 }
 
 // Shows lists the podcasts the user follows.
+// Releases lists the latest releases of the artists the user follows,
+// newest first.
+func (h *Helper) Releases(ctx context.Context) ([]Release, error) {
+	var rs []Release
+	return rs, h.call(ctx, http.MethodGet, "/releases", &rs)
+}
+
 func (h *Helper) Shows(ctx context.Context) ([]Show, error) {
 	var ss []Show
 	return ss, h.call(ctx, http.MethodGet, "/shows", &ss)

@@ -27,6 +27,7 @@ The screenshots are of the original Boombrick. See [CHANGELOG.md](CHANGELOG.md) 
   - **Random albums**: six albums picked afresh each time the app opens, full albums before singles.
   - **Playlists**: your playlist files.
   - **Podcasts**: the shows you follow.
+  - **Latest releases**: the newest albums, EPs and singles of the artists you follow on Spotify, from the last six months, each over its artist; A opens one.
   - Spotify **podcast episodes you've started**, in Continue listening.
 - **Album view setting:** the Library's albums as a 4 × 2 grid (the default), three across with big covers as in the original, or a list.
 - **Clock setting:** the time at the top left on the 24-hour or the 12-hour clock.

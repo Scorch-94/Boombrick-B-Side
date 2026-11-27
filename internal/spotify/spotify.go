@@ -73,6 +73,18 @@ type Show struct {
 	Cover     string `json:"cover,omitempty"`
 }
 
+// Release is an album, EP or single of an artist the user follows, for
+// Home's Latest releases.
+type Release struct {
+	URI      string `json:"uri"` // spotify:album:<id>
+	Name     string `json:"name"`
+	Artist   string `json:"artist"` // its artists, comma separated
+	Cover    string `json:"cover,omitempty"`
+	Type     string `json:"type"`     // "Album", "EP" or "Single"
+	Released int64  `json:"released"` // the day, as Unix seconds at its start, UTC
+	Tracks   int    `json:"tracks"`
+}
+
 // MaxShowEpisodes is how many of a show's episodes are listed: its newest.
 const MaxShowEpisodes = 200
 

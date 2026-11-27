@@ -32,6 +32,7 @@ const (
 	HomeShuffle   = "home.shuffle"
 	HomePlaylists = "home.playlists"
 	HomeSpotify   = "home.spotify"
+	HomeReleases  = "home.releases"
 	HomePodcasts  = "home.podcasts"
 	HomeRadio     = "home.radio"
 	HomeRecent    = "home.recent"
@@ -75,6 +76,7 @@ var Defaults = map[string]string{
 	HomeShuffle:      "true",
 	HomePlaylists:    "true",
 	HomeSpotify:      "true",
+	HomeReleases:     "true",
 	HomePodcasts:     "true",
 	HomeRadio:        "true",
 	HomeRecent:       "true",
@@ -219,8 +221,8 @@ func (s *Settings) flush() {
 // HomeSections are Home's sections' keys in their first order, top to bottom.
 // Podcast episodes go with Continue listening, so have no place of their
 // own.
-var HomeSections = []string{HomeContinue, HomeShuffle, HomeRandom, HomePlaylists, HomeSpotify, HomePodcasts,
-	HomeRadio, HomeRecent}
+var HomeSections = []string{HomeContinue, HomeShuffle, HomeRandom, HomePlaylists, HomeSpotify, HomeReleases,
+	HomePodcasts, HomeRadio, HomeRecent}
 
 // Order is Home's sections in the order saved, a HomeOrder value. Keys it
 // doesn't know are dropped, and a section it doesn't name, as one added in a

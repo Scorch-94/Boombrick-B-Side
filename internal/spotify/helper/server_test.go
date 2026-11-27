@@ -26,6 +26,7 @@ type fake struct {
 	tracks    map[string][]spotify.Track
 	stream    *fakeStream
 	shows     []spotify.Show
+	releases  []spotify.Release
 	episodes  map[string][]spotify.Episode
 	saved     []string // "id ms finished", as SavePosition was called
 	err       error    // every call's answer, when set
@@ -50,6 +51,9 @@ func (f *fake) Tracks(_ context.Context, uri string) ([]spotify.Track, error) {
 	return f.tracks[uri], f.err
 }
 func (f *fake) Shows(context.Context) ([]spotify.Show, error) { return f.shows, f.err }
+func (f *fake) Releases(context.Context) ([]spotify.Release, error) {
+	return f.releases, f.err
+}
 func (f *fake) Episodes(_ context.Context, uri string) ([]spotify.Episode, error) {
 	return f.episodes[uri], f.err
 }

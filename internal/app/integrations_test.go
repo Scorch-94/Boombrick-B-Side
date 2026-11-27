@@ -390,7 +390,8 @@ func TestHomeSectionsList(t *testing.T) {
 		t.Fatalf("without Spotify or radio: %v", got)
 	}
 	all := &App{opts: Options{Spotify: fakeSpotify{}, Radio: &radio.Directory{}}}
-	if got := names(all); len(got) != 9 || got[1] != "Podcast episodes in Continue listening" || got[2] != "Shuffle all songs" || got[7] != "Radio" {
+	if got := names(all); len(got) != 10 || got[1] != "Podcast episodes in Continue listening" || got[2] != "Shuffle all songs" ||
+		got[6] != "Latest releases" || got[8] != "Radio" {
 		t.Fatalf("with both: %v", got)
 	}
 }
