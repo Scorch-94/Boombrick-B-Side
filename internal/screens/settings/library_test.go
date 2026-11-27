@@ -119,3 +119,52 @@ func sameSet(a, b []string) bool {
 	slices.Sort(b)
 	return slices.Equal(a, b)
 }
+
+// X searches the view shown: what's typed finds rows by title, artist,
+// album or folder, accents aside. Y goes to the matches, A on one asks to
+// delete it, and B steps back out: matches, then typing, then the search.
+func TestLibraryPageSearch(t *testing.T) {
+	lib := dupeLibrary()
+	s := New(Options{Prefs: prefs{}, Player: &fakePlayer{}, Library: lib})
+	s.library = newLibraryPage(lib)
+	pg := s.library
+	s.Handle(press(input.R2), t0)
+	s.Handle(press(input.R2), t0) // Songs
+	s.Handle(press(input.X), t0)
+	if !pg.searching {
+		t.Fatal("X should open the search")
+	}
+	for _, r := range "ÓDALYS emb" {
+		pg.typeRune(r)
+	}
+	if len(pg.hits) != 2 {
+		t.Fatalf("songs for %q: %v", pg.query, pg.hits)
+	}
+	e := &env{prefs: prefs{}, p: &fakePlayer{}, s: s}
+	uitest.Golden(t, "library-search", render(t, e, t0.Add(anim.Focus)))
+	s.Handle(press(input.L2), t0) // Albums: one matches
+	if pg.view != albumsView || len(pg.hits) != 1 || pg.items[albumsView][pg.hits[0]].row.Label != "Ember" {
+		t.Fatalf("albums %v", pg.hits)
+	}
+	s.Handle(press(input.Y), t0)
+	s.Handle(press(input.A), t0)
+	if !pg.onHits || pg.dialog == nil || pg.doomed[0].Path != "/m/Boombrick/Odalys/Ember/01.opus" {
+		t.Fatalf("on hits %v, dialog %v, doomed %v", pg.onHits, pg.dialog != nil, pg.doomed)
+	}
+	s.Back() // closes the dialog
+	if pg.dialog == nil || !pg.dialog.closing {
+		t.Fatal("B should close the dialog")
+	}
+	pg.dialog = nil // Back closes it on the wall clock, which the test's frames don't follow
+	s.Back() // to the keyboard
+	if pg.onHits || !pg.searching {
+		t.Fatal("B on the matches goes to the keyboard")
+	}
+	for pg.query != "" {
+		s.Back()
+	}
+	s.Back()
+	if pg.searching || s.library == nil {
+		t.Fatal("B with nothing typed closes the search, not the page")
+	}
+}

@@ -3,7 +3,12 @@ package settings
 import (
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
+
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/ujjwal313/boombrick/internal/library"
 	"github.com/ujjwal313/boombrick/internal/platform/input"
@@ -51,6 +56,17 @@ type libraryPage struct {
 	scroll [viewCount]anim.Value
 	dialog *confirm
 	doomed []*library.Track // what the open dialog deletes
+
+	// The search, which X opens: the keyboard on the left, the view's rows
+	// that match on the right.
+	searching bool
+	kb        widgets.Keyboard
+	query     string
+	onHits    bool                // focus is on the matches, not the keyboard
+	keys      [viewCount][]string // each row's folded words, to match
+	hits      []int               // the shown view's rows that match, in order
+	hitFocus  int
+	hitScroll anim.Value
 }
 
 // libraryItem is a row and the songs A deletes from it.
@@ -183,7 +199,63 @@ func (p *libraryPage) read() {
 	p.counts = []string{screens.Count(nd), screens.Count(len(p.items[albumsView])), screens.Count(len(p.items[songsView]))}
 	for v := range p.items {
 		p.focus[v] = min(p.focus[v], max(len(p.items[v])-1, 0))
+		p.keys[v] = make([]string, len(p.items[v]))
+		for i, it := range p.items[v] {
+			if !it.all {
+				p.keys[v][i] = fold(it.row.Label + "\x00" + it.row.Detail)
+			}
+		}
 	}
+	p.find()
+}
+
+// fold lowers s and strips its accents, so "beyonce" finds "Beyoncé".
+func fold(s string) string {
+	var b strings.Builder
+	for _, r := range norm.NFD.String(s) {
+		if !unicode.Is(unicode.Mn, r) {
+			b.WriteRune(unicode.ToLower(r))
+		}
+	}
+	return b.String()
+}
+
+// find lists the shown view's rows matching every word typed.
+func (p *libraryPage) find() {
+	p.hits = p.hits[:0]
+	words := strings.Fields(fold(p.query))
+	if len(words) > 0 {
+	ROWS:
+		for i, k := range p.keys[p.view] {
+			if k == "" {
+				continue
+			}
+			for _, w := range words {
+				if !strings.Contains(k, w) {
+					continue ROWS
+				}
+			}
+			p.hits = append(p.hits, i)
+		}
+	}
+	p.hitFocus = min(p.hitFocus, max(len(p.hits)-1, 0))
+	if len(p.hits) == 0 && p.onHits {
+		p.toKeyboard(time.Time{})
+	}
+}
+
+func (p *libraryPage) toKeyboard(now time.Time) {
+	p.onHits = false
+	p.kb.SetActive(true, now)
+}
+
+func (p *libraryPage) toHits(now time.Time) bool {
+	if len(p.hits) == 0 {
+		return false
+	}
+	p.onHits = true
+	p.kb.SetActive(false, now)
+	return true
 }
 
 // join is the parts that aren't empty, with " · " between.
@@ -220,8 +292,19 @@ func (p *libraryPage) handle(s *Screen, ev input.Event, now time.Time) bool {
 	if ev.Kind == input.Release {
 		return false
 	}
+	if p.searching {
+		return p.handleSearch(ev, now)
+	}
 	items := p.items[p.view]
 	switch ev.Button {
+	case input.X:
+		if ev.Kind != input.Press {
+			return false
+		}
+		p.searching, p.query, p.onHits = true, "", false
+		p.kb = widgets.NewKeyboard()
+		p.find()
+		return true
 	case input.L2, input.R2:
 		if ev.Kind != input.Press {
 			return false
@@ -234,6 +317,7 @@ func (p *libraryPage) handle(s *Screen, ev input.Event, now time.Time) bool {
 			return false
 		}
 		p.view = next
+		p.find()
 		return true
 	case input.Up, input.Down:
 		next := p.focus[p.view] + 1
@@ -249,13 +333,108 @@ func (p *libraryPage) handle(s *Screen, ev input.Event, now time.Time) bool {
 		if ev.Kind != input.Press || len(items) == 0 {
 			return false
 		}
-		it := items[p.focus[p.view]]
-		p.doomed = it.tracks
-		p.dialog = newConfirm(deleteDialog(it), now)
-		p.dialog.choose(1, now) // Cancel first: a delete can't be undone
+		p.ask(items[p.focus[p.view]], now)
 		return true
 	}
 	return false
+}
+
+// ask opens the dialog to delete it's songs, on Cancel: a delete can't be
+// undone.
+func (p *libraryPage) ask(it libraryItem, now time.Time) {
+	p.doomed = it.tracks
+	p.dialog = newConfirm(deleteDialog(it), now)
+	p.dialog.choose(1, now)
+}
+
+// handleSearch types on the keyboard, changes view, and on the matches moves
+// and deletes with A.
+func (p *libraryPage) handleSearch(ev input.Event, now time.Time) bool {
+	if ev.Kind == input.Press && (ev.Button == input.L2 || ev.Button == input.R2) {
+		next := p.view + 1
+		if ev.Button == input.L2 {
+			next = p.view - 1
+		}
+		if next < 0 || next >= viewCount {
+			return false
+		}
+		p.view, p.hitFocus = next, 0
+		p.find()
+		return true
+	}
+	if p.onHits {
+		switch ev.Button {
+		case input.A:
+			if ev.Kind == input.Press {
+				p.ask(p.items[p.view][p.hits[p.hitFocus]], now)
+				return true
+			}
+		case input.Up, input.Down:
+			next := p.hitFocus + 1
+			if ev.Button == input.Up {
+				next = p.hitFocus - 1
+			}
+			if next < 0 || next >= len(p.hits) {
+				return false
+			}
+			p.hitFocus = next
+			return true
+		case input.Left:
+			p.toKeyboard(now)
+			return true
+		}
+		return false
+	}
+	if ev.Kind == input.Press {
+		switch ev.Button {
+		case input.A:
+			switch act, r := p.kb.Press(); act {
+			case widgets.TypeKey:
+				p.typeRune(r)
+			case widgets.SpaceKey:
+				p.space()
+			case widgets.BackspaceKey:
+				p.backspace()
+			case widgets.SearchKey:
+				p.toHits(now)
+			}
+			return true
+		case input.X:
+			return p.space()
+		case input.Y:
+			return p.toHits(now)
+		}
+	}
+	if p.kb.Move(ev.Button, now) {
+		return true
+	}
+	return ev.Button == input.Right && p.toHits(now)
+}
+
+func (p *libraryPage) typeRune(r rune) {
+	if utf8.RuneCountInString(p.query) < 80 {
+		p.query += string(r)
+		p.find()
+	}
+}
+
+// space adds a space between words: never a leading one or two together.
+func (p *libraryPage) space() bool {
+	if p.query == "" || strings.HasSuffix(p.query, " ") {
+		return false
+	}
+	p.typeRune(' ')
+	return true
+}
+
+func (p *libraryPage) backspace() bool {
+	if p.query == "" {
+		return false
+	}
+	_, n := utf8.DecodeLastRuneInString(p.query)
+	p.query = p.query[:len(p.query)-n]
+	p.find()
+	return true
 }
 
 // deleteDialog asks whether to delete it's songs.
@@ -298,23 +477,38 @@ func (p *libraryPage) delete(s *Screen) {
 	p.read()
 }
 
-// back closes the dialog, or the page.
+// back closes the dialog; in the search, goes from the matches to the
+// keyboard, deletes what's typed, and with nothing typed closes the search;
+// and otherwise closes the page.
 func (p *libraryPage) back(s *Screen, now time.Time) bool {
-	if p.dialog != nil {
+	switch {
+	case p.dialog != nil:
 		p.dialog.close(now)
-		return true
+	case p.searching && p.onHits:
+		p.toKeyboard(now)
+	case p.searching && p.backspace():
+	case p.searching:
+		p.searching = false
+	default:
+		s.library = nil
 	}
-	s.library = nil
 	return true
 }
 
 func (p *libraryPage) animating(now time.Time) bool {
-	return !p.scroll[p.view].Done(now) || p.dialog != nil && p.dialog.animating(now)
+	return !p.scroll[p.view].Done(now) || !p.hitScroll.Done(now) || p.searching && p.kb.Animating(now) ||
+		p.dialog != nil && p.dialog.animating(now)
 }
 
 var (
-	libraryHints = []widgets.Hint{{Key: "A", Label: "Delete"}, {Key: "L2/R2", Label: "View"}, {Key: "B", Label: "Back"}}
-	emptyHints   = []widgets.Hint{{Key: "L2/R2", Label: "View"}, {Key: "B", Label: "Back"}}
+	libraryHints = []widgets.Hint{{Key: "A", Label: "Delete"}, {Key: "X", Label: "Search"}, {Key: "L2/R2", Label: "View"},
+		{Key: "B", Label: "Back"}}
+	emptyHints  = []widgets.Hint{{Key: "X", Label: "Search"}, {Key: "L2/R2", Label: "View"}, {Key: "B", Label: "Back"}}
+	typingHints = []widgets.Hint{{Key: "A", Label: "Type"}, {Key: "B", Label: "Delete"}, {Key: "X", Label: "Space"},
+		{Key: "Y", Label: "To results"}}
+	aloneHints = []widgets.Hint{{Key: "A", Label: "Type"}, {Key: "B", Label: "Delete"}, {Key: "X", Label: "Space"},
+		{Key: "L2/R2", Label: "View"}}
+	hitHints = []widgets.Hint{{Key: "A", Label: "Delete"}, {Key: "B", Label: "Keyboard"}, {Key: "L2/R2", Label: "View"}}
 )
 
 // emptyText is what a view with no rows says.
@@ -325,6 +519,12 @@ func (p *libraryPage) draw(s *Screen, u *ui.Context) {
 		p.read()
 	}
 	widgets.StatusBar(u)
+	if p.searching {
+		// The keyboard needs the room: the filters go up where the title was.
+		widgets.Filters(u, viewNames, p.counts, p.view, side, headTop)
+		p.drawSearch(u, headTop+widgets.FiltersHeight+8)
+		return
+	}
 	header(u, "Library")
 	top := listTop(u)
 	widgets.Filters(u, viewNames, p.counts, p.view, side, top)
@@ -369,4 +569,58 @@ func (p *libraryPage) draw(s *Screen, u *ui.Context) {
 		return
 	}
 	widgets.HintBar(u, libraryHints)
+}
+
+// drawSearch draws the keyboard and, beside it, the view's rows that match.
+func (p *libraryPage) drawSearch(u *ui.Context, top float32) {
+	p.kb.Draw(u, side, top, p.query)
+	x := float32(side + widgets.KeyboardW + 20)
+	w := float32(theme.ScreenW-side+rowInset) - x
+	view := gfx.Rect{X: x, Y: top, W: w, H: screens.ContentBot - top}
+	if len(p.hits) == 0 {
+		msg := "Type to find " + strings.ToLower(viewNames[p.view]) + "."
+		if q := strings.TrimSpace(p.query); q != "" {
+			msg = "Nothing matches “" + q + "”"
+		}
+		u.Text(u.Fit(msg, labelText, w-20), labelText, x+20, top+16, theme.Ink2)
+	}
+	h := float64(widgets.SettingDetailHeight)
+	f := p.hitFocus
+	to := max(p.hitScroll.Target(), float64(f+1)*h-float64(view.H))
+	to = min(to, float64(f)*h)
+	p.hitScroll.To(to, u.Now, anim.Focus, anim.EaseOutCubic)
+	y := top - float32(p.hitScroll.At(u.Now))
+	u.PushClip(view)
+	for j, i := range p.hits {
+		box := gfx.Rect{X: x, Y: y + float32(j)*float32(h), W: w, H: widgets.SettingDetailHeight}
+		if box.Y+box.H < view.Y {
+			continue
+		}
+		if box.Y > view.Y+view.H {
+			break
+		}
+		k := float32(0)
+		if p.onHits && j == f {
+			k = 1
+		}
+		widgets.DrawSetting(u, p.items[p.view][i].row, box, k, j == len(p.hits)-1)
+	}
+	u.PopClip()
+	if p.dialog != nil {
+		if p.dialog.gone(u.Now) {
+			p.dialog = nil
+		} else {
+			p.dialog.draw(u)
+			widgets.HintBar(u, p.dialog.hints())
+			return
+		}
+	}
+	switch {
+	case p.onHits:
+		widgets.HintBar(u, hitHints)
+	case len(p.hits) > 0:
+		widgets.HintBar(u, typingHints)
+	default:
+		widgets.HintBar(u, aloneHints)
+	}
 }

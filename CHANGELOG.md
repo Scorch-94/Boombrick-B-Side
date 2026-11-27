@@ -4,6 +4,7 @@ All notable changes to Boombrick. Versions match the release tags.
 
 ## [v0.7.7]
 
+- Settings → Library: X searches the view shown, Duplicates, Albums or Songs, by title, artist, album or folder, on the on-screen keyboard. Y or Right goes to the matches, where A deletes one as on the list.
 - Home: Random albums picks albums of three songs or more, before singles. A song downloaded on its own is an album of one, so a library with many made a row of singles; they now only make up the row when there aren't six bigger albums.
 
 ## [v0.7.6]

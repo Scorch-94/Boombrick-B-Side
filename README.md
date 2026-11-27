@@ -104,7 +104,7 @@ Settings → **Library** has three views, changed with L2 and R2:
 - **Albums:** every album, marked "Duplicate" when all its songs are duplicates, or with how many are.
 - **Songs:** every song.
 
-A deletes the song or album it's on from the SD card, after a dialog that starts on Cancel: a delete can't be undone. The song's `.lrc` lyrics go too, and any folder left with nothing but a cover in it. The library is scanned again afterwards.
+X searches the view shown by title, artist, album or folder; Y goes to the matches. A deletes the song or album it's on from the SD card, after a dialog that starts on Cancel: a delete can't be undone. The song's `.lrc` lyrics go too, and any folder left with nothing but a cover in it. The library is scanned again afterwards.
 
 ## Bluetooth headphones
 
@@ -121,6 +121,7 @@ If a button doesn't seem to do anything, each command that arrives is written to
 | B | Back |
 | X | Download (YouTube Music); search (Library); move a section (Settings → Home sections) |
 | A (Settings → Library) | Delete the song or album, after a dialog |
+| X (Settings → Library) | Search |
 | Y | Add to the queue; on Now Playing, lyrics |
 | D-pad Left, Right (Now Playing) | Previous and next track; 30 s back and forward in a podcast episode |
 | A (Now Playing) | Play or pause |
