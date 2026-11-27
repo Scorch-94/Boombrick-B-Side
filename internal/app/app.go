@@ -514,6 +514,15 @@ func (a *App) quickMenu() *quickmenu.Menu {
 		ScreenOff: func() { a.setDark(true) }, OpenSettings: func() {}, Quit: func() { a.quit = true }}
 	act.Playing = func() bool { return a.last.Playing }
 	act.Live = func() bool { return a.last.Track.Live() }
+	if a.opts.Prefs != nil && a.opts.Player != nil {
+		act.Spoken = func() bool { return a.last.Queued && audiobooks.Spoken(a.last.Track) }
+		act.Speed = func() float64 { return audiobooks.ParseSpeed(a.opts.Prefs.String(keys.SpokenSpeed)) }
+		act.SetSpeed = func(x float64) {
+			a.opts.Prefs.Set(keys.SpokenSpeed, strconv.FormatFloat(x, 'f', -1, 64))
+			a.opts.Player.SetSpeed(x)
+			a.dirty = true
+		}
+	}
 	if a.opts.Background != nil {
 		act.PlayInBackground = a.playInBackground
 	}

@@ -196,3 +196,43 @@ func TestSleepTimerPassesOverTheEndsWhileAStationPlays(t *testing.T) {
 		t.Fatalf("Right after 60 min set %v, want End of track", a.sleep.Mode)
 	}
 }
+
+// Playback speed shows only while spoken word plays, under the sleep timer;
+// Left and Right step it, stopping at the ends, and A goes round.
+func TestPlaybackSpeed(t *testing.T) {
+	speed, spoken := 1.0, false
+	act := (&acts{}).actions()
+	act.Spoken = func() bool { return spoken }
+	act.Speed = func() float64 { return speed }
+	act.SetSpeed = func(x float64) { speed = x }
+	m := New(act)
+	m.Open(t0)
+	m.Handle(press(input.Down), t0)
+	if m.focus == rowSpeed {
+		t.Fatal("the speed row shows with music playing")
+	}
+	spoken = true
+	m.Open(t0)
+	m.Handle(press(input.Down), t0)
+	if m.focus != rowSpeed {
+		t.Fatalf("under the sleep timer is row %d", m.focus)
+	}
+	m.Handle(press(input.Right), t0)
+	m.Handle(press(input.Right), t0)
+	if speed != 1.25 {
+		t.Fatalf("two steps up from 1× is %v", speed)
+	}
+	uitest.Golden(t, "quick-menu-speed", draw(t, m))
+	if m.rows[rowSpeed].Value != "1.25×" {
+		t.Fatalf("the row says %q", m.rows[rowSpeed].Value)
+	}
+	speed = 2
+	m.Handle(press(input.Right), t0)
+	if speed != 2 {
+		t.Fatalf("past the fastest: %v", speed)
+	}
+	m.Handle(press(input.A), t0)
+	if speed != 0.75 {
+		t.Fatalf("A at the fastest: %v", speed)
+	}
+}

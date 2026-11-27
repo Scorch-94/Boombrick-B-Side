@@ -120,6 +120,7 @@ func (p *Player) openLocked(frame int64) {
 		p.retried, p.failures = false, 0
 		p.cur, p.curRate, p.curFrames = src, src.SampleRate(), src.Frames()
 		p.framesOf = t.key()
+		p.markLocked(src, t)
 		if p.cued {
 			p.engine.Cue(src, frame)
 		} else {
@@ -225,6 +226,7 @@ func (p *Player) primeStreamLocked(gen uint64, pos, idx int, t Track, level, alb
 			return
 		}
 		p.next, p.nextPos, p.nextIdx, p.nextAlbum, p.nextRate, p.nextFrames = src, pos, idx, album, src.SampleRate(), src.Frames()
+		p.markLocked(src, t)
 		p.engine.Queue(src)
 	})
 }

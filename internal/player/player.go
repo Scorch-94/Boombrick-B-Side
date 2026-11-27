@@ -85,7 +85,8 @@ type State struct {
 	LiveTitle         string // what the current station says is playing, if anything
 	Shuffle           bool
 	Repeat            Repeat
-	Err               error  // the last output error, which paused playback
+	Speed             float64 // how fast the current track plays: 1, or spoken word's speed
+	Err               error   // the last output error, which paused playback
 	Version           uint64 // changes whenever the queue or its order does
 }
 
@@ -105,6 +106,9 @@ const levellingOffset = 4
 type Player struct {
 	startAt time.Duration // PlayAt's time into the track to open next
 	engine  *audio.Engine
+	// spoken says which tracks are speech, played at speed; nil: none.
+	spoken func(Track) bool
+	speed  float64
 	open    Opener
 	log     *slog.Logger
 
@@ -264,7 +268,7 @@ var ErrSpotifyOff = errors.New("spotify is switched off")
 
 // New creates a player that plays through out and opens files with open.
 func New(out audio.Output, open Opener, log *slog.Logger) *Player {
-	p := &Player{open: open, log: log, rng: rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 0)),
+	p := &Player{open: open, log: log, speed: 1, rng: rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 0)),
 		after: afterFunc, now: time.Now}
 	p.engine = audio.NewEngine(out, p.ended)
 	return p
@@ -473,6 +477,7 @@ func (p *Player) openFileLocked(frame int64, tries int) {
 			}
 			p.startFrame = frame
 		}
+		p.markLocked(src, t)
 		if p.cued {
 			p.engine.Cue(src, frame)
 		} else {
@@ -578,6 +583,7 @@ func (p *Player) primeLocked() {
 			return
 		}
 		p.next, p.nextPos, p.nextIdx, p.nextAlbum, p.nextRate, p.nextFrames = src, pos, idx, album, rate, frames
+		p.markLocked(src, t)
 		p.engine.Queue(src)
 	})
 }
@@ -995,11 +1001,14 @@ func (p *Player) editedLocked() {
 func (p *Player) State() State {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	s := State{Shuffle: p.shuffle, Repeat: p.repeat, Count: len(p.queue), Version: p.version}
+	s := State{Shuffle: p.shuffle, Repeat: p.repeat, Count: len(p.queue), Version: p.version, Speed: 1}
 	if len(p.queue) == 0 {
 		return s
 	}
 	t := p.queue[p.order[p.pos]]
+	if p.spokenLocked(t) {
+		s.Speed = p.speed
+	}
 	s.Queued, s.Track, s.Index = true, t, p.pos
 	s.Waiting, s.Loading, s.Cued = p.waiting, p.loading && (t.Streamed() || t.Live()), p.cued
 	if t.Path != p.formatOf {
@@ -1208,4 +1217,31 @@ func (p *Player) cueLocked() {
 		return // opened when played
 	}
 	p.openFileLocked(p.startFrame, len(p.order))
+}
+
+// SetSpoken says which tracks are speech, as audiobooks and podcast episodes
+// are, to play at SetSpeed's speed. Set it before playing.
+func (p *Player) SetSpoken(spoken func(Track) bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.spoken = spoken
+}
+
+// SetSpeed sets how fast speech plays: 1 as recorded, 1.5 half as fast
+// again. It applies at once, to what is playing too.
+func (p *Player) SetSpeed(x float64) {
+	p.mu.Lock()
+	p.speed = x
+	p.mu.Unlock()
+	p.engine.SetSpeed(x)
+}
+
+// spokenLocked reports whether t is speech.
+func (p *Player) spokenLocked(t Track) bool { return p.spoken != nil && p.spoken(t) }
+
+// markLocked tells the engine src, t's, is speech, if it is.
+func (p *Player) markLocked(src audio.Source, t Track) {
+	if p.spokenLocked(t) {
+		p.engine.MarkSpoken(src)
+	}
 }

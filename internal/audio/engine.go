@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ujjwal313/boombrick/internal/audio/resample"
+	"github.com/ujjwal313/boombrick/internal/audio/stretch"
 )
 
 // OutputRate is the rate the device runs at; every source is resampled to it.
@@ -93,6 +94,10 @@ type Engine struct {
 	release  chan struct{} // closed once the loop has let go of the output; nil when none is asked for
 	closed   bool
 	st       Status
+	// Spoken word plays at speed, other sources at their own: spoken holds
+	// the sources marked as speech by MarkSpoken.
+	speed  float64
+	spoken map[Source]bool
 
 	// Ends wait in a FIFO for a notifier goroutine, so onEnd sees them in the
 	// order they happened and the loop never blocks on it.
@@ -117,7 +122,8 @@ type fadeEnd struct {
 // to its end, on a goroutine of its own, one End at a time, in the order
 // sources ended.
 func NewEngine(out Output, onEnd func(End)) *Engine {
-	e := &Engine{out: out, onEnd: onEnd, seek: -1, done: make(chan struct{}), wait: letGo, st: Status{Frames: -1}}
+	e := &Engine{out: out, onEnd: onEnd, seek: -1, done: make(chan struct{}), wait: letGo, st: Status{Frames: -1},
+		speed: 1, spoken: map[Source]bool{}}
 	e.wake = sync.NewCond(&e.mu)
 	e.nwake = sync.NewCond(&e.nmu)
 	go e.loop()
@@ -308,6 +314,33 @@ func (e *Engine) FadeEnd(src Source, d time.Duration) {
 	e.set(func() { e.fadeEnd = fadeEnd{src: src, frames: max(frames, 1)} })
 }
 
+// MarkSpoken says src is speech, as an audiobook or a podcast episode is, to
+// play at the speed SetSpeed sets. Mark it before Play, Cue or Queue.
+func (e *Engine) MarkSpoken(src Source) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for s := range e.spoken { // those gone by
+		if s != e.cur && s != e.next && s != e.queued {
+			delete(e.spoken, s)
+		}
+	}
+	e.spoken[src] = true
+}
+
+// SetSpeed sets how fast speech plays, from 0.5 to 3 times; 1 is as
+// recorded. Other sources always play as recorded.
+func (e *Engine) SetSpeed(x float64) {
+	e.set(func() { e.speed = min(max(x, 0.5), 3) })
+}
+
+// speedLocked is how fast cur plays.
+func (e *Engine) speedLocked() float64 {
+	if e.cur != nil && e.spoken[e.cur] {
+		return e.speed
+	}
+	return 1
+}
+
 // CancelFade ends FadeOut and FadeEnd, at full volume again.
 func (e *Engine) CancelFade() { e.set(func() { e.fadeOut, e.fadeEnd = fadeOut{}, fadeEnd{} }) }
 
@@ -360,6 +393,8 @@ func (e *Engine) loop() {
 	}()
 	rs := resample.New(2, resampleQuality)
 	defer rs.Close()
+	st := stretch.New()
+	played := 1.0 // the speed st was last fed at
 	in := make([]float32, 2*chunk)
 	out := make([]float32, 2*chunk*maxRatio+64)
 	pcm := make([]int16, len(out))
@@ -386,6 +421,7 @@ func (e *Engine) loop() {
 			}
 			e.mu.Unlock()
 			rs.Reset()
+			st.Reset()
 			hist.clear()
 			// A source that ended has already left the device to play out;
 			// only an interrupted one is cut off. One handed over again is
@@ -403,6 +439,7 @@ func (e *Engine) loop() {
 			e.mu.Unlock()
 			err := cur.SeekFrame(frame)
 			rs.Reset()
+			st.Reset()
 			hist.clear()
 			e.drop()
 			if err == nil {
@@ -425,8 +462,8 @@ func (e *Engine) loop() {
 				// further than the track goes; only what was taken off is
 				// put back.
 				e.back = 0
-				if e.st.Rate > 0 {
-					e.back = min(e.st.Frame, int64(e.replay)*int64(e.st.Rate)/OutputRate)
+				if e.st.Rate > 0 { // what's replayed took speed times as long in the source
+					e.back = min(e.st.Frame, int64(float64(e.replay)*float64(e.st.Rate)*e.speedLocked()/OutputRate))
 					e.st.Frame -= e.back
 				}
 				e.quiet = true
@@ -449,6 +486,7 @@ func (e *Engine) loop() {
 		}
 		cur, rate, replay, back := e.cur, e.st.Rate, e.replay, e.back
 		frame, fo, fe := e.st.Frame, e.fadeOut, e.fadeEnd
+		speed := e.speedLocked()
 		e.replay, e.back, e.quiet = 0, 0, false
 		e.mu.Unlock()
 
@@ -478,10 +516,22 @@ func (e *Engine) loop() {
 				fadeTail(in[:2*n], frame, cur.Frames(), fe.frames)
 			}
 			k = rs.Process(rate, OutputRate, in[:2*n], out)
-			if fo.total > 0 {
-				fadeDown(out[:2*k], fo)
+			res := out[:2*k]
+			if speed != played {
+				st.Reset() // a speed's held audio doesn't join another's
+				played = speed
 			}
-			toInt16(pcm[:2*k], out[:2*k])
+			if speed != 1 {
+				res = st.Process(res, speed)
+				k = len(res) / 2
+			}
+			if len(pcm) < len(res) {
+				pcm = make([]int16, len(res))
+			}
+			if fo.total > 0 {
+				fadeDown(res, fo)
+			}
+			toInt16(pcm[:2*k], res)
 			if werr = e.write(pcm[:2*k]); werr == nil {
 				hist.add(pcm[:2*k])
 			}

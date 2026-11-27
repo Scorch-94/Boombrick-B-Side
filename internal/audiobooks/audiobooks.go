@@ -20,6 +20,7 @@ import (
 	"github.com/ujjwal313/boombrick/internal/audio/decode"
 	"github.com/ujjwal313/boombrick/internal/library"
 	"github.com/ujjwal313/boombrick/internal/player"
+	"github.com/ujjwal313/boombrick/internal/spotify"
 )
 
 // Book is an audiobook.
@@ -290,3 +291,23 @@ func (b Book) Start(pl Place) (int, time.Duration) {
 
 // rewind is how far back from where it was left a book is picked up.
 const rewind = 5 * time.Second
+
+// Spoken reports whether t is spoken word, which plays at the speed set for
+// it: a part of an audiobook or a Spotify podcast episode.
+func Spoken(t player.Track) bool {
+	if IsBook(t.Path) {
+		return true
+	}
+	_, ok := spotify.IsEpisode(t.SpotifyID)
+	return ok
+}
+
+// ParseSpeed reads a speed as Settings keeps it, "1.25", or 1 when it isn't
+// one.
+func ParseSpeed(s string) float64 {
+	x, err := strconv.ParseFloat(s, 64)
+	if err != nil || x < 0.5 || x > 3 {
+		return 1
+	}
+	return x
+}

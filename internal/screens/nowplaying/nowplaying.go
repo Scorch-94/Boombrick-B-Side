@@ -145,6 +145,7 @@ type formatKey struct {
 	kbps, rate int
 	format     string
 	live       bool
+	speed      float64
 }
 
 // New creates the screen. No control is highlighted: each flashes as its
@@ -440,7 +441,7 @@ func (n *NowPlaying) Draw(u *ui.Context) {
 	// Spotify's and Radio's badges fade while offline.
 	src := source(s.Track)
 	bw := widgets.Badge(u, src, x, y, (src == media.Spotify || src == media.Radio) && !u.Status.Online)
-	if k := (formatKey{s.Kbps, s.Rate, s.Format, live}); k != n.formatOf {
+	if k := (formatKey{s.Kbps, s.Rate, s.Format, live, s.Speed}); k != n.formatOf {
 		n.format, n.formatOf = formatLine(s), k
 	}
 	u.Text(n.format, formatStyle, x+bw+12, u.CenterY(formatStyle, y, 32), theme.Ink3)
@@ -494,6 +495,17 @@ func (n *NowPlaying) stationLine(t player.Track) string {
 }
 
 func formatLine(s player.State) string {
+	if s.Speed != 0 && s.Speed != 1 { // spoken word played faster or slower: the speed first
+		if f := format(s); f != "" {
+			return screens.SpeedLabel(s.Speed) + " · " + f
+		}
+		return screens.SpeedLabel(s.Speed)
+	}
+	return format(s)
+}
+
+// format is the track's format line, as formatLine says, without a speed.
+func format(s player.State) string {
 	if s.Track.Live() { // the codec, and the bitrate when the station gives one
 		if s.Kbps > 0 && s.Format != "" {
 			return s.Format + " · " + strconv.Itoa(s.Kbps) + " kbps"

@@ -17,6 +17,7 @@ The screenshots are of the original Boombrick. See [CHANGELOG.md](CHANGELOG.md) 
 
 - **Podcasts tab:** your Spotify podcasts, in three lists: episodes you're part way through on any device, the shows you follow, and your saved episodes. Episodes play from where you left off, and your place goes back to Spotify as you listen, so your phone picks up from there. Left and Right on Now Playing jump 30 seconds during an episode. [More below](#podcasts).
 - **Audiobooks tab:** your `.m4b` and `.m4a` audiobooks from the `Audiobooks` folder on the SD card, each picked up where you left it, even after quitting, with its chapters: L1 and R1 go from chapter to chapter, and Left and Right on Now Playing jump 30 seconds. [More below](#audiobooks).
+- **Playback speed:** audiobooks and podcast episodes play from 0.75× to 2×, without the voices going higher or lower, set in the quick menu while one plays. Music always plays as recorded.
 - **Bluetooth headphone controls:** play/pause, next and previous from headphones and speakers, AirPods' and Beats' taps included, with the screen on or off and in background play. Boombrick tells them what's playing, for headphones that pause when you take an earbud out. [More below](#bluetooth-headphones).
 - **Playlists:** `.m3u`, `.m3u8` and `.csv` files in `Music/Playlists` become playlists in the Library. A `.csv` exported from Spotify by Exportify or TuneMyMusic is matched to your songs by Spotify track, title, artist, album and length, and songs you don't have stream from Spotify in their place. [More below](#playlists).
 - **Library management:** Settings → Library lists your duplicate songs and albums, deletes songs and albums from the card, and deletes every download you also have elsewhere in one go. [More below](#library-management).
@@ -145,7 +146,7 @@ If a button doesn't seem to do anything, each command that arrives is written to
 | L2, R2 | Filters in the Library and YouTube Music; on Now Playing and Lyrics, 10 s back and on, or hold to rewind and fast-forward |
 | Start | Now Playing |
 | Select | Queue; on the Audiobooks tab, the book's chapters |
-| Menu | Quick menu: sleep timer, screen off, play in background, Settings, quit |
+| Menu | Quick menu: sleep timer, playback speed (audiobooks and podcasts), screen off, play in background, Settings, quit |
 | Menu + Volume up, down | Brighter, dimmer: NextUI's levels 0 to 10, kept after you quit |
 | Menu + Start | Quit |
 | Power | Screen off and on; hold for a second to power off |

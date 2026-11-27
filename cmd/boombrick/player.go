@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/ujjwal313/boombrick/internal/audiobooks"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -32,6 +33,8 @@ func newPlayer(db *sql.DB, prefs *settings.Settings, sp *spotify.Helper, rc *rad
 	notify func(player.Notice)) *player.Player {
 	p := player.New(alsa.New(log), decode.Open, log)
 	p.SetLevelling(prefs.Bool(settings.VolumeLevelling))
+	p.SetSpoken(audiobooks.Spoken)
+	p.SetSpeed(audiobooks.ParseSpeed(prefs.String(settings.SpokenSpeed)))
 	p.SetStreaming(func(ctx context.Context, t player.Track, frame int64, level bool) (audio.Source, error) {
 		// A song an import downloaded plays from its file: no key, no Wi-Fi.
 		if prefs.Bool(settings.PreferDownloaded) {

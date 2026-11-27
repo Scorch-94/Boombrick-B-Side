@@ -19,6 +19,9 @@ const (
 	DownloadQuality  = "downloads.quality"
 	PreferDownloaded = "playback.prefer_downloaded"
 	VolumeLevelling  = "playback.volume_levelling"
+	// SpokenSpeed is how fast audiobooks and podcast episodes play, as a
+	// number such as 1.25.
+	SpokenSpeed = "playback.spoken_speed"
 	// AlbumView is how the Library shows albums: AlbumGrid, AlbumLarge or
 	// AlbumList.
 	AlbumView = "library.album_view"
@@ -73,6 +76,7 @@ var Defaults = map[string]string{
 	DownloadQuality:  "best",
 	PreferDownloaded: "true",
 	VolumeLevelling:  "true",
+	SpokenSpeed:      "1",
 	AlbumView:        AlbumGrid,
 	Clock:            Clock24,
 	SpotifyOn:        "true",

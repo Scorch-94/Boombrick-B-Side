@@ -374,6 +374,10 @@ func TestStreamTexts(t *testing.T) {
 	if got := formatLine(s); got != "48 kHz" {
 		t.Fatalf("from its file: format line %q", got)
 	}
+	if s.Speed = 1.5; formatLine(s) != "1.5× · 48 kHz" {
+		t.Fatalf("at 1.5×: format line %q", formatLine(s))
+	}
+	s.Speed = 1
 	if got := source(s.Track); got != media.Spotify {
 		t.Fatalf("badge %v", got)
 	}

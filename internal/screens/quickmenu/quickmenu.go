@@ -32,11 +32,18 @@ type Actions struct {
 	// Live reports whether a station plays, as the sleep timer then leaves out
 	// End of track and End of album. Without it none does.
 	Live func() bool
+	// Spoken reports whether an audiobook or a podcast episode plays, as
+	// the Playback speed row shows only then; Speed and SetSpeed read and
+	// set its speed. Without them the row never shows.
+	Spoken   func() bool
+	Speed    func() float64
+	SetSpeed func(x float64)
 }
 
 // The rows, top to bottom.
 const (
 	rowSleep = iota
+	rowSpeed
 	rowScreen
 	rowBackground
 	rowSettings
@@ -63,6 +70,7 @@ type Menu struct {
 	rows    [rowCount]widgets.Setting
 	sleep   player.Sleep // the sleep timer as the sleep row last showed it
 	at      time.Time    // and when, for its time left
+	speed   float64      // the speed the speed row last showed
 	hints   [rowCount][]widgets.Hint
 	visible []int // the rows shown, as they were when the menu opened
 }
@@ -72,6 +80,7 @@ func New(act Actions) *Menu {
 	m := &Menu{act: act}
 	m.rows = [rowCount]widgets.Setting{
 		rowSleep:      {Icon: "moon", Label: "Sleep timer"},
+		rowSpeed:      {Icon: "fwd30", Label: "Playback speed"},
 		rowScreen:     {Icon: "power", Label: "Screen off"},
 		rowBackground: {Icon: "music", Label: "Play in background"},
 		rowSettings:   {Icon: "settings", Label: "Settings", Chevron: true},
@@ -79,6 +88,7 @@ func New(act Actions) *Menu {
 	}
 	m.hints = [rowCount][]widgets.Hint{
 		rowSleep:      {{Key: "◀ ▶", Label: "Change"}, {Key: "B", Label: "Close"}},
+		rowSpeed:      {{Key: "◀ ▶", Label: "Slower, faster"}, {Key: "B", Label: "Close"}},
 		rowScreen:     {{Key: "A", Label: "Turn off"}, {Key: "B", Label: "Close"}},
 		rowBackground: {{Key: "A", Label: "Play in background"}, {Key: "B", Label: "Close"}},
 		rowSettings:   {{Key: "A", Label: "Open"}, {Key: "B", Label: "Close"}},
@@ -91,7 +101,10 @@ func New(act Actions) *Menu {
 func (m *Menu) Open(now time.Time) {
 	m.visible = m.visible[:0]
 	for r := range rowCount {
-		if r != rowBackground || m.act.PlayInBackground != nil && m.act.Playing != nil && m.act.Playing() {
+		switch {
+		case r == rowBackground && (m.act.PlayInBackground == nil || m.act.Playing == nil || !m.act.Playing()):
+		case r == rowSpeed && (m.act.SetSpeed == nil || m.act.Spoken == nil || !m.act.Spoken()):
+		default:
 			m.visible = append(m.visible, r)
 		}
 	}
@@ -126,14 +139,18 @@ func (m *Menu) Handle(ev input.Event, now time.Time) bool {
 	case input.Down:
 		return m.move(1, now)
 	case input.Left, input.Right:
-		if m.focus != rowSleep {
-			return false
-		}
 		step := 1
 		if ev.Button == input.Left {
 			step = -1
 		}
-		m.act.SetSleep(screens.NextSleep(m.act.Sleep().Mode, step, m.live()))
+		switch m.focus {
+		case rowSleep:
+			m.act.SetSleep(screens.NextSleep(m.act.Sleep().Mode, step, m.live()))
+		case rowSpeed:
+			m.act.SetSpeed(screens.NextSpeed(m.act.Speed(), step))
+		default:
+			return false
+		}
 		return true
 	}
 	if ev.Kind != input.Press {
@@ -168,6 +185,12 @@ func (m *Menu) do(now time.Time) {
 	switch m.focus {
 	case rowSleep:
 		m.act.SetSleep(screens.NextSleep(m.act.Sleep().Mode, 1, m.live()))
+	case rowSpeed:
+		next := screens.NextSpeed(m.act.Speed(), 1)
+		if next == m.act.Speed() { // at the fastest: round to the slowest
+			next = screens.Speeds[0]
+		}
+		m.act.SetSpeed(next)
 	case rowScreen:
 		m.close(now)
 		m.act.ScreenOff()
@@ -233,6 +256,13 @@ func (m *Menu) Draw(u *ui.Context) {
 // refresh writes the sleep row's value again when the timer, or the whole
 // seconds of its time left, have changed since it was last written.
 func (m *Menu) refresh(now time.Time) {
+	if m.act.Speed != nil {
+		if x := m.act.Speed(); x != m.speed || m.rows[rowSpeed].Value == "" {
+			m.speed = x
+			m.rows[rowSpeed].Value = screens.SpeedLabel(x)
+			m.rows[rowSpeed].Active = x != 1
+		}
+	}
 	s := m.act.Sleep()
 	if m.rows[rowSleep].Value != "" && s == m.sleep {
 		if due, ok := screens.SleepDue(s, m.at); !ok || now.Before(due) {

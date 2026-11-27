@@ -766,3 +766,28 @@ func TestPlayFromTheStartDoesntSeek(t *testing.T) {
 		t.Fatalf("seeks %v, %d drops; starting at the top needs neither", src.seeks, out.dropCount())
 	}
 }
+
+// Speech plays at the speed set, and reports its position in its own frames;
+// other sources play as recorded.
+func TestSpokenPlaysAtSpeed(t *testing.T) {
+	out := &sink{}
+	ch, onEnd := ends()
+	e := NewEngine(out, onEnd)
+	defer e.Close()
+	e.SetSpeed(1.5)
+	src := &ramp{rate: OutputRate, n: 3 * OutputRate}
+	e.MarkSpoken(src)
+	e.Play(src)
+	if end := next(t, ch); end.Frames != 3*OutputRate {
+		t.Fatalf("ended at frame %d", end.Frames)
+	}
+	if w := out.written(); w < 95000 || w > 96500 {
+		t.Fatalf("3 s at 1.5× wrote %d frames, want about 96000", w)
+	}
+	before := out.written()
+	e.Play(&ramp{rate: OutputRate, n: OutputRate})
+	next(t, ch)
+	if w := out.written() - before; w != OutputRate {
+		t.Fatalf("music wrote %d frames, want %d", w, OutputRate)
+	}
+}
