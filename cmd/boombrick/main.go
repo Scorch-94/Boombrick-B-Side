@@ -493,7 +493,13 @@ func run(started time.Time) error {
 		}
 		os.Exit(1)
 	}()
-	return a.Run()
+	err = a.Run()
+	// Quitting runs the deferred closes, which mustn't keep the Brick on a
+	// frozen screen: past quitLimit, what's stuck is logged and the program
+	// exits anyway.
+	startWatchdog(quitLimit, log, func() { os.Exit(0) })
+	log.Info("quitting")
+	return err
 }
 
 // programDir is the program's folder: the pak on the Brick, dist/desktop on a
