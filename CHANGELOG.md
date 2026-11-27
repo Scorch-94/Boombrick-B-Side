@@ -5,6 +5,7 @@ All notable changes to Boombrick. Versions match the release tags.
 ## [v0.7.8]
 
 - Audiobooks: a new Audiobooks tab, after Podcasts, lists the books in the `Audiobooks` folder at the top of the SD card: each `.m4b` (or `.m4a`, `.mp3`, `.flac`, `.opus`) file, or each folder of them, as one book. A plays a book from where you left it, five seconds back; X starts it over; Y looks for new books. Your place is kept every 15 seconds while it plays, and when you pause, change chapter, play something else or quit, background play included. Books in progress come first, with the time left and how far through; finished ones last. Left and Right on Now Playing, and headphone skips, jump 30 seconds in a book, as in a podcast episode.
+- Settings: a Top tabs page switches each tab after Home and Library on or off: Spotify, Podcasts, Audiobooks, YouTube, Downloads and Radio. A tab switched off is only hidden; Spotify stays signed in and its songs in your playlists and on Home still stream. Switching a service off is still Settings → Integrations.
 - Audiobooks: chapters, read from inside `.m4b` and `.m4a` files (Apple's chapter track or a Nero chapter list), or one for each file of a book that's a folder. Now Playing shows the book's title over the chapter's and "Author · Chapter 3 of 40", with the bar and times running through the chapter. L1 and R1 go to the next and previous chapter; Y lists the chapters, as Select does on the Audiobooks tab, and A plays from one. The tab shows the chapter you're on.
 
 ## [v0.7.7]

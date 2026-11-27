@@ -44,6 +44,14 @@ const (
 	SpotifyOn = "integrations.spotify"
 	YouTubeOn = "integrations.youtube"
 	RadioOn   = "integrations.radio"
+	// The top tabs' switches: a tab switched off is hidden, and nothing
+	// else changes; its integration, if any, works on as before.
+	TabSpotify    = "tabs.spotify"
+	TabPodcasts   = "tabs.podcasts"
+	TabAudiobooks = "tabs.audiobooks"
+	TabYouTube    = "tabs.youtube"
+	TabDownloads  = "tabs.downloads"
+	TabRadio      = "tabs.radio"
 )
 
 // The Library's album views.
@@ -80,6 +88,12 @@ var Defaults = map[string]string{
 	HomePodcasts:     "true",
 	HomeRadio:        "true",
 	HomeRecent:       "true",
+	TabSpotify:       "true",
+	TabPodcasts:      "true",
+	TabAudiobooks:    "true",
+	TabYouTube:       "true",
+	TabDownloads:     "true",
+	TabRadio:         "true",
 }
 
 // Settings keeps the table in memory and writes changes behind the caller.

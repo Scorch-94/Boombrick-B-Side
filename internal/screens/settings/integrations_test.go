@@ -252,3 +252,33 @@ func TestReorderHomeSections(t *testing.T) {
 		t.Fatal("moved above the top")
 	}
 }
+
+// Top tabs switches tabs off and on, and says so to the app.
+func TestTheTopTabsPage(t *testing.T) {
+	p := prefs{}
+	switched := 0
+	tabs := func() []Integration {
+		return []Integration{{Key: keys.TabSpotify, Name: "Spotify", Icon: "stream", About: "Your Spotify playlists and search"},
+			{Key: keys.TabAudiobooks, Name: "Audiobooks", Icon: "music", About: "Books in the Audiobooks folder"}}
+	}
+	s := New(Options{Prefs: p, Player: &fakePlayer{}, Tabs: tabs, TabSwitched: func() { switched++ }})
+	if !s.shown(rowTabs) || s.rows[rowTabs].Value != "2 of 2 on" {
+		t.Fatalf("the row shown %v, says %q", s.shown(rowTabs), s.rows[rowTabs].Value)
+	}
+	for s.focus != rowTabs {
+		s.Handle(press(input.Down), t0)
+	}
+	s.Handle(press(input.A), t0)
+	if s.integrations == nil || s.integrations.title != "Top tabs" {
+		t.Fatal("A should open the Top tabs page")
+	}
+	s.Handle(press(input.A), t0)
+	if p.Bool(keys.TabSpotify) || switched != 1 {
+		t.Fatalf("Spotify's tab on %v, told %d times", p.Bool(keys.TabSpotify), switched)
+	}
+	uitest.Golden(t, "top-tabs-page", render(t, &env{prefs: p, p: &fakePlayer{}, s: s}, t0.Add(anim.Focus)))
+	s.Back()
+	if s.rows[rowTabs].Value != "1 of 2 on" {
+		t.Fatalf("back on Settings the row says %q", s.rows[rowTabs].Value)
+	}
+}

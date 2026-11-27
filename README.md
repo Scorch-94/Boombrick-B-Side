@@ -31,6 +31,7 @@ The screenshots are of the original Boombrick. See [CHANGELOG.md](CHANGELOG.md) 
   - **Podcasts**: the shows you follow.
   - **Latest releases**: the newest albums, EPs and singles of the artists you follow on Spotify, from the last six months, each over its artist; A opens one.
   - Spotify **podcast episodes you've started**, in Continue listening.
+- **Top tabs setting:** hide the tabs you don't use, in Settings → Top tabs. Hiding a tab only hides it: Spotify stays signed in, and Spotify songs in your playlists and on Home still stream. (Settings → Integrations is what switches a service off.)
 - **Hotkeys:** Menu + volume sets the screen's brightness; Menu + Start quits.
 - **Album view setting:** the Library's albums as a 4 × 2 grid (the default), three across with big covers as in the original, or a list.
 - **Clock setting:** the time at the top left on the 24-hour or the 12-hour clock.

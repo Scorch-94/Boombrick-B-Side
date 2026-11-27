@@ -469,8 +469,13 @@ func New(opts Options) (*App, error) {
 		books := audiobookscreen.New(a, a.player, opts.Audiobooks, opts.AudiobookDir)
 		bookTab = books
 		// Now Playing's Y lists the book's chapters on the Audiobooks tab.
+		// With the tab hidden, the list opens on the tab shown.
 		a.nowPlaying.SetChapters(audiobookscreen.NewChapters(a.player, func(b audiobooks.Book) {
-			a.ShowTab(widgets.TabAudiobooks)
+			if slices.Contains(a.shell.tabs(), widgets.TabAudiobooks) {
+				a.ShowTab(widgets.TabAudiobooks)
+			} else if a.shell.open >= 0 {
+				a.shell.closeOverlay(time.Now())
+			}
 			a.Push(books.Chapters(b))
 		}))
 	}
@@ -540,6 +545,7 @@ func (a *App) quickMenu() *quickmenu.Menu {
 		}
 		o.Integrations, o.Switched = a.integrations(), a.switched
 		o.HomeSections, o.HomeSwitched = a.homeSections(), func() { a.showHome(a.progress) }
+		o.Tabs, o.TabSwitched = a.tabSwitches, a.applySwitches
 		if a.opts.MusicDir != "" {
 			o.Library = libraryManager{a}
 		}

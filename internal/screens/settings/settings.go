@@ -80,6 +80,11 @@ type Options struct {
 	// flip, after Prefs has it.
 	HomeSections []Integration
 	HomeSwitched func()
+	// Tabs are the switches the Top tabs page lists, as the integrations
+	// switched on allow, asked for each time the page opens; nil leaves the
+	// row out. TabSwitched hears of each switch flipped.
+	Tabs        func() []Integration
+	TabSwitched func()
 	// Library is the library to manage on the Library page: its duplicates,
 	// and deleting songs; nil: no Library row.
 	Library Library
@@ -97,6 +102,7 @@ const (
 	rowAlbums
 	rowClock
 	rowHome
+	rowTabs
 	rowLibrary
 	rowCount
 	pillTool    = rowCount     // the Downloader card's pill
@@ -207,6 +213,7 @@ func New(opts Options) *Screen {
 		rowAlbums:       {Icon: "music", Label: "Album view"},
 		rowClock:        {Icon: "clock", Label: "Clock"},
 		rowHome:         {Icon: "grip", Label: "Home sections", Chevron: true},
+		rowTabs:         {Icon: "blocks", Label: "Top tabs", Chevron: true},
 		rowLibrary:      {Icon: "folder", Label: "Library", Chevron: true},
 	}
 	for _, m := range player.SleepModes {
@@ -267,6 +274,9 @@ func (s *Screen) readPrefs() {
 	}
 	s.rows[rowIntegrations].Value = s.switchedOn(s.opts.Integrations)
 	s.rows[rowHome].Value = s.switchedOn(s.opts.HomeSections)
+	if s.opts.Tabs != nil {
+		s.rows[rowTabs].Value = s.switchedOn(s.opts.Tabs())
+	}
 }
 
 // shown reports whether an item is shown: Integrations with integrations to
@@ -278,6 +288,8 @@ func (s *Screen) shown(item int) bool {
 		return len(s.opts.Integrations) > 0
 	case rowHome:
 		return len(s.opts.HomeSections) > 0
+	case rowTabs:
+		return s.opts.Tabs != nil
 	case rowLibrary:
 		return s.opts.Library != nil
 	case rowStream:
@@ -374,6 +386,16 @@ func (s *Screen) act(now time.Time) bool {
 		s.integrations = newIntegrationsPage(s)
 	case rowHome:
 		s.integrations = newHomePage(s)
+	case rowTabs:
+		tabs := s.opts.Tabs()
+		if len(tabs) == 0 {
+			return false
+		}
+		s.integrations = newSwitchPage(s, "Top tabs", tabs, func(string, bool) {
+			if s.opts.TabSwitched != nil {
+				s.opts.TabSwitched()
+			}
+		})
 	case rowLibrary:
 		s.library = newLibraryPage(s.opts.Library)
 	case rowStorage:
@@ -834,7 +856,7 @@ func (s *Screen) hint() []widgets.Hint {
 	switch {
 	case k.open:
 		h = []widgets.Hint{{Key: "◀ ▶", Label: "Choose"}, {Key: "A", Label: "Done"}}
-	case k.item == rowStorage, k.item == rowIntegrations, k.item == rowHome, k.item == rowLibrary:
+	case k.item == rowStorage, k.item == rowIntegrations, k.item == rowHome, k.item == rowTabs, k.item == rowLibrary:
 		h = []widgets.Hint{{Key: "A", Label: "Open"}, {Key: "B", Label: "Back"}}
 	case k.item == rowLevelling, k.item == rowPrefer:
 		h = []widgets.Hint{{Key: "A", Label: "Switch"}, {Key: "B", Label: "Back"}}

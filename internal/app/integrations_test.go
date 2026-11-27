@@ -409,3 +409,22 @@ func TestHomeOrder(t *testing.T) {
 		t.Fatalf("rows %v", got)
 	}
 }
+
+// A tab switched off in Top tabs is hidden, and its integration stays on.
+func TestTabSwitches(t *testing.T) {
+	a, _, _, _ := switchApp(t, switchPrefs{keys.TabSpotify: "false", keys.TabAudiobooks: "false"})
+	if slices.Contains(a.ui.Tabs.Shown, widgets.TabSpotify) || slices.Contains(a.ui.Tabs.Shown, widgets.TabAudiobooks) ||
+		!slices.Contains(a.ui.Tabs.Shown, widgets.TabPodcasts) {
+		t.Fatalf("tabs %v", a.ui.Tabs.Shown)
+	}
+	if !a.spotifyOn() {
+		t.Fatal("hiding the tab switched Spotify off")
+	}
+	var names []string
+	for _, in := range a.tabSwitches() {
+		names = append(names, in.Name)
+	}
+	if !slices.Contains(names, "Spotify") || !slices.Contains(names, "Audiobooks") || slices.Contains(names, "Home") {
+		t.Errorf("switches %v", names)
+	}
+}
