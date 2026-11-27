@@ -4,6 +4,7 @@ All notable changes to Boombrick. Versions match the release tags.
 
 ## [v0.7.7]
 
+- Play in background: says "Starting background play…" while the background player starts, which takes up to 20 seconds on a Spotify song or a station, with the buttons waiting meanwhile; before, nothing showed and it could look frozen. Quitting no longer waits without end on the headphone controls or on podcast places going back to Spotify, either of which could keep Boombrick from closing; the hand-over and quitting are logged, with how long each took.
 - Settings → Library: X searches the view shown, Duplicates, Albums or Songs, by title, artist, album or folder, on the on-screen keyboard. Y or Right goes to the matches, where A deletes one as on the list.
 - Home: Random albums picks albums of three songs or more, before singles. A song downloaded on its own is an album of one, so a library with many made a row of singles; they now only make up the row when there aren't six bigger albums.
 

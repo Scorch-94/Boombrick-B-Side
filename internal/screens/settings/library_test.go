@@ -156,7 +156,7 @@ func TestLibraryPageSearch(t *testing.T) {
 		t.Fatal("B should close the dialog")
 	}
 	pg.dialog = nil // Back closes it on the wall clock, which the test's frames don't follow
-	s.Back() // to the keyboard
+	s.Back()        // to the keyboard
 	if pg.onHits || !pg.searching {
 		t.Fatal("B on the matches goes to the keyboard")
 	}

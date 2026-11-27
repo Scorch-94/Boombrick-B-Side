@@ -98,6 +98,7 @@ func run(started time.Time) error {
 		logOut = io.MultiWriter(os.Stderr, logFile)
 	}
 	log := slog.New(slog.NewTextHandler(logOut, nil))
+	defer log.Info("closed") // last: whether quitting got all the way
 	log.Info("starting", "version", version.Version, "firmware", prof.Firmware, "data", paths.Data)
 	// Perf mode logs the launch's stages, then memory, CPU and frame times
 	// every 10 s.
@@ -264,7 +265,7 @@ func run(started time.Time) error {
 	// they are told what plays. It stops before the player closes.
 	remoteCtx, stopRemote := context.WithCancel(context.Background())
 	remoteDone := remote.New(p, log).Start(remoteCtx)
-	defer func() { stopRemote(); <-remoteDone }()
+	defer func() { stopRemote(); waitAtMost(remoteDone, 2*time.Second, "bluetooth remote", log) }()
 
 	// A background player gives the music back before the saved queue is
 	// read; neither must hold up the first frame. Every later release keeps
@@ -300,7 +301,13 @@ func run(started time.Time) error {
 	// restore before the database closes under them.
 	ctx, cancel := context.WithCancel(context.Background())
 	scanDone, saved, followed := make(chan struct{}), make(chan struct{}), make(chan struct{})
-	defer func() { cancel(); <-scanDone; <-saved; <-restored; <-followed }()
+	defer func() {
+		cancel()
+		<-scanDone
+		<-saved
+		<-restored
+		waitAtMost(followed, 3*time.Second, "podcast places", log)
+	}()
 	// Podcast episodes' places go back to Spotify as they play, and the
 	// Podcasts tab's Continue listening is asked for again after.
 	go func() {

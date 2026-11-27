@@ -51,6 +51,7 @@ func runBackground() error {
 		return err
 	}
 	log := slog.New(slog.NewTextHandler(logFile, nil)).With("from", "background")
+	defer log.Info("closed")
 	lock, err := background.Acquire(prof.PlayerLock())
 	if err != nil {
 		return err
@@ -91,6 +92,7 @@ func runBackground() error {
 		log.Info("the saved queue can't be played")
 		return nil
 	}
+	log.Info("queue restored", "after", time.Since(started).Round(time.Millisecond))
 	h, err := resume.LoadHandover(db.DB)
 	if err != nil {
 		return err
@@ -104,11 +106,11 @@ func runBackground() error {
 		defer close(followed)
 		followEpisodes(followCtx, p, sp, nil, log)
 	}()
-	defer func() { stopFollowing(); <-followed }()
+	defer func() { stopFollowing(); waitAtMost(followed, 3*time.Second, "podcast places", log) }()
 	// Headphones' taps play, pause and skip while the screen is off too.
 	remoteCtx, stopRemote := context.WithCancel(context.Background())
 	remoteDone := remote.New(p, log).Start(remoteCtx)
-	defer func() { stopRemote(); <-remoteDone }()
+	defer func() { stopRemote(); waitAtMost(remoteDone, 2*time.Second, "bluetooth remote", log) }()
 	saver := resume.NewSaver(db.DB)
 	err = background.Run(ctx, background.Options{
 		Player:     p,

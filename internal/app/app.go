@@ -1233,13 +1233,23 @@ func (a *App) playInBackground() {
 	if !a.handing.CompareAndSwap(false, true) {
 		return
 	}
+	// The buttons wait while the background player starts, which can take
+	// seconds: say so, so the wait isn't taken for a freeze.
+	a.Toast("Starting background play…")
+	started := time.Now()
+	if a.opts.Log != nil {
+		a.opts.Log.Info("play in background: handing over", "track", a.last.Track.Title)
+	}
 	go func() {
 		if err := a.opts.Background(); err != nil {
-			a.opts.Log.Warn("play in background", "err", err)
+			a.opts.Log.Warn("play in background", "err", err, "after", time.Since(started).Round(time.Millisecond))
 			a.handing.Store(false)
 			a.handFailed.Store(true)
 			a.wake()
 			return
+		}
+		if a.opts.Log != nil {
+			a.opts.Log.Info("play in background: handed over, quitting", "after", time.Since(started).Round(time.Millisecond))
 		}
 		a.Quit()
 	}()
