@@ -583,12 +583,13 @@ func TestLibraryFilters(t *testing.T) {
 	img = render(t, l, t0.Add(anim.Focus))
 	uitest.Golden(t, "library-artists", img)
 	// Right of the filters, down to the first row.
-	fadesSoftly(t, img, image.Pt(900, 150), image.Pt(900, 225))
+	fadesSoftly(t, img, image.Pt(960, 150), image.Pt(960, 225)) // past R2, now that Playlists makes four filters
 	l.Handle(press(input.Y), t0) // Kenji Arata's one album
 	if len(p.queued) != 1 || len(p.queued[0]) != 1 {
 		t.Fatalf("Y on an artist queued %v", p.queued)
 	}
 	l.Handle(press(input.R2), t0)
+	l.Handle(press(input.Down), t0) // past Shuffle all songs
 	l.Handle(press(input.Down), t0)
 	l.Handle(press(input.A), t0)
 	if len(p.played) != 1 || p.start[0] != 1 {
@@ -598,9 +599,13 @@ func TestLibraryFilters(t *testing.T) {
 		t.Fatalf("shuffle set %v: A on a song plays the list in order from it", p.shuffled)
 	}
 	uitest.Golden(t, "library-songs", render(t, l, t0.Add(anim.Focus)))
+	if !l.Handle(press(input.R2), t0) || l.filter != playlistsFilter {
+		t.Fatal("R2 after Songs should show playlists")
+	}
 	if l.Handle(press(input.R2), t0) {
 		t.Fatal("R2 on the last filter does nothing")
 	}
+	l.Handle(press(input.L2), t0)
 	l.Handle(press(input.L2), t0)
 	l.Handle(press(input.L2), t0)
 	if l.filter != albumsFilter {

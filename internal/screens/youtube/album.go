@@ -158,9 +158,9 @@ func (pg *AlbumPage) Handle(ev input.Event, now time.Time) bool {
 			case pg.pill == playPill:
 				return play(pg.dl, pg.songs, 0)
 			}
-			return get(pg.nav, pg.dl, pg.songs)
+			return pg.get(pg.songs)
 		case input.X:
-			return pg.onList && get(pg.nav, pg.dl, one)
+			return pg.onList && pg.get(one)
 		case input.Y:
 			return pg.onList && enqueue(pg.nav, pg.dl, one)
 		}
@@ -267,7 +267,7 @@ func (pg *AlbumPage) drawTracks(u *ui.Context) {
 		widgets.RowGlow(u, box, widgets.RowRadius, k)
 		u.PushClip(screens.Below(screens.ContentTop))
 		widgets.ListRow(u, pg.rows[i], box, k)
-		drawCircle(u, pg.dl, pg.page.Tracks[i].VideoID, box, circle)
+		drawCircle(u, pg.dl, pg.page.Song(i), box, circle)
 		u.PopClip()
 	})
 	u.PopClip()

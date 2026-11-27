@@ -21,8 +21,8 @@ func only(items []ytmusic.Item, k ytmusic.Kind) []ytmusic.Item {
 	return slices.DeleteFunc(slices.Clone(items), func(it ytmusic.Item) bool { return it.Kind != k })
 }
 
-var nightStates = fakeDownloads{"v1": {media.Downloading, 0.62}, "s2": {media.Saved, 0}, "s3": {media.Queued, 0},
-	"s4": {media.Failed, 0}}
+var nightStates = fakeDownloads{"v1": {st: media.Downloading, p: 0.62}, "s2": {st: media.Saved, p: 0}, "s3": {st: media.Queued, p: 0},
+	"s4": {st: media.Failed, p: 0}}
 
 func TestResults(t *testing.T) {
 	src := &fakeSource{results: map[string][]ytmusic.Item{

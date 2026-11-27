@@ -5,8 +5,10 @@ import (
 	"time"
 
 	"github.com/ujjwal313/boombrick/internal/download"
+	"github.com/ujjwal313/boombrick/internal/library"
 	"github.com/ujjwal313/boombrick/internal/media"
 	"github.com/ujjwal313/boombrick/internal/player"
+	"github.com/ujjwal313/boombrick/internal/screens"
 	"github.com/ujjwal313/boombrick/internal/screens/downloads"
 	settingsscreen "github.com/ujjwal313/boombrick/internal/screens/settings"
 	"github.com/ujjwal313/boombrick/internal/ytmusic"
@@ -49,7 +51,26 @@ type ytActions struct {
 	dl    ytDownloads
 	p     ytPlayer
 	toast func(msg string)
+	ix    func() *library.Index // the library now, to find songs it has
 }
+
+// local is the library's copy of s, if it has one that isn't s's own
+// download.
+func (y ytActions) local(s ytmusic.Song) *library.Track {
+	if y.ix == nil {
+		return nil
+	}
+	t := y.ix().Find(s.Title, s.Artist, s.Album, s.Duration)
+	if t == nil {
+		return nil
+	}
+	if path, ok := y.dl.Path(s.VideoID); ok && path == t.Path {
+		return nil
+	}
+	return t
+}
+
+func (y ytActions) InLibrary(s ytmusic.Song) bool { return y.local(s) != nil }
 
 func (y ytActions) State(videoID string) (media.DownloadState, float32) { return y.dl.State(videoID) }
 
@@ -64,7 +85,7 @@ func (y ytActions) Play(songs []ytmusic.Song, start int) {
 	}
 	start = min(max(start, 0), len(songs)-1)
 	tracks := y.tracks(songs)
-	y.dl.Get(songs)
+	y.dl.Get(y.missing(songs, tracks))
 	if tracks[start].Pending() {
 		y.dl.First(songs[start].VideoID)
 		if y.dl.Paused() {
@@ -76,17 +97,35 @@ func (y ytActions) Play(songs []ytmusic.Song, start int) {
 }
 
 func (y ytActions) Enqueue(songs []ytmusic.Song) {
-	y.dl.Get(songs)
-	y.p.Enqueue(y.tracks(songs))
+	tracks := y.tracks(songs)
+	y.dl.Get(y.missing(songs, tracks))
+	y.p.Enqueue(tracks)
 }
 
-// tracks are songs as queue entries, with their files when saved.
+// tracks are songs as queue entries, with their files when saved. A song
+// the library has from elsewhere plays the library's file, and isn't
+// downloaded.
 func (y ytActions) tracks(songs []ytmusic.Song) []player.Track {
 	out := make([]player.Track, len(songs))
 	for i, s := range songs {
+		if t := y.local(s); t != nil {
+			out[i] = screens.TrackOf(t)
+			continue
+		}
 		out[i] = player.Track{Title: s.Title, Artist: s.Artist, AlbumArtist: cmp.Or(s.AlbumArtist, s.Artist),
 			Album: s.Album, Duration: s.Duration, VideoID: s.VideoID}
 		out[i].Path, _ = y.dl.Path(s.VideoID)
+	}
+	return out
+}
+
+// missing is songs less those tracks play from the library.
+func (y ytActions) missing(songs []ytmusic.Song, tracks []player.Track) []ytmusic.Song {
+	var out []ytmusic.Song
+	for i, s := range songs {
+		if tracks[i].VideoID != "" {
+			out = append(out, s)
+		}
 	}
 	return out
 }

@@ -35,6 +35,9 @@ type Downloads interface {
 	State(videoID string) (media.DownloadState, float32)
 	// Get downloads songs; those saved or on their way are left as they are.
 	Get(songs []ytmusic.Song)
+	// InLibrary reports whether the library already has song, from a
+	// download or anywhere else.
+	InLibrary(song ytmusic.Song) bool
 	// Play plays songs from start, downloading those not saved, the one
 	// starting first of all.
 	Play(songs []ytmusic.Song, start int)
@@ -51,29 +54,63 @@ func play(dl Downloads, songs []ytmusic.Song, start int) bool {
 	return true
 }
 
-// get downloads songs and says so, counting those not saved yet. When all
-// are saved it says that instead, asking for nothing.
-func get(nav screens.Nav, dl Downloads, songs []ytmusic.Song) bool {
-	if dl == nil || len(songs) == 0 {
+// get downloads songs and says so, counting those not saved yet. Songs the
+// library already has, from anywhere, are skipped and counted, until X asks
+// for the same songs again, which downloads them all the same. When there
+// is nothing to get it says why, asking for nothing.
+func (sh *shared) get(songs []ytmusic.Song) bool {
+	if sh.dl == nil || len(songs) == 0 {
 		return false
 	}
-	n, last := 0, 0
-	for i, s := range songs {
-		if st, _ := dl.State(s.VideoID); st != media.Saved {
-			n, last = n+1, i
+	key := songsKey(songs)
+	anyway := sh.skipped == key
+	sh.skipped = ""
+	var want []ytmusic.Song
+	have := 0
+	for _, s := range songs {
+		switch st, _ := sh.dl.State(s.VideoID); {
+		case st == media.Saved:
+		case !anyway && sh.dl.InLibrary(s):
+			have++
+		default:
+			want = append(want, s)
 		}
 	}
-	switch n {
+	if have > 0 {
+		sh.skipped = key // X again gets them anyway
+	}
+	var msg string
+	switch len(want) {
 	case 0:
-		nav.Toast("Already downloaded")
+		switch {
+		case have == 1 && len(songs) == 1:
+			sh.nav.Toast("Already in your library. X again to download it anyway")
+		case have > 0:
+			sh.nav.Toast("Already in your library. X again to download anyway")
+		default:
+			sh.nav.Toast("Already downloaded")
+		}
 		return true
 	case 1:
-		nav.Toast("Downloading “" + songs[last].Title + "”")
+		msg = "Downloading “" + want[0].Title + "”"
 	default:
-		nav.Toast("Downloading " + strconv.Itoa(n) + " songs")
+		msg = "Downloading " + strconv.Itoa(len(want)) + " songs"
 	}
-	dl.Get(songs)
+	if have > 0 {
+		msg += " · " + strconv.Itoa(have) + " already in your library"
+	}
+	sh.nav.Toast(msg)
+	sh.dl.Get(want)
 	return true
+}
+
+// songsKey tells one set of songs asked for from another.
+func songsKey(songs []ytmusic.Song) string {
+	ids := make([]string, len(songs))
+	for i, s := range songs {
+		ids[i] = s.VideoID
+	}
+	return strings.Join(ids, ",")
 }
 
 // enqueue adds songs to the play queue and says so.
@@ -103,6 +140,9 @@ type shared struct {
 	src    Source
 	dl     Downloads
 	albums []string // albums whose songs are got once their pages come, oldest first
+	// skipped is the songs X last asked for that the library had, which X
+	// asking for again downloads anyway.
+	skipped string
 }
 
 // getAlbum gets album id's songs once its page comes, reporting false
@@ -132,7 +172,7 @@ func (sh *shared) pollAlbums() {
 			waiting = append(waiting, id)
 			continue
 		case ytmusic.Done:
-			if !get(sh.nav, sh.dl, pageSongs(page)) {
+			if !sh.get(pageSongs(page)) {
 				sh.nav.Toast(noSongs)
 			}
 		default:
@@ -142,12 +182,17 @@ func (sh *shared) pollAlbums() {
 	sh.albums = waiting
 }
 
-// songState is videoID's download state from dl, which may be nil.
-func songState(dl Downloads, videoID string) (media.DownloadState, float32) {
+// songState is song's download state from dl, which may be nil, and
+// whether the library has it from elsewhere: a song it has shows as saved.
+func songState(dl Downloads, song ytmusic.Song) (st media.DownloadState, p float32, inLibrary bool) {
 	if dl == nil {
-		return media.Available, 0
+		return media.Available, 0, false
 	}
-	return dl.State(videoID)
+	st, p = dl.State(song.VideoID)
+	if st == media.Available && dl.InLibrary(song) {
+		return media.Saved, 1, true
+	}
+	return st, p, false
 }
 
 // circle is the download circle's size on the results screen and pages.
@@ -155,8 +200,8 @@ const circle = 44
 
 // drawCircle draws videoID's download state at the right of a row's box,
 // in the room the row kept for it.
-func drawCircle(u *ui.Context, dl Downloads, videoID string, box gfx.Rect, size int) {
-	st, p := songState(dl, videoID)
+func drawCircle(u *ui.Context, dl Downloads, song ytmusic.Song, box gfx.Rect, size int) {
+	st, p, _ := songState(dl, song)
 	tb := widgets.TrailBox(box, float32(size))
 	widgets.DownloadCircle(u, st, p, size, tb.X, box.Y+(box.H-float32(size))/2)
 }

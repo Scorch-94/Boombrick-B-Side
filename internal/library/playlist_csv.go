@@ -146,6 +146,25 @@ func splitArtists(s string) (shown string, each []string) {
 	return shown, each
 }
 
+// Find is the library's copy of a song known from elsewhere, as YouTube
+// Music gives one: by its title and artist, matched as a .csv playlist's
+// songs are, and only where its album or its length agrees, or neither is
+// known, so another recording of the same title, as a live one, isn't
+// taken for it. It's nil when the library hasn't the song.
+func (ix *Index) Find(title, artist, album string, d time.Duration) *Track {
+	if ix == nil || title == "" {
+		return nil
+	}
+	ix.matchOnce.Do(func() { ix.matcher = newSongMatcher(ix) })
+	_, artists := splitArtists(artist)
+	row := csvRow{title: title, artists: artists, album: album, duration: d}
+	t := ix.matcher.match(row)
+	if t == nil || otherAlbum(t, row) && otherLength(t, row) {
+		return nil
+	}
+	return t
+}
+
 // songMatcher finds a .csv row's song in the library.
 type songMatcher struct {
 	ix    *Index

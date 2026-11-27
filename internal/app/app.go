@@ -425,7 +425,7 @@ func New(opts Options) (*App, error) {
 	var ytTab, dlTab screens.Screen = &screens.Placeholder{Tab: widgets.TabYouTube, Title: "YouTube"}, &screens.Placeholder{Tab: widgets.TabDownloads, Title: "Downloads"}
 	var acts youtube.Downloads // stays nil without a queue
 	if opts.Downloads != nil {
-		acts = ytActions{dl: opts.Downloads, p: a.player, toast: a.Toast}
+		acts = ytActions{dl: opts.Downloads, p: a.player, toast: a.Toast, ix: func() *library.Index { return a.ix }}
 		dlTab = downloadsscreen.New(a, opts.Downloads)
 		a.nowPlaying.SetDownloads(opts.Downloads.State, opts.Downloads.Note)
 		a.reader.Go(func() { a.followDownloads(opts.Downloads, opts.Player) })

@@ -277,3 +277,36 @@ func TestSpotifyTrackAndArtists(t *testing.T) {
 		t.Fatalf("%q %q", shown, each)
 	}
 }
+
+// Find is the library's copy of a song from YouTube Music: by title and
+// artist, with the album or length agreeing; another recording, on another
+// album and of another length, isn't it.
+func TestFind(t *testing.T) {
+	music := t.TempDir()
+	ix := csvIndex(music)
+	for _, tc := range []struct {
+		title, artist, album string
+		d                    time.Duration
+		want                 string
+	}{
+		{"Aquatic Ambience", "Funk Fiction", "Aquatic Ambience", 194 * time.Second, "ff/1.flac"},
+		{"Aquatic Ambience", "Funk Fiction", "Live at the Pier", 194 * time.Second, "ff/1.flac"}, // same length
+		{"Aquatic Ambience", "Funk Fiction", "Live at the Pier", 260 * time.Second, ""},          // a live one
+		{"Aquatic Ambience", "Helynt & GameChops", "Super Lofi World", 165 * time.Second, "hl/1.flac"},
+		{"Aquatic Ambience", "Helynt", "Super Ambient World", 216 * time.Second, "ha/1.flac"},
+		{"Aquatic Ambience", "Nobody", "", 0, ""},
+		{"", "Funk Fiction", "", 0, ""},
+	} {
+		got := ""
+		if tr := ix.Find(tc.title, tc.artist, tc.album, tc.d); tr != nil {
+			got = strings.TrimPrefix(tr.Path, music+"/")
+		}
+		if got != tc.want {
+			t.Errorf("Find(%q, %q, %q, %v) = %q, want %q", tc.title, tc.artist, tc.album, tc.d, got, tc.want)
+		}
+	}
+	var none *Index
+	if none.Find("x", "y", "", 0) != nil {
+		t.Fatal("a nil index")
+	}
+}

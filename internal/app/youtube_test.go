@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/ujjwal313/boombrick/internal/library"
 	"slices"
 	"sync"
 	"testing"
@@ -350,4 +351,30 @@ func TestLandingsReloadTheLibrarySparingly(t *testing.T) {
 	a.landed.Store(false)
 	q.end(download.Outcome{VideoID: "v3", Path: "/m/v3.opus"})
 	eventually(t, "a reload for a song landing on an idle queue", a.landed.Load)
+}
+
+// A song the library has from elsewhere plays the library's file, and isn't
+// downloaded; the rest are.
+func TestPlayingYouTubeSongsInTheLibrary(t *testing.T) {
+	ix := library.NewIndex([]library.Album{{Artist: "Lumen Coast", Title: "Night Drive Theory", Tracks: []library.Track{
+		{Path: "/m/Lumen Coast/01.flac", Title: "Night Drive Theory", Artist: "Lumen Coast", Album: "Night Drive Theory",
+			Duration: 230 * time.Second}}}})
+	dl := &queueDownloads{saved: map[string]string{}}
+	p := &queuePlayer{}
+	y := ytActions{dl: dl, p: p, ix: func() *library.Index { return ix }}
+	if !y.InLibrary(ytSongs[0]) || y.InLibrary(ytSongs[1]) {
+		t.Fatal("in library")
+	}
+	y.Play(ytSongs, 0)
+	if p.played[0].Path != "/m/Lumen Coast/01.flac" || p.played[0].VideoID != "" || !p.played[1].Pending() {
+		t.Fatalf("played %+v", p.played)
+	}
+	if len(dl.got) != 1 || !slices.Equal(dl.got[0], []string{"v2"}) {
+		t.Fatalf("got %+v", dl.got)
+	}
+	// The song's own download isn't "in the library" from elsewhere.
+	dl.saved["v1"] = "/m/Lumen Coast/01.flac"
+	if y.InLibrary(ytSongs[0]) {
+		t.Fatal("its own download")
+	}
 }

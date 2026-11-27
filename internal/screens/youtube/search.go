@@ -112,7 +112,7 @@ func (s *Search) handleResults(ev input.Event, now time.Time) bool {
 		case input.X:
 			switch it.Kind {
 			case ytmusic.SongItem:
-				return get(s.nav, s.dl, []ytmusic.Song{it.Song()})
+				return s.get([]ytmusic.Song{it.Song()})
 			case ytmusic.AlbumItem:
 				return s.getAlbum(it.ID)
 			}
@@ -294,7 +294,7 @@ func (s *Search) drawResults(u *ui.Context) {
 		u.PushClip(screens.Below(topList))
 		widgets.ListRow(u, s.rows[i], box, k)
 		if s.shown[i].Kind == ytmusic.SongItem {
-			drawCircle(u, s.dl, s.shown[i].ID, box, smallCircle)
+			drawCircle(u, s.dl, s.shown[i].Song(), box, smallCircle)
 		}
 		u.PopClip()
 	})

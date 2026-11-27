@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -39,6 +40,9 @@ type Index struct {
 	Playlists []*Playlist
 	byKey     map[[2]string]*Album
 	spotify   map[string]*Track // the files imports downloaded, by Spotify ID
+
+	matchOnce sync.Once
+	matcher   *songMatcher // for Find, made the first time it's asked
 }
 
 // Load reads the library and sorts it for browsing.

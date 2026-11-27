@@ -60,8 +60,9 @@ func (s *fakeSource) Artist(id string) (ytmusic.ArtistPage, ytmusic.State) {
 }
 
 type download struct {
-	st media.DownloadState
-	p  float32
+	st   media.DownloadState
+	p    float32
+	have bool // in the library from elsewhere
 }
 
 // fakeDownloads gives the states it holds, and Available otherwise. It does
@@ -70,6 +71,7 @@ type fakeDownloads map[string]download
 
 func (d fakeDownloads) State(id string) (media.DownloadState, float32) { return d[id].st, d[id].p }
 func (fakeDownloads) Get([]ytmusic.Song)                               {}
+func (d fakeDownloads) InLibrary(s ytmusic.Song) bool                  { return d[s.VideoID].have }
 func (fakeDownloads) Play([]ytmusic.Song, int)                         {}
 func (fakeDownloads) Enqueue([]ytmusic.Song)                           {}
 
@@ -165,7 +167,7 @@ var nightResults = []ytmusic.Item{
 
 func TestAlbumPage(t *testing.T) {
 	src := &fakeSource{albums: map[string]ytmusic.AlbumPage{"MPREb_nd": nightDrive}}
-	dl := &recorder{fakeDownloads: fakeDownloads{"v1": {media.Saved, 0}, "v2": {media.Downloading, 0.4}, "v4": {media.Queued, 0}}}
+	dl := &recorder{fakeDownloads: fakeDownloads{"v1": {st: media.Saved, p: 0}, "v2": {st: media.Downloading, p: 0.4}, "v4": {st: media.Queued, p: 0}}}
 	nav := &fakeNav{}
 	pg := NewAlbumPage(nav, src, dl, nightResults[0])
 	uitest.Golden(t, "yt-album", render(t, pg, t0))
@@ -173,7 +175,8 @@ func TestAlbumPage(t *testing.T) {
 		pg.Handle(press(b), t0)
 	}
 	all := "v1,v2,v3,v4,v5"
-	if !slices.Equal(dl.played, []string{all + "@0", all + "@1"}) || len(dl.got) != 2 || len(dl.got[0]) != 5 ||
+	// The album's download is given the four songs not saved yet.
+	if !slices.Equal(dl.played, []string{all + "@0", all + "@1"}) || len(dl.got) != 2 || len(dl.got[0]) != 4 ||
 		!slices.Equal(dl.got[1], []string{"v2"}) || len(dl.queued) != 1 || !slices.Equal(dl.queued[0], []string{"v2"}) {
 		t.Fatalf("played %q, got %q, queued %q", dl.played, dl.got, dl.queued)
 	}
@@ -380,5 +383,60 @@ func TestScreensThatShowDownloads(t *testing.T) {
 	render(t, s, t0, func(u *ui.Context) { u.Status.Online = false })
 	if s.ShowsDownloads() {
 		t.Fatal("the typing screen does while offline")
+	}
+}
+
+// Songs the library has from elsewhere are skipped, and said so; X again on
+// the same songs downloads them anyway.
+func TestSkipsSongsInTheLibrary(t *testing.T) {
+	src := &fakeSource{albums: map[string]ytmusic.AlbumPage{"MPREb_nd": nightDrive}}
+	dl := &recorder{fakeDownloads: fakeDownloads{"v1": {st: media.Saved}, "v3": {have: true}, "v4": {have: true}}}
+	nav := &fakeNav{}
+	pg := NewAlbumPage(nav, src, dl, nightResults[0])
+	render(t, pg, t0)
+	pg.Handle(press(input.Right), t0) // the Download pill
+	pg.Handle(press(input.A), t0)
+	if len(dl.got) != 1 || !slices.Equal(dl.got[0], []string{"v2", "v5"}) ||
+		nav.toasts[0] != "Downloading 2 songs · 2 already in your library" {
+		t.Fatalf("got %q, toasts %q", dl.got, nav.toasts)
+	}
+	pg.Handle(press(input.A), t0) // again: all of them
+	if len(dl.got) != 2 || !slices.Equal(dl.got[1], []string{"v2", "v3", "v4", "v5"}) {
+		t.Fatalf("again: got %q", dl.got)
+	}
+	// A single track the library has: X says so, X again gets it.
+	pg.Handle(press(input.Right), t0) // onto the tracks
+	for pg.list.Focus() != 2 {
+		pg.Handle(press(input.Down), t0)
+	}
+	pg.Handle(press(input.X), t0)
+	if len(dl.got) != 2 || nav.toasts[len(nav.toasts)-1] != "Already in your library. X again to download it anyway" {
+		t.Fatalf("X on v3: got %q, toasts %q", dl.got, nav.toasts)
+	}
+	pg.Handle(press(input.X), t0)
+	if len(dl.got) != 3 || !slices.Equal(dl.got[2], []string{"v3"}) {
+		t.Fatalf("X again on v3: got %q", dl.got)
+	}
+	// Another song between resets it.
+	pg.Handle(press(input.Down), t0)
+	pg.Handle(press(input.X), t0)
+	pg.Handle(press(input.Up), t0)
+	pg.Handle(press(input.X), t0)
+	if len(dl.got) != 3 {
+		t.Fatalf("X on v3 after another: got %q", dl.got)
+	}
+}
+
+// A song the library has shows as saved, said "In library" in results.
+func TestInLibraryShown(t *testing.T) {
+	src := &fakeSource{results: map[string][]ytmusic.Item{"night drive All": nightResults,
+		"night drive Songs": only(nightResults, ytmusic.SongItem)}}
+	dl := fakeDownloads{"s3": {have: true}}
+	r := NewResults(&fakeNav{}, src, dl, "night drive")
+	render(t, r, t0)
+	r.Handle(press(input.R2), t0) // Songs
+	uitest.Golden(t, "yt-results-in-library", render(t, r, t0))
+	if st, _, have := songState(dl, ytmusic.Song{VideoID: "s3"}); st != media.Saved || !have {
+		t.Fatalf("state %v, in library %v", st, have)
 	}
 }

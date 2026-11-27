@@ -154,7 +154,7 @@ func (r *Results) Handle(ev input.Event, now time.Time) bool {
 			it := r.items[r.filter][g.Focus()]
 			switch {
 			case it.Kind == ytmusic.SongItem && ev.Button == input.X:
-				return get(r.nav, r.dl, []ytmusic.Song{it.Song()})
+				return r.get([]ytmusic.Song{it.Song()})
 			case it.Kind == ytmusic.SongItem:
 				return enqueue(r.nav, r.dl, []ytmusic.Song{it.Song()})
 			case it.Kind == ytmusic.AlbumItem && ev.Button == input.X:
@@ -205,12 +205,16 @@ func (r *Results) drawList(u *ui.Context) {
 		u.PushClip(screens.Below(resultsTop))
 		widgets.ListRow(u, rows[i], box, k)
 		if items[i].Kind == ytmusic.SongItem {
-			st, p := songState(r.dl, items[i].ID)
-			if s := statusLabel(st, p); s != "" {
+			st, p, have := songState(r.dl, items[i].Song())
+			s := statusLabel(st, p)
+			if have {
+				s = "In library"
+			}
+			if s != "" {
 				tb := widgets.TrailBox(box, resultTrail)
 				u.Text(s, statusText, tb.X+statusW-u.TextWidth(s, statusText), u.CenterY(statusText, box.Y, box.H), theme.Ink2)
 			}
-			drawCircle(u, r.dl, items[i].ID, box, circle)
+			drawCircle(u, r.dl, items[i].Song(), box, circle)
 		} else if items[i].Kind == ytmusic.AlbumItem && r.dl != nil {
 			drawAlbumPill(u, box, k)
 		}

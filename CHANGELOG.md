@@ -4,6 +4,7 @@ All notable changes to Boombrick. Versions match the release tags.
 
 ## [v0.7.6]
 
+- YouTube Music: songs you already have, from a download or anywhere else in your music folder, are marked "In library" with a tick, and downloading skips them, saying how many it skipped; X again on the same songs downloads them anyway. Playing or queueing such a song plays your copy instead of downloading it. A song counts as yours by its title and artist, with its album or length agreeing.
 - Podcasts: a show with more than 200 episodes lists its newest 200, as "Latest 200 episodes". Shows Spotify lists oldest first, as Sacred Symbols, listed their first 200 instead.
 - Playlists: TuneMyMusic's `.csv` exports work. Their bare Spotify IDs find the songs the Spotify import downloaded and stream the rest, and a file holding several playlists becomes one playlist for each, named as in the file. Spotify links in a `.csv` work too.
 - Playlists: a song matched by its title without extras, as "Aquatic Ambience" for "Aquatic Ambience (From …)", is no longer taken for a version on another album or of another length; it streams from Spotify, or counts as not found.

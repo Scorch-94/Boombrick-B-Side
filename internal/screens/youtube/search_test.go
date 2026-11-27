@@ -122,7 +122,7 @@ func TestPlayingFromTheTopResults(t *testing.T) {
 // A song already downloaded isn't asked for again.
 func TestDownloadingASavedSong(t *testing.T) {
 	src := &fakeSource{results: map[string][]ytmusic.Item{"night drive All": nightResults}}
-	nav, dl := &fakeNav{}, &recorder{fakeDownloads: fakeDownloads{"v1": {media.Saved, 0}}}
+	nav, dl := &fakeNav{}, &recorder{fakeDownloads: fakeDownloads{"v1": {st: media.Saved, p: 0}}}
 	s := NewSearch(nav, src, dl)
 	s.query = "night drive"
 	render(t, s, t0)
