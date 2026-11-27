@@ -82,6 +82,9 @@ type Context struct {
 	failed   map[any]time.Time      // uploads that failed lately, by cache key, and when
 	uploads  int                    // covers uploaded this frame
 	pending  bool                   // this frame left a cover fading in or waiting to be uploaded
+	wakeAt   time.Time              // the frame asked for one at this time, as a scroll's wait ending
+	frame    uint64                 // frames begun, so scrolls know whether they showed in the last
+	scrolls  map[scrollKey]*scrolling
 	tf       []transform
 	clips    []gfx.Rect
 	made     int    // text and glow textures made
@@ -609,7 +612,13 @@ func (u *Context) imagesFor(key string) *LRU[string, *gfx.Texture] {
 // BeginFrame starts a frame drawn at now.
 func (u *Context) BeginFrame(now time.Time) {
 	u.Now = now
-	u.uploads, u.pending = 0, false
+	u.uploads, u.pending, u.wakeAt = 0, false, time.Time{}
+	u.frame++
+	for k, sc := range u.scrolls { // lines that showed focused two frames ago and not since
+		if sc.frame+1 < u.frame {
+			delete(u.scrolls, k)
+		}
+	}
 }
 
 // Animating reports whether the last frame left a cover fading in, one

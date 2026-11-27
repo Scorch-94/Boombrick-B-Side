@@ -77,12 +77,14 @@ func ListRow(u *ui.Context, r Row, box gfx.Rect, k float32) {
 	if r.Playing {
 		col, w = u.Accent.Color, w-noteSize-8
 	}
-	tw := u.Text(u.Fit(r.Title, text.Body, w), text.Body, x, ty, col)
+	// The focused row's lines scroll when too long.
+	focused := k > 0.5
+	tw := u.ScrollText(r.Title, text.Body, x, ty, w, col, focused)
 	if r.Playing { // the fonts have no ♪, so the music icon stands in
 		u.Icon("music", noteSize, 2, false, x+tw+8, ty+(titleH-noteSize)/2, col)
 	}
 	if r.Subtitle != "" {
-		u.Text(u.Fit(r.Subtitle, text.Meta, right-x), text.Meta, x, ty+titleH, theme.Ink3)
+		u.ScrollText(r.Subtitle, text.Meta, x, ty+titleH, right-x, theme.Ink3, focused)
 	}
 }
 

@@ -2,6 +2,7 @@ package home
 
 import (
 	"fmt"
+	"github.com/ujjwal313/boombrick/internal/ui"
 	"image"
 	"math"
 	"slices"
@@ -895,4 +896,31 @@ func TestReleasesRow(t *testing.T) {
 	if opened != "spotify:album:a" {
 		t.Fatalf("opened %q", opened)
 	}
+}
+
+// The focused card's title and subtitle, too long for it, scroll from half a
+// second after focus comes to it; the frames that needs are asked for.
+func TestFocusedCardScrolls(t *testing.T) {
+	row := fixture.Row{Title: "Continue listening", Cards: true, Items: []fixture.Item{
+		{Title: "Sacred Symbols, Episode 412: Every PlayStation Mascot, Ranked", Subtitle: "Sacred Symbols: A PlayStation Podcast",
+			Art: widgets.SpecFor("Sacred")},
+		{Title: "Dead Mother Eyes Watching", Subtitle: "Alex Mauer", Art: widgets.SpecFor("Dead")},
+	}}
+	h := New(nil)
+	h.SetRows([]fixture.Row{row})
+	u, off := uitest.NewContext(t, theme.DeviceW, theme.DeviceH)
+	u.Accent = theme.Derive(fixture.PlayingHue, fixture.PlayingChroma)
+	u.Status = fixture.Status()
+	at := t0.Add(anim.Focus)
+	u.BeginFrame(at)
+	h.Draw(u)
+	if wake, ok := u.Wake(); !ok || !wake.Equal(at.Add(ui.ScrollDelay)) || u.Animating() {
+		t.Fatalf("waiting: wake %v %v, animating %v", wake, ok, u.Animating())
+	}
+	u.BeginFrame(at.Add(ui.ScrollDelay + 2*time.Second))
+	h.Draw(u)
+	if !u.Animating() {
+		t.Fatal("sliding should ask for frames")
+	}
+	uitest.Golden(t, "home-card-scrolling", off.Image())
 }

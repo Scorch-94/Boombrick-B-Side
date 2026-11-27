@@ -53,8 +53,9 @@ func Card(u *ui.Context, it CardItem, x, y, size, k float32, caption bool) {
 	if it.CaptionW > 0 {
 		cw = it.CaptionW
 	}
-	u.Text(u.Fit(it.Title, text.Body, cw), text.Body, x, ty, theme.Paper)
-	u.Text(u.Fit(it.Subtitle, text.Meta, cw), text.Meta, x, ty+u.LineHeight(text.Body)+2, theme.Ink3)
+	// The focused card's lines scroll when too long.
+	u.ScrollText(it.Title, text.Body, x, ty, cw, theme.Paper, k > 0.5)
+	u.ScrollText(it.Subtitle, text.Meta, x, ty+u.LineHeight(text.Body)+2, cw, theme.Ink3, k > 0.5)
 }
 
 // CardGlow draws the focus glow of the card Card draws at (x, y) with size

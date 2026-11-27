@@ -42,7 +42,7 @@ Compared with the original Boombrick:
   - A plays or pauses.
   - Up switches shuffle and Down steps repeat; X no longer does anything there.
   - L1 and R1 still skip as well.
-- **Now Playing's long lines scroll:** a title, artist or album too long to fit scrolls to show the rest, rather than ending in "…".
+- **Long text scrolls:** on Now Playing, a title, artist or album too long to fit scrolls to show the rest, rather than ending in "…"; in lists and on cards, the selected item's does, half a second after it's selected.
 - **Now Playing looks:** play/pause is no longer highlighted all the time; each control flashes when its button is pressed. The Lyrics button under the controls is gone: Y Lyrics shows in the hint bar instead.
 - **Album, genre and playlist pages:** they have no Play or Shuffle buttons. They open on the first track; A plays from the track you're on and Y queues it.
 - **Choosing something to play opens Now Playing:** a song, album, playlist, episode or station. B goes back to where you were.

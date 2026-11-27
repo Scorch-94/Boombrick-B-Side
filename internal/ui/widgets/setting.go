@@ -112,12 +112,12 @@ func DrawSetting(u *ui.Context, s Setting, box gfx.Rect, k float32, last bool) {
 	u.Text(s.Value, settingValue, right-vw, u.CenterY(settingValue, box.Y, box.H), col)
 	room := right - vw - 24 - x
 	if s.Detail == "" {
-		u.Text(u.Fit(s.Label, settingLabel, room), settingLabel, x, u.CenterY(settingLabel, box.Y, box.H), theme.Paper)
+		u.ScrollText(s.Label, settingLabel, x, u.CenterY(settingLabel, box.Y, box.H), room, theme.Paper, k > 0.5)
 		return
 	}
 	// The label and the line about it, centred together.
 	lh, dh := u.LineHeight(settingLabel), u.LineHeight(settingDetail)
 	y := box.Y + (box.H-lh-dh)/2
-	u.Text(u.Fit(s.Label, settingLabel, room), settingLabel, x, y, theme.Paper)
-	u.Text(u.Fit(s.Detail, settingDetail, room), settingDetail, x, y+lh, theme.Ink3)
+	u.ScrollText(s.Label, settingLabel, x, y, room, theme.Paper, k > 0.5)
+	u.ScrollText(s.Detail, settingDetail, x, y+lh, room, theme.Ink3, k > 0.5)
 }

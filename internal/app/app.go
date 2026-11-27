@@ -797,6 +797,10 @@ func (a *App) poll() {
 	if due, ok := a.shell.due(a.drawnAt); ok && !time.Now().Before(due) {
 		a.dirty = true
 	}
+	// A focused line's scroll, waiting to start or to slide again.
+	if due, ok := a.ui.Wake(); ok && !time.Now().Before(due) {
+		a.dirty = true
+	}
 	a.last = st
 }
 
@@ -1082,6 +1086,9 @@ func (a *App) timeout(start, now time.Time) time.Duration {
 		return max(timeout, 0) // nothing shows, so nothing ticks
 	}
 	if due, ok := a.shell.due(start); ok {
+		timeout = min(timeout, due.Sub(now))
+	}
+	if due, ok := a.ui.Wake(); ok {
 		timeout = min(timeout, due.Sub(now))
 	}
 	if a.animating(start) {
