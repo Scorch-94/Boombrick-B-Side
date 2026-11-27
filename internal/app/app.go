@@ -517,6 +517,9 @@ func (a *App) quickMenu() *quickmenu.Menu {
 		}
 		o.Integrations, o.Switched = a.integrations(), a.switched
 		o.HomeSections, o.HomeSwitched = a.homeSections(), func() { a.showHome(a.progress) }
+		if a.opts.MusicDir != "" {
+			o.Library = libraryManager{a}
+		}
 		at := a.shell.add(overlay{button: input.None, screen: settingsscreen.New(o)})
 		act.OpenSettings = func() { a.shell.openOverlay(at, time.Now()) }
 	}

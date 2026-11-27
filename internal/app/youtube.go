@@ -25,6 +25,8 @@ type Downloads interface {
 	Busy() bool
 	Note() string
 	Version() uint64
+	// ForgetFile forgets the download whose file is path, once deleted.
+	ForgetFile(path string)
 }
 
 // ytDownloads is what playing and downloading YouTube Music songs needs from

@@ -584,7 +584,7 @@ func TestLibraryFilters(t *testing.T) {
 	uitest.Golden(t, "library-artists", img)
 	// Right of the filters, down to the first row.
 	fadesSoftly(t, img, image.Pt(960, 150), image.Pt(960, 225)) // past R2, now that Playlists makes four filters
-	l.Handle(press(input.Y), t0) // Kenji Arata's one album
+	l.Handle(press(input.Y), t0)                                // Kenji Arata's one album
 	if len(p.queued) != 1 || len(p.queued[0]) != 1 {
 		t.Fatalf("Y on an artist queued %v", p.queued)
 	}

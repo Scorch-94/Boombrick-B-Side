@@ -80,6 +80,9 @@ type Options struct {
 	// flip, after Prefs has it.
 	HomeSections []Integration
 	HomeSwitched func()
+	// Library is the library to manage on the Library page: its duplicates,
+	// and deleting songs; nil: no Library row.
+	Library Library
 }
 
 // What focus moves between, top to bottom: the rows, then the cards' pills.
@@ -94,6 +97,7 @@ const (
 	rowAlbums
 	rowClock
 	rowHome
+	rowLibrary
 	rowCount
 	pillTool    = rowCount     // the Downloader card's pill
 	pillApp     = rowCount + 1 // the Boombrick card's
@@ -155,6 +159,7 @@ type Screen struct {
 	opts         Options
 	storage      *storagePage      // non-nil while the Storage page is shown
 	integrations *integrationsPage // and the Integrations page
+	library      *libraryPage      // and the Library page
 	dialog       *confirm          // Update ready, while it is open
 	focus        int
 	k            [itemCount]anim.Value
@@ -202,6 +207,7 @@ func New(opts Options) *Screen {
 		rowAlbums:       {Icon: "music", Label: "Album view"},
 		rowClock:        {Icon: "clock", Label: "Clock"},
 		rowHome:         {Icon: "grip", Label: "Home sections", Chevron: true},
+		rowLibrary:      {Icon: "folder", Label: "Library", Chevron: true},
 	}
 	for _, m := range player.SleepModes {
 		s.sleeps = append(s.sleeps, choice{label: screens.SleepLabel(m)})
@@ -225,7 +231,7 @@ func (s *Screen) Opened() {
 // reset puts the screen on the main page, focus on the first row shown,
 // nothing expanded.
 func (s *Screen) reset() {
-	s.storage, s.integrations, s.open, s.focus = nil, nil, -1, 0
+	s.storage, s.integrations, s.library, s.open, s.focus = nil, nil, nil, -1, 0
 	for !s.shown(s.focus) {
 		s.focus++
 	}
@@ -272,6 +278,8 @@ func (s *Screen) shown(item int) bool {
 		return len(s.opts.Integrations) > 0
 	case rowHome:
 		return len(s.opts.HomeSections) > 0
+	case rowLibrary:
+		return s.opts.Library != nil
 	case rowStream:
 		return s.opts.Spotify != nil && s.on(keys.SpotifyOn)
 	case rowPrefer:
@@ -299,6 +307,9 @@ func (s *Screen) ShowsDownloads() bool { return s.opts.Downloader != nil }
 func (s *Screen) Handle(ev input.Event, now time.Time) bool {
 	if s.integrations != nil {
 		return s.integrations.handle(s, ev, now)
+	}
+	if s.library != nil {
+		return s.library.handle(s, ev, now)
 	}
 	if s.storage != nil {
 		return s.storage.handle(s, ev, now)
@@ -363,6 +374,8 @@ func (s *Screen) act(now time.Time) bool {
 		s.integrations = newIntegrationsPage(s)
 	case rowHome:
 		s.integrations = newHomePage(s)
+	case rowLibrary:
+		s.library = newLibraryPage(s.opts.Library)
 	case rowStorage:
 		s.storage = newStoragePage(s.opts.Space, now)
 	case rowLevelling:
@@ -488,6 +501,8 @@ func (s *Screen) Back() bool {
 		return true
 	case s.storage != nil:
 		return s.storage.back(s, time.Now())
+	case s.library != nil:
+		return s.library.back(s, time.Now())
 	case s.dialog != nil:
 		s.dialog.close(time.Now())
 		return true
@@ -501,7 +516,7 @@ func (s *Screen) Back() bool {
 // Claims keeps Start, Select and Menu while a dialog is open, so nothing
 // opens over it.
 func (s *Screen) Claims(b input.Button) bool {
-	open := s.dialog != nil || s.storage != nil && s.storage.dialog != nil
+	open := s.dialog != nil || s.storage != nil && s.storage.dialog != nil || s.library != nil && s.library.dialog != nil
 	return open && (b == input.Start || b == input.Select || b == input.Menu)
 }
 
@@ -513,6 +528,9 @@ func (s *Screen) Animating(now time.Time) bool {
 	}
 	if s.storage != nil {
 		return s.storage.animating(now)
+	}
+	if s.library != nil {
+		return s.library.animating(now)
 	}
 	if !s.scroll.Done(now) || s.dialog != nil && s.dialog.animating(now) {
 		return true
@@ -528,7 +546,7 @@ func (s *Screen) Animating(now time.Time) bool {
 // Due is when the sleep timer's time left next changes after t, while its row
 // is shown.
 func (s *Screen) Due(t time.Time) (time.Time, bool) {
-	if s.storage != nil || s.integrations != nil {
+	if s.storage != nil || s.integrations != nil || s.library != nil {
 		return time.Time{}, false
 	}
 	return screens.SleepDue(s.opts.Player.Sleep(), t)
@@ -546,6 +564,10 @@ func (s *Screen) Draw(u *ui.Context) {
 	}
 	if s.storage != nil {
 		s.storage.draw(s, u)
+		return
+	}
+	if s.library != nil {
+		s.library.draw(s, u)
 		return
 	}
 	s.refresh(u.Now)
@@ -812,7 +834,7 @@ func (s *Screen) hint() []widgets.Hint {
 	switch {
 	case k.open:
 		h = []widgets.Hint{{Key: "◀ ▶", Label: "Choose"}, {Key: "A", Label: "Done"}}
-	case k.item == rowStorage, k.item == rowIntegrations, k.item == rowHome:
+	case k.item == rowStorage, k.item == rowIntegrations, k.item == rowHome, k.item == rowLibrary:
 		h = []widgets.Hint{{Key: "A", Label: "Open"}, {Key: "B", Label: "Back"}}
 	case k.item == rowLevelling, k.item == rowPrefer:
 		h = []widgets.Hint{{Key: "A", Label: "Switch"}, {Key: "B", Label: "Back"}}

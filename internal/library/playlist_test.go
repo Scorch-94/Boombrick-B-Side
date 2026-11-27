@@ -310,3 +310,38 @@ func TestFind(t *testing.T) {
 		t.Fatal("a nil index")
 	}
 }
+
+// Duplicates groups the copies of one song: one title, an artist in common
+// and lengths within 3 s. Another recording, longer, or another artist's
+// song of the title, isn't one.
+func TestDuplicates(t *testing.T) {
+	tr := func(path, title, artist string, d time.Duration) Track {
+		return Track{Path: path, Title: title, Artist: artist, Album: path, Duration: d}
+	}
+	ix := NewIndex([]Album{
+		{Artist: "Odalys", Title: "Copper Season", Tracks: []Track{
+			tr("/m/a/1.flac", "Ember", "Odalys", 200*time.Second),
+			tr("/m/a/2.flac", "Rust", "Odalys", 180*time.Second)}},
+		{Artist: "Odalys", Title: "Ember (Live)", Tracks: []Track{
+			tr("/m/b/1.flac", "Ember", "Odalys", 260*time.Second)}},
+		{Artist: "Odalys", Title: "Ember", Tracks: []Track{
+			tr("/m/Boombrick/Odalys/Ember/1.opus", "ember", "Odalys & Vela", 201*time.Second)}},
+		{Artist: "Kenji Arata", Title: "Neon", Tracks: []Track{
+			tr("/m/c/1.flac", "Ember", "Kenji Arata", 200*time.Second)}},
+	})
+	d := ix.Duplicates()
+	if len(d) != 1 || len(d[0]) != 2 {
+		t.Fatalf("duplicates %v", d)
+	}
+	var paths []string
+	for _, t := range d[0] {
+		paths = append(paths, t.Path)
+	}
+	slices.Sort(paths)
+	if !slices.Equal(paths, []string{"/m/Boombrick/Odalys/Ember/1.opus", "/m/a/1.flac"}) {
+		t.Fatalf("copies %v", paths)
+	}
+	if (*Index)(nil).Duplicates() != nil {
+		t.Fatal("a nil index")
+	}
+}

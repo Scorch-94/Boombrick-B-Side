@@ -61,6 +61,13 @@ func (c *confirm) handle(ev input.Event, now time.Time) bool {
 	return false
 }
 
+// choose moves focus to pill i, as when a dialog should start on Cancel.
+func (c *confirm) choose(i int, now time.Time) {
+	c.focus[c.pill].To(0, now, anim.Focus, anim.EaseOutCubic)
+	c.pill = i
+	c.focus[i].To(1, now, anim.Focus, anim.EaseOutCubic)
+}
+
 func (c *confirm) close(now time.Time) {
 	c.closing = true
 	c.shown.To(0, now, anim.Dialog, anim.EaseOutCubic)

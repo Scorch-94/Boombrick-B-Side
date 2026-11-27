@@ -4,6 +4,7 @@ All notable changes to Boombrick. Versions match the release tags.
 
 ## [v0.7.6]
 
+- Settings: a Library page manages the music on the card. Duplicates lists every copy of each song the library has more than once (same title, an artist in common, lengths within 3 seconds), with Delete all duplicate downloads at the top: every song Boombrick downloaded that you also have elsewhere in your library. Albums marks albums that are duplicates; Songs lists every song. A deletes the song or album from the SD card, after a dialog that starts on Cancel. Lyrics files and folders left empty go with them, and the library is scanned again.
 - YouTube Music: songs you already have, from a download or anywhere else in your music folder, are marked "In library" with a tick, and downloading skips them, saying how many it skipped; X again on the same songs downloads them anyway. Playing or queueing such a song plays your copy instead of downloading it. A song counts as yours by its title and artist, with its album or length agreeing.
 - Podcasts: a show with more than 200 episodes lists its newest 200, as "Latest 200 episodes". Shows Spotify lists oldest first, as Sacred Symbols, listed their first 200 instead.
 - Playlists: TuneMyMusic's `.csv` exports work. Their bare Spotify IDs find the songs the Spotify import downloaded and stream the rest, and a file holding several playlists becomes one playlist for each, named as in the file. Spotify links in a `.csv` work too.

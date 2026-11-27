@@ -408,6 +408,27 @@ func (s *Service) Remove(videoID string) {
 	s.wakeAll()
 }
 
+// ForgetFile forgets the saved song whose file is path, as when the file is
+// deleted from the card, so that it shows as not downloaded again.
+func (s *Service) ForgetFile(path string) {
+	s.mu.Lock()
+	id := ""
+	for v, r := range s.rows {
+		if r.state == saved && r.path == path {
+			id = v
+		}
+	}
+	for v, p := range s.filed {
+		if p == path {
+			id = v
+		}
+	}
+	s.mu.Unlock()
+	if id != "" {
+		s.Remove(id)
+	}
+}
+
 // SetPaused pauses or resumes the queue; pausing stops the batch under way.
 func (s *Service) SetPaused(on bool) {
 	s.mu.Lock()

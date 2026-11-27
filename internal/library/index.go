@@ -43,6 +43,8 @@ type Index struct {
 
 	matchOnce sync.Once
 	matcher   *songMatcher // for Find, made the first time it's asked
+	dupOnce   sync.Once
+	dupes     [][]*Track // for Duplicates, likewise
 }
 
 // Load reads the library and sorts it for browsing.

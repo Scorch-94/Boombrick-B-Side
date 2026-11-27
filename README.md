@@ -18,6 +18,7 @@ The screenshots are of the original Boombrick. See [CHANGELOG.md](CHANGELOG.md) 
 - **Podcasts tab:** your Spotify podcasts, in three lists: episodes you're part way through on any device, the shows you follow, and your saved episodes. Episodes play from where you left off, and your place goes back to Spotify as you listen, so your phone picks up from there. Left and Right on Now Playing jump 30 seconds during an episode. [More below](#podcasts).
 - **Bluetooth headphone controls:** play/pause, next and previous from headphones and speakers, AirPods' and Beats' taps included, with the screen on or off and in background play. Boombrick tells them what's playing, for headphones that pause when you take an earbud out. [More below](#bluetooth-headphones).
 - **Playlists:** `.m3u`, `.m3u8` and `.csv` files in `Music/Playlists` become playlists in the Library. A `.csv` exported from Spotify by Exportify or TuneMyMusic is matched to your songs by Spotify track, title, artist, album and length, and songs you don't have stream from Spotify in their place. [More below](#playlists).
+- **Library management:** Settings → Library lists your duplicate songs and albums, deletes songs and albums from the card, and deletes every download you also have elsewhere in one go. [More below](#library-management).
 - **No duplicate downloads:** YouTube Music marks songs already in your library, from anywhere in your music folder, with "In library", and downloading skips them (X again downloads anyway). Playing one plays your copy.
 - **Library search:** X in the Library searches artists, albums and songs as you type.
 - **Shuffle all songs:** at the top of the Library's Songs list, and as a card on Home. It plays only the songs on your SD card, never Spotify streams.
@@ -95,6 +96,16 @@ In an `.m3u`, each line can be a path relative to the playlist (`../Artist/Album
 
 A `.csv` playlist, as Exportify, TuneMyMusic or Soundiiz export one, is read by its header row: each song is found by its Spotify track (a `spotify:track:` URI, an `open.spotify.com` link or a bare ID, for songs the Spotify import downloaded), then by title and artist, with the album and length telling versions apart; a title's extras, like `(From "…")` or ` - Piano Version`, are set aside when that leaves only one song and its album and length don't say it's another version. A file with a `Playlist name` column, as TuneMyMusic writes, becomes one playlist for each name in it, called by that name; rows without one make a playlist named after the file. A `Path` column works as an `.m3u` does. A song you don't have that the file gives a Spotify track for plays from Spotify instead (marked "Spotify" on the playlist's page), so the whole playlist plays as long as Spotify is set up and you're online; without Spotify those songs are skipped. Underscores in the file's name become spaces in the playlist's.
 
+## Library management
+
+Settings → **Library** has three views, changed with L2 and R2:
+
+- **Duplicates:** every copy of each song you have more than once, counted as the same song when the titles match, an artist is shared and the lengths are within 3 seconds, so a live version or a remix isn't counted. Each copy says where it is: "Downloaded" for Boombrick's downloads, or its folder. At the top, **Delete all duplicate downloads** deletes every song Boombrick downloaded that you also have elsewhere in your library; your other copies stay.
+- **Albums:** every album, marked "Duplicate" when all its songs are duplicates, or with how many are.
+- **Songs:** every song.
+
+A deletes the song or album it's on from the SD card, after a dialog that starts on Cancel: a delete can't be undone. The song's `.lrc` lyrics go too, and any folder left with nothing but a cover in it. The library is scanned again afterwards.
+
 ## Bluetooth headphones
 
 Headphones and speakers connected in NextUI's settings control playback, with the screen on or off and in background play: play/pause, next and previous play, pause and skip, and on a podcast episode skip 30 seconds back and on. On AirPods and Beats these are the taps you've set for each earbud. B-Side registers with the Brick's Bluetooth service as the media player, so headphones know whether music is playing, as their pause on taking an earbud out needs, and can show the song's title and artist.
@@ -109,6 +120,7 @@ If a button doesn't seem to do anything, each command that arrives is written to
 | A | Play or open |
 | B | Back |
 | X | Download (YouTube Music); search (Library); move a section (Settings → Home sections) |
+| A (Settings → Library) | Delete the song or album, after a dialog |
 | Y | Add to the queue; on Now Playing, lyrics |
 | D-pad Left, Right (Now Playing) | Previous and next track; 30 s back and forward in a podcast episode |
 | A (Now Playing) | Play or pause |
