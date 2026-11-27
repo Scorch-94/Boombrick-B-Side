@@ -24,7 +24,7 @@ The screenshots are of the original Boombrick. See [CHANGELOG.md](CHANGELOG.md) 
 - **Shuffle all songs:** at the top of the Library's Songs list, and as a card on Home. It plays only the songs on your SD card, never Spotify streams.
 - **A Home you arrange:** switch each section on or off and put them in your order, in Settings → Home sections. Besides the original's sections, Home can show:
   - **Shuffle**: all your songs, shuffled.
-  - **Random albums**: six albums picked afresh each time the app opens.
+  - **Random albums**: six albums picked afresh each time the app opens, full albums before singles.
   - **Playlists**: your playlist files.
   - **Podcasts**: the shows you follow.
   - Spotify **podcast episodes you've started**, in Continue listening.

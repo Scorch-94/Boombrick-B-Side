@@ -243,6 +243,11 @@ func AlbumRow(albums []*library.Album, play, queue func(*library.Album)) (fixtur
 // maxRandom is how many albums Random albums shows.
 const maxRandom = 6
 
+// fullAlbum is how many songs an album needs to be picked before smaller
+// ones: a song downloaded on its own is an album of one, and a library of
+// many makes a row of singles.
+const fullAlbum = 3
+
 // RandomPicks are the albums Random albums shows: picked at random when
 // the library first comes in, and kept for as long as the app runs, so the
 // row stays put while it's open and changes the next time the app is. An
@@ -261,7 +266,7 @@ func NewRandomPicks(seed int64) *RandomPicks {
 
 // From is the picks among ix's albums: those kept that are still there,
 // then new ones at random to make up maxRandom, or all of them in a smaller
-// library.
+// library. Albums of fullAlbum songs or more are picked before smaller ones.
 func (p *RandomPicks) From(ix *library.Index) []*library.Album {
 	var out []*library.Album
 	var keys []albumKey
@@ -270,14 +275,21 @@ func (p *RandomPicks) From(ix *library.Index) []*library.Album {
 			out, keys = append(out, a), append(keys, k)
 		}
 	}
-	var rest []*library.Album
+	// Albums of fullAlbum songs or more first, at random; the smaller ones
+	// only to make up the row.
+	var full, small []*library.Album
 	for _, a := range ix.Albums {
-		if !slices.Contains(out, a) {
-			rest = append(rest, a)
+		switch {
+		case slices.Contains(out, a):
+		case len(a.Tracks) >= fullAlbum:
+			full = append(full, a)
+		default:
+			small = append(small, a)
 		}
 	}
-	p.rng.Shuffle(len(rest), func(i, j int) { rest[i], rest[j] = rest[j], rest[i] })
-	for _, a := range rest {
+	p.rng.Shuffle(len(full), func(i, j int) { full[i], full[j] = full[j], full[i] })
+	p.rng.Shuffle(len(small), func(i, j int) { small[i], small[j] = small[j], small[i] })
+	for _, a := range append(full, small...) {
 		if len(out) == maxRandom {
 			break
 		}

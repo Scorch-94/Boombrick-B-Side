@@ -835,3 +835,40 @@ func TestShuffleRow(t *testing.T) {
 	}
 	uitest.Golden(t, "home-shuffle", render(t, h, t0.Add(anim.Focus)))
 }
+
+// Random albums picks albums of three songs or more before singles, which
+// come in only to make up the row.
+func TestRandomAlbumsPreferFullOnes(t *testing.T) {
+	var albums []library.Album
+	tracks := func(n, i int) []library.Track {
+		var ts []library.Track
+		for j := range n {
+			ts = append(ts, library.Track{Path: fmt.Sprintf("/m/%d/%d.flac", i, j)})
+		}
+		return ts
+	}
+	for i := range 40 {
+		n := 1
+		if i%10 == 0 {
+			n = 3 + i/10 // four full albums among 36 singles
+		}
+		albums = append(albums, library.Album{Artist: fmt.Sprintf("A%d", i), Title: fmt.Sprintf("T%02d", i), Tracks: tracks(n, i)})
+	}
+	for seed := range int64(20) {
+		picks := NewRandomPicks(seed).From(library.NewIndex(albums))
+		full := 0
+		for _, a := range picks {
+			if len(a.Tracks) >= fullAlbum {
+				full++
+			}
+		}
+		if len(picks) != maxRandom || full != 4 {
+			t.Fatalf("seed %d: %d picks, %d of them full", seed, len(picks), full)
+		}
+		for _, a := range picks[:4] {
+			if len(a.Tracks) < fullAlbum {
+				t.Fatalf("seed %d: a single before a full album", seed)
+			}
+		}
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ujjwal313/boombrick/internal/library"
+	"github.com/ujjwal313/boombrick/internal/player"
 )
 
 // Deleting a song takes its file and lyrics, and the folders it leaves empty
@@ -64,3 +65,26 @@ type forgetting struct {
 }
 
 func (f forgetting) ForgetFile(p string) { *f.forgot = append(*f.forgot, p) }
+
+// albumRecorder records what Home's albums ask the player for.
+type albumRecorder struct {
+	tracks []player.Track
+	start  int
+}
+
+func (r *albumRecorder) SetShuffle(bool) {}
+func (r *albumRecorder) PlayFrom(ts []player.Track, start int, _ int64) {
+	r.tracks, r.start = ts, start
+}
+
+// An album started from Home, as Random albums starts one, plays all its
+// songs from the first.
+func TestHomePlaysWholeAlbums(t *testing.T) {
+	al := &library.Album{Title: "Copper Season", Artist: "Odalys", Tracks: []library.Track{
+		{Path: "/m/1.flac"}, {Path: "/m/2.flac"}, {Path: "/m/3.flac"}}}
+	r := &albumRecorder{}
+	playAlbum(r, al, 0, 0)
+	if len(r.tracks) != 3 || r.start != 0 || r.tracks[2].Path != "/m/3.flac" {
+		t.Fatalf("played %+v from %d", r.tracks, r.start)
+	}
+}

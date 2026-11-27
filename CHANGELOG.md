@@ -2,6 +2,10 @@
 
 All notable changes to Boombrick. Versions match the release tags.
 
+## [v0.7.7]
+
+- Home: Random albums picks albums of three songs or more, before singles. A song downloaded on its own is an album of one, so a library with many made a row of singles; they now only make up the row when there aren't six bigger albums.
+
 ## [v0.7.6]
 
 - Settings: a Library page manages the music on the card. Duplicates lists every copy of each song the library has more than once (same title, an artist in common, lengths within 3 seconds), with Delete all duplicate downloads at the top: every song Boombrick downloaded that you also have elsewhere in your library. Albums marks albums that are duplicates; Songs lists every song. A deletes the song or album from the SD card, after a dialog that starts on Cancel. Lyrics files and folders left empty go with them, and the library is scanned again.
