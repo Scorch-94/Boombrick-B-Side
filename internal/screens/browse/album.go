@@ -36,6 +36,7 @@ type AlbumPage struct {
 	tracks []player.Track
 	rows   []widgets.Row
 	list   views.Grid
+	bar    []widgets.Hint // the hint bar in albumHints' place, as a playlist being edited has; nil: albumHints
 }
 
 // NewAlbumPage opens album a.
@@ -62,9 +63,9 @@ func NewGenrePage(nav screens.Nav, p Player, g *library.Genre) *AlbumPage {
 	return pg
 }
 
-// NewPlaylistPage opens playlist pl: its songs in the file's order, each
+// playlistPage lays playlist pl out: its songs in the file's order, each
 // with its artist, and the ones streamed from Spotify marked so.
-func NewPlaylistPage(nav screens.Nav, p Player, pl *library.Playlist) *AlbumPage {
+func playlistPage(nav screens.Nav, p Player, pl *library.Playlist) *AlbumPage {
 	// The songs from Spotify say so in their rows; the line under the art
 	// has room only for what's missing.
 	who := "Playlist"
@@ -133,6 +134,11 @@ func (pg *AlbumPage) Handle(ev input.Event, now time.Time) bool {
 			pg.nav.Toast(screens.AddedToQueue)
 		}
 		return ev.Kind == input.Press
+	case input.X:
+		if ev.Kind == input.Press && len(pg.tracks) > 0 && Edits != nil {
+			AddToPlaylist(pg.nav, pg.tracks[pg.list.Focus()], nil)
+		}
+		return ev.Kind == input.Press
 	}
 	return pg.list.Move(ev.Button, now)
 }
@@ -174,10 +180,23 @@ func (pg *AlbumPage) Draw(u *ui.Context) {
 }
 
 // albumHints is the page's hint bar.
-var albumHints = []widgets.Hint{{Key: "A", Label: "Play"}, {Key: "Y", Label: "Add to queue"}, {Key: "B", Label: "Back"},
-	{Key: "L1/R1", Label: "Tabs"}}
+var (
+	albumHints = []widgets.Hint{{Key: "A", Label: "Play"}, {Key: "Y", Label: "Add to queue"}, {Key: "B", Label: "Back"},
+		{Key: "L1/R1", Label: "Tabs"}}
+	// With playlists editable, X adds a song to one.
+	albumEditHints = []widgets.Hint{{Key: "A", Label: "Play"}, {Key: "Y", Label: "Queue"}, {Key: "X", Label: "Add to playlist"},
+		{Key: "B", Label: "Back"}}
+)
 
-func (pg *AlbumPage) hints() []widgets.Hint { return albumHints }
+func (pg *AlbumPage) hints() []widgets.Hint {
+	switch {
+	case pg.bar != nil:
+		return pg.bar
+	case Edits != nil:
+		return albumEditHints
+	}
+	return albumHints
+}
 
 // sameTrack reports whether a and b are the same song: the same file, or
 // with no file the same Spotify track.

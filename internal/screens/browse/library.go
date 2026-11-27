@@ -203,9 +203,27 @@ func (l *Library) empty() bool { return l.ix != nil && len(l.ix.Albums) == 0 }
 // Handle switches filters with L2/R2, moves with the D-pad, opens or plays
 // with A and queues with Y. X opens the search. The empty
 // library rescans with Y.
+// Claims Select on the Playlists filter, to make a new playlist.
+func (l *Library) Claims(b input.Button) bool {
+	return b == input.Select && Edits != nil && l.ix != nil && !l.empty() && l.filter == playlistsFilter
+}
+
 func (l *Library) Handle(ev input.Event, now time.Time) bool {
 	if ev.Kind == input.Release || l.ix == nil {
 		return false
+	}
+	if ev.Kind == input.Press && ev.Button == input.Select && l.Claims(input.Select) {
+		l.nav.Push(newNameEntry(l.nav, "New playlist", "", func(name string) bool {
+			if _, err := library.NewPlaylist(Edits.Music(), name); err != nil {
+				l.nav.Toast("Couldn’t make the playlist")
+				return false
+			}
+			Edits.Saved()
+			l.nav.Pop()
+			l.nav.Toast("Made " + library.CleanPlaylistName(name) + " · X adds songs to it")
+			return true
+		}))
+		return true
 	}
 	if l.empty() {
 		if ev.Kind == input.Press && ev.Button == input.Y && l.rescan != nil {
@@ -448,6 +466,10 @@ func (l *Library) drawNoPlaylists(u *ui.Context) {
 	if l.noListMsg == "" {
 		l.noListMsg = "No playlists yet. Put .m3u or .csv files in " + filepath.Join(l.musicDir, library.PlaylistDir) +
 			", then press Y to rescan."
+		if Edits != nil {
+			l.noListMsg = "No playlists yet. Press Select to make one, or put .m3u or .csv files in " +
+				filepath.Join(l.musicDir, library.PlaylistDir) + " and press Y to rescan."
+		}
 	}
 	w := float32(theme.ScreenW - 4*side)
 	lines := l.noLists.Lines(u, l.noListMsg, text.Body, w)
@@ -468,6 +490,11 @@ var (
 		{Key: "L2/R2", Label: "Filter"}, {Key: "L1/R1", Label: "Tabs"}}
 	noPlaylistHints = []widgets.Hint{{Key: "X", Label: "Search"}, {Key: "Y", Label: "Rescan SD card"},
 		{Key: "L2/R2", Label: "Filter"}, {Key: "L1/R1", Label: "Tabs"}}
+	// With playlists editable, Select makes one.
+	playlistHints = []widgets.Hint{{Key: "A", Label: "Open"}, {Key: "Y", Label: "Add to queue"},
+		{Key: "Select", Label: "New playlist"}, {Key: "L2/R2", Label: "Filter"}}
+	noPlaylistEditHints = []widgets.Hint{{Key: "Select", Label: "New playlist"}, {Key: "Y", Label: "Rescan SD card"},
+		{Key: "L2/R2", Label: "Filter"}}
 	// The tab row shows L1 and R1 itself; there is no room for their hint.
 	shuffleAllHints = []widgets.Hint{{Key: "A", Label: "Shuffle all"}, {Key: "X", Label: "Search"},
 		{Key: "Y", Label: "Add to queue"}, {Key: "L2/R2", Label: "Filter"}}
@@ -481,8 +508,12 @@ func (l *Library) hints() []widgets.Hint {
 		return tabHints
 	case l.empty():
 		return rescanHints
+	case l.filter == playlistsFilter && len(l.ix.Playlists) == 0 && Edits != nil:
+		return noPlaylistEditHints
 	case l.filter == playlistsFilter && len(l.ix.Playlists) == 0:
 		return noPlaylistHints
+	case l.filter == playlistsFilter && Edits != nil:
+		return playlistHints
 	case l.filter == songsFilter && l.views[songsFilter].Focus() == 0:
 		return shuffleAllHints
 	case l.filter == songsFilter:

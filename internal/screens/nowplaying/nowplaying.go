@@ -94,6 +94,7 @@ type NowPlaying struct {
 	note      func() string                                       // why the queue waits, or ""; nil: none
 	scrub     *screens.Scrub                                      // L2 and R2
 	chapters  Chapters                                            // an audiobook's; nil: none
+	addTo     func()                                              // X: adds the song to a playlist; nil: nothing
 
 	// What the frames show, made again only when it changes.
 	elapsed, length screens.ClockText
@@ -160,6 +161,9 @@ func (n *NowPlaying) SetHeld(held func(input.Button) bool) { n.scrub.SetHeld(hel
 
 // SetLyrics gives the screen its Lyrics pill and Y button, which call open.
 func (n *NowPlaying) SetLyrics(open func()) { n.lyrics, n.hintBar = open, nil }
+
+// SetAddToPlaylist makes X add the song playing to a playlist, with add.
+func (n *NowPlaying) SetAddToPlaylist(add func()) { n.addTo = add }
 
 // SetDownloads lets the screen show how far a song it waits on has got, and
 // with note, which may be nil, why one queued isn't downloading.
@@ -314,6 +318,12 @@ func (n *NowPlaying) Handle(ev input.Event, now time.Time) bool {
 			return false
 		}
 		n.lyrics()
+		return true
+	case input.X:
+		if n.addTo == nil || ev.Kind != input.Press {
+			return false
+		}
+		n.addTo()
 		return true
 	case input.L1:
 		if n.chapters == nil || !n.chapters.Step(s, -1) {

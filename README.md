@@ -20,6 +20,7 @@ The screenshots are of the original Boombrick. See [CHANGELOG.md](CHANGELOG.md) 
 - **Playback speed:** audiobooks and podcast episodes play from 0.75× to 2×, without the voices going higher or lower, set in the quick menu while one plays. Music always plays as recorded.
 - **Bluetooth headphone controls:** play/pause, next and previous from headphones and speakers, AirPods' and Beats' taps included, with the screen on or off and in background play. Boombrick tells them what's playing, for headphones that pause when you take an earbud out. [More below](#bluetooth-headphones).
 - **Playlists:** `.m3u`, `.m3u8` and `.csv` files in `Music/Playlists` become playlists in the Library. A `.csv` exported from Spotify by Exportify or TuneMyMusic is matched to your songs by Spotify track, title, artist, album and length, and songs you don't have stream from Spotify in their place. [More below](#playlists).
+- **Make and edit playlists on the Brick:** X adds a song to a playlist, from Now Playing or an album's or playlist's page, or to a new one you name. Select on a playlist's page edits it: move songs, take them out, rename or delete it. [More below](#making-and-editing-playlists).
 - **Library management:** Settings → Library lists your duplicate songs and albums, deletes songs and albums from the card, and deletes every download you also have elsewhere in one go. [More below](#library-management).
 - **No duplicate downloads:** YouTube Music marks songs already in your library, from anywhere in your music folder, with "In library", and downloading skips them (X again downloads anyway). Playing one plays your copy.
 - **Library search:** X in the Library searches artists, albums and songs as you type.
@@ -111,6 +112,16 @@ In an `.m3u`, each line can be a path relative to the playlist (`../Artist/Album
 
 A `.csv` playlist, as Exportify, TuneMyMusic or Soundiiz export one, is read by its header row: each song is found by its Spotify track (a `spotify:track:` URI, an `open.spotify.com` link or a bare ID, for songs the Spotify import downloaded), then by title and artist, with the album and length telling versions apart; a title's extras, like `(From "…")` or ` - Piano Version`, are set aside when that leaves only one song and its album and length don't say it's another version. A file with a `Playlist name` column, as TuneMyMusic writes, becomes one playlist for each name in it, called by that name; rows without one make a playlist named after the file. A `Path` column works as an `.m3u` does. A song you don't have that the file gives a Spotify track for plays from Spotify instead (marked "Spotify" on the playlist's page), so the whole playlist plays as long as Spotify is set up and you're online; without Spotify those songs are skipped. Underscores in the file's name become spaces in the playlist's.
 
+## Making and editing playlists
+
+- **Add a song:** press X on Now Playing, or on a song on an album's, genre's or playlist's page. Pick a playlist, or **New playlist** to name one on the keyboard (A types, X adds a space, Y saves). The song goes at the end. Songs on your SD card and Spotify songs can go in a playlist; audiobooks, podcast episodes, stations and YouTube songs not yet downloaded can't.
+- **New, empty playlist:** Select on the Library's Playlists filter.
+- **Edit a playlist:** Select on its page. A picks the song you're on up; Up and Down move it, A drops it, B puts it back. X takes a song out, Y renames the playlist and Start deletes it, after asking. Select again, or B, ends editing.
+
+Every change is saved to the playlist's file straight away. Playlists you make are `.m3u8` files in `Music/Playlists`, which other players read too; Spotify songs in them are written as `spotify:track:` lines, which Boombrick streams (or plays from your copy, if you have one). Editing an `.m3u` or `.m3u8` keeps it in its file; editing a playlist from a `.csv` rewrites that file in Boombrick's own columns, with any other playlists in it kept. Songs a playlist lists that aren't on your card stay in the file.
+
+On the Playlists filter and a playlist's page, Select edits rather than opening the Queue; Select opens it from anywhere else.
+
 ## Library management
 
 Settings → **Library** has three views, changed with L2 and R2:
@@ -134,7 +145,7 @@ If a button doesn't seem to do anything, each command that arrives is written to
 | D-pad | Move |
 | A | Play or open |
 | B | Back |
-| X | Download (YouTube Music); search (Library, Spotify); start a book over (Audiobooks); move a section (Settings → Home sections) |
+| X | Add to a playlist (Now Playing, album and playlist pages); download (YouTube Music); search (Library, Spotify); start a book over (Audiobooks); move a section (Settings → Home sections) |
 | A (Settings → Library) | Delete the song or album, after a dialog |
 | X (Settings → Library) | Search |
 | Y | Add to the queue; on Now Playing, lyrics, or an audiobook's chapters |
@@ -145,7 +156,7 @@ If a button doesn't seem to do anything, each command that arrives is written to
 | L1, R1 | Switch tabs; on Now Playing, previous and next track, or chapter in an audiobook |
 | L2, R2 | Filters in the Library and YouTube Music; on Now Playing and Lyrics, 10 s back and on, or hold to rewind and fast-forward |
 | Start | Now Playing |
-| Select | Queue; on the Audiobooks tab, the book's chapters |
+| Select | Queue; on the Audiobooks tab, the book's chapters; on the Playlists filter, a new playlist; on a playlist's page, edit it |
 | Menu | Quick menu: sleep timer, playback speed (audiobooks and podcasts), screen off, play in background, Settings, quit |
 | Menu + Volume up, down | Brighter, dimmer: NextUI's levels 0 to 10, kept after you quit |
 | Menu + Start | Quit |

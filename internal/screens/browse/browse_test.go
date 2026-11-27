@@ -425,7 +425,7 @@ func TestLibraryPlaylists(t *testing.T) {
 		t.Fatalf("Y queued %q", p.queued)
 	}
 	l.Handle(press(input.A), t0)
-	pg, ok := nav.pushed[0].(*AlbumPage)
+	pg, ok := nav.pushed[0].(*PlaylistPage)
 	if !ok || pg.title != "Late Drive" || pg.who != "Playlist · 2 not found" || pg.rows[0].Title != "Neon" || pg.rows[0].Subtitle != "Kenji Arata" ||
 		pg.rows[2].Subtitle != "Spotify · Moonlit Hollow" {
 		t.Fatalf("A opened %+v", nav.pushed[0])

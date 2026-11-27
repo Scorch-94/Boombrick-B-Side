@@ -62,6 +62,17 @@ type Keyboard struct {
 	k        [keyCount]anim.Value // focus strength, by key
 	query    string               // the query last drawn, and the end of it that fits
 	shown    string
+	// Done and DoneIcon label the last key and its icon, and the field's
+	// icon: "" is Search, for a search.
+	Done, DoneIcon string
+}
+
+// done is the last key's label and icon.
+func (kb *Keyboard) done() (string, string) {
+	if kb.Done == "" {
+		return "Search", "search"
+	}
+	return kb.Done, kb.DoneIcon
 }
 
 // NewKeyboard returns a keyboard with focus on "a".
@@ -157,7 +168,12 @@ func (kb *Keyboard) Draw(u *ui.Context, x, y float32, query string) {
 	field := gfx.Rect{X: x, Y: y, W: KeyboardW, H: fieldH}
 	u.Shape(raster.Shape{W: KeyboardW, H: fieldH, Radius: fieldH / 2, Kind: raster.Ring, RingOffset: -1.5, RingWidth: 1.5},
 		field, fade(u.Accent.Color, 0.7))
-	u.Icon("search", 22, 2, false, x+16, y+(fieldH-22)/2, theme.Ink2)
+	label, icon := kb.done()
+	if kb.Done == "" {
+		u.Icon(icon, 22, 2, false, x+16, y+(fieldH-22)/2, theme.Ink2)
+	} else {
+		u.Icon("music", 22, 2, false, x+16, y+(fieldH-22)/2, theme.Ink2)
+	}
 	tx := x + 16 + 22 + 10
 	shown := kb.tail(u, query, x+KeyboardW-20-tx-4)
 	tw := u.Text(shown, fieldText, tx, u.CenterY(fieldText, y, fieldH), theme.Paper)
@@ -183,10 +199,10 @@ func (kb *Keyboard) Draw(u *ui.Context, x, y float32, query string) {
 		case 1:
 			u.Icon("backspace", 24, 2, false, bx+(w-24)/2, iy, theme.Paper)
 		case 2:
-			lw := 22 + 8 + u.TextWidth("Search", keyText)
+			lw := 22 + 8 + u.TextWidth(label, keyText)
 			lx := bx + (w-lw)/2
-			u.Icon("search", 22, 2, false, lx, by+(keySize-22)/2, u.Accent.Color)
-			u.Text("Search", keyText, lx+30, u.CenterY(keyText, by, keySize), u.Accent.Color)
+			u.Icon(icon, 22, 2, false, lx, by+(keySize-22)/2, u.Accent.Color)
+			u.Text(label, keyText, lx+30, u.CenterY(keyText, by, keySize), u.Accent.Color)
 		}
 		bx += w + keyGap
 	}

@@ -149,6 +149,16 @@ func (ix *Index) AlbumOf(path string) *Album {
 	return nil
 }
 
+// Song finds the song with the file at path, or returns nil.
+func (ix *Index) Song(path string) *Track {
+	for _, t := range ix.Songs {
+		if t.Path == path {
+			return t
+		}
+	}
+	return nil
+}
+
 // Spotify finds the file an import downloaded of Spotify song id, or
 // returns nil.
 func (ix *Index) Spotify(id string) *Track { return ix.spotify[id] }

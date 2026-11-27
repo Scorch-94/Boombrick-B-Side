@@ -490,6 +490,18 @@ func New(opts Options) (*App, error) {
 	if a.expired != nil {
 		a.shell.alert = a.expired
 	}
+	if opts.MusicDir != "" {
+		browse.Edits = playlistEdits{a}
+		a.nowPlaying.SetAddToPlaylist(func() {
+			t := a.player.State().Track
+			if _, ok := browse.EntryOf(t); !ok {
+				a.Toast("Only songs on your SD card or from Spotify can go in a playlist")
+				return
+			}
+			a.shell.closeOverlay(time.Now())
+			browse.AddToPlaylist(a, t, a.showNowPlaying)
+		})
+	}
 	a.nowPlayingAt = addOverlays(a.shell, a.nowPlaying, a.queue, func() bool { return a.last.Queued }, opts.Player, opts.Lyrics, a.held)
 	if opts.Lyrics != nil {
 		a.forward(opts.Lyrics.Ready(), &a.redraw)
@@ -1519,4 +1531,29 @@ func (a *App) followStations() {
 		a.showHome(a.progress)
 		a.dirty = true
 	}
+}
+
+// playlistEdits lets the screens make and change playlists in the music
+// folder, reading them again after each change.
+type playlistEdits struct{ a *App }
+
+func (e playlistEdits) Music() string { return e.a.opts.MusicDir }
+
+func (e playlistEdits) Playlists() []*library.Playlist {
+	if e.a.ix == nil {
+		return nil
+	}
+	return e.a.ix.Playlists
+}
+
+func (e playlistEdits) Song(path string) *library.Track {
+	if e.a.ix == nil {
+		return nil
+	}
+	return e.a.ix.Song(path)
+}
+
+func (e playlistEdits) Saved() {
+	e.a.loads.start(true, e.a.scanEnded)
+	e.a.dirty = true
 }
