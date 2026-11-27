@@ -123,7 +123,7 @@ func (a *App) applySwitches() {
 	if a.opts.ImportOn != nil {
 		a.opts.ImportOn(sp && yt)
 	}
-	screens.SetDownloads(yt)
+	screens.SetDownloads(slices.Contains(tabs, widgets.TabDownloads)) // "Open Downloads" only with the tab there
 	if a.opts.Player != nil {
 		a.opts.Player.Regate()
 	}

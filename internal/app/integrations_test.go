@@ -428,3 +428,11 @@ func TestTabSwitches(t *testing.T) {
 		t.Errorf("switches %v", names)
 	}
 }
+
+// With the Downloads tab hidden, offline screens don't offer to open it.
+func TestHiddenDownloadsTabIsNotOffered(t *testing.T) {
+	switchApp(t, switchPrefs{keys.TabDownloads: "false"})
+	if screens.DownloadsOn() {
+		t.Fatal("Open Downloads offered with its tab hidden")
+	}
+}
