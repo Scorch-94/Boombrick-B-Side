@@ -85,6 +85,7 @@ var (
 // NowPlaying shows the current track and its transport controls.
 type NowPlaying struct {
 	p         Player
+	lines     [3]marquee // the title's, the artist's and the album's scroll
 	focus     int
 	values    [controlCount + 1]anim.Value                        // focus strength per control
 	lyrics    func()                                              // opens the Lyrics screen; nil: no pill
@@ -349,6 +350,12 @@ func (n *NowPlaying) Animating(now time.Time) bool {
 	if n.scrub.Active() {
 		return true
 	}
+	// A line sliding wants every frame; resting, Tick's are enough.
+	for i := range n.lines {
+		if n.lines[i].moving {
+			return true
+		}
+	}
 	for i := range n.values {
 		if !n.values[i].Done(now) {
 			return true
@@ -399,12 +406,15 @@ func (n *NowPlaying) Draw(u *ui.Context) {
 	if live && s.LiveTitle != "" {
 		title, artist = s.LiveTitle, n.stationLine(s.Track)
 	}
-	u.Text(u.Fit(title, titleStyle, w), titleStyle, x, y, theme.Paper)
+	// Lines too long for the room scroll through it.
+	n.lines[0].draw(u, title, titleStyle, x, y, w, theme.Paper)
 	y += titleH
-	u.Text(u.Fit(artist, artistStyle, w), artistStyle, x, y, theme.Paper)
+	n.lines[1].draw(u, artist, artistStyle, x, y, w, theme.Paper)
 	y += artistH
 	if !live {
-		u.Text(u.Fit(s.Track.Album, albumStyle, w), albumStyle, x, y, theme.Ink2)
+		n.lines[2].draw(u, s.Track.Album, albumStyle, x, y, w, theme.Ink2)
+	} else {
+		n.lines[2].moving = false
 	}
 	y += albumH + groupGap
 	if live {
