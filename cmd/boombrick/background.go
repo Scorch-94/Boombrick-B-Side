@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/ujjwal313/boombrick/internal/audiobooks"
+	"github.com/ujjwal313/boombrick/internal/history"
 	"github.com/ujjwal313/boombrick/internal/version"
 	"log/slog"
 	"net"
@@ -116,6 +117,7 @@ func runBackground() error {
 		audiobooks.Follow(followCtx, p.State, audiobooks.NewPlaces(db.DB), nil, log)
 	}()
 	go audiobooks.WatchChapterSleep(followCtx, p)
+	go history.Watch(followCtx, p.State, history.New(db.DB), audiobooks.Spoken, nil, log)
 	defer func() { stopFollowing(); waitAtMost(booked, 2*time.Second, "audiobook places", log) }()
 	// Headphones' taps play, pause and skip while the screen is off too.
 	remoteCtx, stopRemote := context.WithCancel(context.Background())

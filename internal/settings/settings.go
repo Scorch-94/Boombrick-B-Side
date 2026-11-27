@@ -40,6 +40,8 @@ const (
 	HomePodcasts  = "home.podcasts"
 	HomeRadio     = "home.radio"
 	HomeRecent    = "home.recent"
+	HomePlayed    = "home.recently_played"
+	HomeMost      = "home.most_played"
 	// HomeOrder is the order of Home's sections: their keys, comma
 	// separated. See Order.
 	HomeOrder = "home.order"
@@ -86,6 +88,8 @@ var Defaults = map[string]string{
 	HomeContinue:     "true",
 	HomeEpisodes:     "true",
 	HomeBooks:        "true",
+	HomePlayed:       "true",
+	HomeMost:         "true",
 	HomeRandom:       "true",
 	HomeShuffle:      "true",
 	HomePlaylists:    "true",
@@ -241,7 +245,7 @@ func (s *Settings) flush() {
 // HomeSections are Home's sections' keys in their first order, top to bottom.
 // Podcast episodes go with Continue listening, so have no place of their
 // own.
-var HomeSections = []string{HomeContinue, HomeShuffle, HomeRandom, HomePlaylists, HomeSpotify, HomeReleases,
+var HomeSections = []string{HomeContinue, HomePlayed, HomeMost, HomeShuffle, HomeRandom, HomePlaylists, HomeSpotify, HomeReleases,
 	HomePodcasts, HomeRadio, HomeRecent}
 
 // Order is Home's sections in the order saved, a HomeOrder value. Keys it

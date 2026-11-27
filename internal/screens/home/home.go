@@ -11,6 +11,7 @@ import (
 	"github.com/ujjwal313/boombrick/internal/library"
 	"github.com/ujjwal313/boombrick/internal/media"
 	"github.com/ujjwal313/boombrick/internal/platform/input"
+	"github.com/ujjwal313/boombrick/internal/player"
 	"github.com/ujjwal313/boombrick/internal/radio"
 	"github.com/ujjwal313/boombrick/internal/resume"
 	"github.com/ujjwal313/boombrick/internal/screens"
@@ -325,6 +326,30 @@ func RandomRow(albums []*library.Album, play, queue func(*library.Album)) (fixtu
 		}
 	}
 	return fixture.Row{Title: "Random albums", Meta: "New picks each launch", Cards: true, Items: items}, true
+}
+
+// SongsRow is a row of songs, as Recently played and Most played are: each
+// card the song's title over its artist, under its album's cover. play
+// plays the row's songs from the one chosen; queue adds that one. It
+// reports false with no songs.
+func SongsRow(title, meta string, songs []player.Track, play func(songs []player.Track, i int),
+	queue func(player.Track)) (fixture.Row, bool) {
+	if len(songs) == 0 {
+		return fixture.Row{}, false
+	}
+	items := make([]fixture.Item, len(songs))
+	for i, t := range songs {
+		src := media.Spotify
+		if t.Path != "" {
+			src = screens.SourceOf(t.Path)
+		}
+		items[i] = fixture.Item{Title: t.Title, Subtitle: t.Artist, Art: screens.TrackArt(t), Source: src,
+			Play: func() { play(songs, i) }}
+		if queue != nil {
+			items[i].Queue = func() { queue(t) }
+		}
+	}
+	return fixture.Row{Title: title, Meta: meta, Cards: true, Items: items}, true
 }
 
 // SpotifyRow is Spotify playlists: Liked Songs, then the user's playlists,

@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ujjwal313/boombrick/internal/audiobooks"
+	"github.com/ujjwal313/boombrick/internal/history"
 	"io"
 	"log/slog"
 	"net"
@@ -327,6 +328,15 @@ func run(started time.Time) error {
 		}, log)
 	}()
 	go audiobooks.WatchChapterSleep(ctx, p) // returns at once when ctx ends
+	// Songs played are counted, for Home's Recently played and Most played.
+	plays := history.New(db.DB)
+	played := make(chan struct{}, 1) // never closed: Watch may tell it as it ends
+	go history.Watch(ctx, p.State, plays, audiobooks.Spoken, func() {
+		select {
+		case played <- struct{}{}:
+		default:
+		}
+	}, log)
 	// Podcast episodes' places go back to Spotify as they play, and the
 	// Podcasts tab's Continue listening is asked for again after.
 	go func() {
@@ -430,6 +440,8 @@ func run(started time.Time) error {
 		Audiobooks:   books,
 		AudiobookDir: paths.Audiobooks(),
 		BooksSaved:   booksSaved,
+		History:      plays,
+		Played:       played,
 		Load: func() (*library.Index, error) {
 			ix, err := library.Load(db.DB)
 			if err == nil {

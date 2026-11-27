@@ -20,6 +20,7 @@ import (
 	"github.com/ujjwal313/boombrick/assets"
 	"github.com/ujjwal313/boombrick/internal/audiobooks"
 	"github.com/ujjwal313/boombrick/internal/fixture"
+	"github.com/ujjwal313/boombrick/internal/history"
 	"github.com/ujjwal313/boombrick/internal/library"
 	lrc "github.com/ujjwal313/boombrick/internal/lyrics"
 	"github.com/ujjwal313/boombrick/internal/media"
@@ -62,6 +63,11 @@ type Options struct {
 	// the Audiobooks tab. Without it the tab is a placeholder.
 	Audiobooks   audiobookscreen.Places
 	AudiobookDir string
+	// History is the songs played, for Home's Recently played and Most
+	// played; Played receives a value as one is counted. Without it there
+	// are no such rows.
+	History History
+	Played  <-chan struct{}
 	// BooksSaved receives a value when a book's place is kept as it stops
 	// or pauses, for Continue listening.
 	BooksSaved <-chan struct{}
@@ -415,6 +421,9 @@ func New(opts Options) (*App, error) {
 				a.wake()
 			}
 		}()
+	}
+	if opts.Played != nil {
+		a.forward(opts.Played, &a.saves) // Home's Recently played and Most played follow
 	}
 	if opts.BooksSaved != nil {
 		a.forward(opts.BooksSaved, &a.saves) // Continue listening shows the place
@@ -930,6 +939,12 @@ func (a *App) showHome(progress []resume.Progress) {
 			}
 			return home.ContinueRow(progress, a.ix, a.resumeAlbum, a.queueAlbum, eps, a.startedBooks()...)
 		},
+		keys.HomePlayed: func() (fixture.Row, bool) {
+			return a.playedRow("Recently played", "Songs you played last", false)
+		},
+		keys.HomeMost: func() (fixture.Row, bool) {
+			return a.playedRow("Most played", "Your most played songs", true)
+		},
 		keys.HomeShuffle: func() (fixture.Row, bool) {
 			play := func() { browse.ShuffleAll(a.player, a.ix) }
 			queue := func() {
@@ -1029,6 +1044,11 @@ func (a *App) homeSections() []settingsscreen.Integration {
 	if a.opts.Spotify != nil {
 		ins = append(ins, settingsscreen.Integration{Key: keys.HomeEpisodes, Name: "Podcast episodes in Continue listening",
 			Icon: "back30", About: "Spotify episodes you've started", Attached: true})
+	}
+	if a.opts.History != nil {
+		ins = append(ins,
+			settingsscreen.Integration{Key: keys.HomePlayed, Name: "Recently played", Icon: "clock", About: "The songs you played last"},
+			settingsscreen.Integration{Key: keys.HomeMost, Name: "Most played", Icon: "heart", About: "The songs you play most"})
 	}
 	ins = append(ins,
 		settingsscreen.Integration{Key: keys.HomeShuffle, Name: "Shuffle all songs", Icon: "shuffle",
@@ -1596,4 +1616,56 @@ func (a *App) startedBooks() []home.Started {
 		out = append(out, home.Started{Item: it, At: pl.Updated})
 	}
 	return out
+}
+
+// History is the songs played. *history.History is one.
+type History interface {
+	Recent(n int) ([]history.Play, error)
+	Most(n int) ([]history.Play, error)
+}
+
+// playedSongs is how many songs Recently played and Most played show.
+const playedSongs = 12
+
+// playedRow is a row of the songs played last, or most, those still there: a file
+// still in the library, or a Spotify song with Spotify on.
+func (a *App) playedRow(title, meta string, most bool) (fixture.Row, bool) {
+	if a.opts.History == nil {
+		return fixture.Row{}, false
+	}
+	list := a.opts.History.Recent
+	if most {
+		list = a.opts.History.Most
+	}
+	plays, err := list(3 * playedSongs) // room for those gone
+	if err != nil {
+		a.opts.Log.Warn("play history", "err", err)
+		return fixture.Row{}, false
+	}
+	sp := a.opts.Spotify != nil && a.spotifyOn()
+	var songs []player.Track
+	for _, p := range plays {
+		switch {
+		case p.Track.Path != "":
+			s := a.ix.Song(p.Track.Path)
+			if s == nil {
+				continue // deleted, or moved
+			}
+			songs = append(songs, screens.TrackOf(s))
+		case sp:
+			songs = append(songs, p.Track)
+		}
+		if len(songs) == playedSongs {
+			break
+		}
+	}
+	play := func(ts []player.Track, i int) {
+		a.opts.Player.SetShuffle(false)
+		a.player.Play(ts, i)
+	}
+	queue := func(t player.Track) {
+		a.opts.Player.Enqueue([]player.Track{t})
+		a.Toast(screens.AddedToQueue)
+	}
+	return home.SongsRow(title, meta, songs, play, queue)
 }

@@ -176,6 +176,22 @@ var migrations = []string{
 		finished INTEGER NOT NULL,
 		updated  INTEGER NOT NULL
 	) WITHOUT ROWID`,
+	// Songs played, for Home's Recently played and Most played: by the file,
+	// or "spotify:" and the track for a song streamed.
+	`CREATE TABLE plays (
+		song     TEXT PRIMARY KEY,
+		path     TEXT NOT NULL,
+		spotify  TEXT NOT NULL,
+		title    TEXT NOT NULL,
+		artist   TEXT NOT NULL,
+		album    TEXT NOT NULL,
+		cover    TEXT NOT NULL,
+		duration INTEGER NOT NULL,
+		count    INTEGER NOT NULL,
+		last     INTEGER NOT NULL
+	) WITHOUT ROWID;
+	CREATE INDEX plays_last ON plays (last);
+	CREATE INDEX plays_count ON plays (count, last)`,
 }
 
 func migrate(db *sql.DB) error {

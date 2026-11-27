@@ -45,6 +45,8 @@ type Index struct {
 	matcher   *songMatcher // for Find, made the first time it's asked
 	dupOnce   sync.Once
 	dupes     [][]*Track // for Duplicates, likewise
+	pathOnce  sync.Once
+	byPath    map[string]*Track // for Song, likewise
 }
 
 // Load reads the library and sorts it for browsing.
@@ -151,12 +153,13 @@ func (ix *Index) AlbumOf(path string) *Album {
 
 // Song finds the song with the file at path, or returns nil.
 func (ix *Index) Song(path string) *Track {
-	for _, t := range ix.Songs {
-		if t.Path == path {
-			return t
+	ix.pathOnce.Do(func() {
+		ix.byPath = make(map[string]*Track, len(ix.Songs))
+		for _, t := range ix.Songs {
+			ix.byPath[t.Path] = t
 		}
-	}
-	return nil
+	})
+	return ix.byPath[path]
 }
 
 // Spotify finds the file an import downloaded of Spotify song id, or

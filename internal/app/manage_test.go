@@ -1,10 +1,12 @@
 package app
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/ujjwal313/boombrick/internal/history"
 	"github.com/ujjwal313/boombrick/internal/library"
 	"github.com/ujjwal313/boombrick/internal/player"
 )
@@ -86,5 +88,32 @@ func TestHomePlaysWholeAlbums(t *testing.T) {
 	playAlbum(r, al, 0, 0)
 	if len(r.tracks) != 3 || r.start != 0 || r.tracks[2].Path != "/m/3.flac" {
 		t.Fatalf("played %+v from %d", r.tracks, r.start)
+	}
+}
+
+type fakeHistory struct{ plays []history.Play }
+
+func (h fakeHistory) Recent(n int) ([]history.Play, error) {
+	return h.plays[:min(n, len(h.plays))], nil
+}
+func (h fakeHistory) Most(n int) ([]history.Play, error) { return h.plays[:min(n, len(h.plays))], nil }
+
+// Recently played shows the songs still in the library, and Spotify's only
+// with Spotify on.
+func TestPlayedRow(t *testing.T) {
+	ix := library.NewIndex([]library.Album{{Title: "Copper Season", Artist: "Odalys", Tracks: []library.Track{
+		{Path: "/m/1.flac", Title: "Rust", Artist: "Odalys"}}}})
+	h := fakeHistory{plays: []history.Play{
+		{Track: player.Track{Path: "/m/gone.flac", Title: "Gone"}},
+		{Track: player.Track{SpotifyID: "4uLU6hMCjMI75M1A2tKUQC", Title: "Never"}},
+		{Track: player.Track{Path: "/m/1.flac", Title: "old title"}, Count: 3},
+	}}
+	a := &App{ix: ix, opts: Options{History: h, Log: slog.New(slog.DiscardHandler)}}
+	row, ok := a.playedRow("Recently played", "", false)
+	if !ok || len(row.Items) != 1 || row.Items[0].Title != "Rust" {
+		t.Fatalf("row %+v", row)
+	}
+	if _, ok := (&App{ix: ix, opts: Options{Log: slog.New(slog.DiscardHandler)}}).playedRow("x", "", true); ok {
+		t.Fatal("a row with no history")
 	}
 }

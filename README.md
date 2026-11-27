@@ -27,6 +27,7 @@ The screenshots are of the original Boombrick. See [CHANGELOG.md](CHANGELOG.md) 
 - **Spotify search:** X on the Spotify tab searches Spotify for songs, albums and artists. A plays a song or opens an album or artist; Y queues a song.
 - **Shuffle all songs:** at the top of the Library's Songs list, and as a card on Home. It plays only the songs on your SD card, never Spotify streams.
 - **A Home you arrange:** switch each section on or off and put them in your order, in Settings → Home sections. Besides the original's sections, Home can show:
+  - **Recently played** and **Most played**: the songs you played last and most, from your SD card and Spotify. A song counts once you've heard half of it, or 30 seconds of a longer one, background play included; A plays the row from that song and Y queues it.
   - **Shuffle**: all your songs, shuffled.
   - **Random albums**: six albums picked afresh each time the app opens, full albums before singles.
   - **Playlists**: your playlist files.
