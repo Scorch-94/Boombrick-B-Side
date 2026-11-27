@@ -1,6 +1,9 @@
 package nowplaying
 
 import (
+	"path/filepath"
+
+	"github.com/ujjwal313/boombrick/internal/audiobooks"
 	"slices"
 	"testing"
 	"time"
@@ -588,5 +591,19 @@ func TestChapters(t *testing.T) {
 	uitest.Golden(t, "nowplaying-chapter", off.Image())
 	if a := testing.AllocsPerRun(10, func() { n.Draw(u) }); a != 0 {
 		t.Errorf("a chapter's frame allocates %v times", a)
+	}
+}
+
+// Up doesn't shuffle an audiobook's parts.
+func TestNoShuffleInABook(t *testing.T) {
+	d := t.TempDir()
+	audiobooks.SetDir(d)
+	f := playing()
+	f.st.Shuffle = false
+	f.st.Track = player.Track{Path: filepath.Join(d, "Dune", "01.m4a"), Title: "Part 1"}
+	n := New(f)
+	n.Handle(press(input.Up), t0)
+	if len(f.shuffles) != 0 {
+		t.Fatalf("shuffle set %v in a book", f.shuffles)
 	}
 }

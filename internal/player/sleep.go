@@ -13,10 +13,13 @@ const (
 	Sleep60              // an hour after
 	SleepTrack           // at the end of the track playing
 	SleepAlbum           // at the end of the album playing
+	// SleepChapter stops at the end of the audiobook chapter playing, as
+	// SleepWithin is told where that is; else at the end of the track.
+	SleepChapter
 )
 
 // SleepModes are the modes in the order the screens offer them.
-var SleepModes = [...]SleepMode{SleepOff, Sleep15, Sleep30, Sleep45, Sleep60, SleepTrack, SleepAlbum}
+var SleepModes = [...]SleepMode{SleepOff, Sleep15, Sleep30, Sleep45, Sleep60, SleepTrack, SleepChapter, SleepAlbum}
 
 // Timed reports whether m stops playback after a time, not at the end of a
 // track.
@@ -51,10 +54,10 @@ func afterFunc(d time.Duration, f func()) stopper { return time.AfterFunc(d, f) 
 func (p *Player) SetSleep(m SleepMode) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if (m == SleepTrack || m == SleepAlbum) && p.liveLocked() {
+	if (m == SleepTrack || m == SleepAlbum || m == SleepChapter) && p.liveLocked() {
 		return // a station never ends, so neither would wait
 	}
-	atEnd := p.sleep.Mode == SleepTrack || p.sleep.Mode == SleepAlbum
+	atEnd := p.sleep.Mode == SleepTrack || p.sleep.Mode == SleepAlbum || p.sleep.Mode == SleepChapter
 	p.stopSleepLocked()
 	p.sleep = Sleep{Mode: m}
 	if m.Timed() {
@@ -183,7 +186,7 @@ func (p *Player) nearEndLocked(d time.Duration) bool {
 // from the start, or there is none.
 func (p *Player) sleepsAfterLocked() bool {
 	switch p.sleep.Mode {
-	case SleepTrack:
+	case SleepTrack, SleepChapter:
 		return true
 	case SleepAlbum:
 		pos, ok := p.followingLocked(p.pos)
@@ -209,4 +212,18 @@ func (p *Player) sleepEndLocked() {
 		return
 	}
 	p.cueLocked()
+}
+
+// SleepWithin tells the End of chapter timer that the chapter playing ends
+// in d, as it plays now: the fade starts so that playback stops there. It
+// does nothing in another mode, or once the fade is set; a fade within the
+// last few seconds is shorter.
+func (p *Player) SleepWithin(d time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.sleep.Mode != SleepChapter || p.sleepTimer != nil || p.fadingLocked() {
+		return
+	}
+	gen := p.sleepGen
+	p.sleepTimer = p.after(max(d-sleepFade, 0), func() { p.sleepFire(gen) })
 }

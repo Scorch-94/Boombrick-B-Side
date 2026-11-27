@@ -115,6 +115,7 @@ func runBackground() error {
 		defer close(booked)
 		audiobooks.Follow(followCtx, p.State, audiobooks.NewPlaces(db.DB), nil, log)
 	}()
+	go audiobooks.WatchChapterSleep(followCtx, p)
 	defer func() { stopFollowing(); waitAtMost(booked, 2*time.Second, "audiobook places", log) }()
 	// Headphones' taps play, pause and skip while the screen is off too.
 	remoteCtx, stopRemote := context.WithCancel(context.Background())

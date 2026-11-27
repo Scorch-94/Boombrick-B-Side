@@ -148,17 +148,27 @@ type Episodes struct {
 	Queue func(spotify.Episode) // nil: Y does nothing
 }
 
+// Started is something else part way through for Continue listening, as an
+// audiobook: its card, and when it was last heard.
+type Started struct {
+	Item fixture.Item
+	At   time.Time
+}
+
 // ContinueRow is Continue listening: albums part-way through and podcast
 // episodes started, most recent first, skipping albums no longer in the
 // library. play resumes an album at a track and frame; queue adds it to the
 // queue.
 func ContinueRow(progress []resume.Progress, ix *library.Index, play func(a *library.Album, track int, frame int64),
-	queue func(*library.Album), eps Episodes) (fixture.Row, bool) {
+	queue func(*library.Album), eps Episodes, more ...Started) (fixture.Row, bool) {
 	type entry struct {
 		at   time.Time
 		item fixture.Item
 	}
 	var entries []entry
+	for _, s := range more {
+		entries = append(entries, entry{s.At, s.Item})
+	}
 	var shown []*library.Album
 	for _, pr := range progress {
 		a := ix.Album(pr.Artist, pr.Album)

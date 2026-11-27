@@ -924,3 +924,27 @@ func TestFocusedCardScrolls(t *testing.T) {
 	}
 	uitest.Golden(t, "home-card-scrolling", off.Image())
 }
+
+// Audiobooks part way through join Continue listening by when they were
+// last heard.
+func TestContinueRowWithBooks(t *testing.T) {
+	ix := library.NewIndex([]library.Album{
+		{Artist: "Odalys", Title: "Copper Season", Tracks: []library.Track{{Path: "/a/1"}, {Path: "/a/2"}}},
+	})
+	t0 := time.Date(2026, 11, 25, 9, 0, 0, 0, time.UTC)
+	progress := []resume.Progress{{Artist: "Odalys", Album: "Copper Season", Path: "/a/2", Fraction: 0.7, Updated: t0}}
+	played := 0
+	book := Started{At: t0.Add(time.Hour), Item: fixture.Item{Title: "Dune", Subtitle: "Frank Herbert", Progress: 0.4,
+		Play: func() { played++ }}}
+	row, ok := ContinueRow(progress, ix, func(*library.Album, int, int64) {}, nil, Episodes{}, book)
+	if !ok || len(row.Items) != 2 || row.Items[0].Title != "Dune" || row.Items[1].Title != "Copper Season" {
+		t.Fatalf("row %+v", row)
+	}
+	row.Items[0].Play()
+	if played != 1 {
+		t.Fatal("A didn't pick the book up")
+	}
+	if row, ok := ContinueRow(nil, ix, nil, nil, Episodes{}, book); !ok || len(row.Items) != 1 {
+		t.Fatalf("a book alone: %+v", row)
+	}
+}

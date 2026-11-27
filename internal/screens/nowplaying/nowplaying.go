@@ -375,7 +375,9 @@ func (n *NowPlaying) activate() {
 	}
 	switch n.focus {
 	case shuffleCtl:
-		n.p.SetShuffle(!n.p.State().Shuffle)
+		if s := n.p.State(); !audiobooks.IsBook(s.Track.Path) { // a book's parts keep their order
+			n.p.SetShuffle(!s.Shuffle)
+		}
 	case prevCtl:
 		n.p.Prev()
 	case playCtl:
@@ -617,7 +619,7 @@ func drawControl(u *ui.Context, s player.State, i int, cx, cy float32, box gfx.R
 		}
 		u.Icon(controlIcons[i], 44, 2, true, cx-22, cy-22, theme.Paper)
 	default:
-		on := s.Shuffle
+		on := s.Shuffle && !audiobooks.IsBook(s.Track.Path)
 		if i == repeatCtl {
 			on = s.Repeat != player.RepeatOff
 		}
@@ -642,6 +644,7 @@ func (n *NowPlaying) hints(s player.State) []widgets.Hint {
 	}
 	live, ep := s.Track.Live(), episode(s.Track)
 	_, chaptered := n.chapter(s)
+	book := chaptered && audiobooks.IsBook(s.Track.Path)
 	if n.hintBar != nil && label == n.hintLabel && live == n.hintLive && ep == n.hintEp && chaptered == n.hintChapters {
 		return n.hintBar
 	}
@@ -651,6 +654,9 @@ func (n *NowPlaying) hints(s player.State) []widgets.Hint {
 	}
 	hints := []widgets.Hint{{Key: "A", Label: label}, {Key: "◀ ▶", Label: track}, {Key: "▲", Label: "Shuffle"},
 		{Key: "▼", Label: "Repeat"}}
+	if book {
+		hints = []widgets.Hint{{Key: "A", Label: label}, {Key: "◀ ▶", Label: track}, {Key: "L1 R1", Label: "Chapter"}}
+	}
 	// L2 and R2 still seek, but the bar has no room left for their hint.
 	switch {
 	case chaptered:

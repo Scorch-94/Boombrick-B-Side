@@ -10,13 +10,14 @@ import (
 // sleepLabels name the sleep timer's modes as the quick menu and Settings
 // offer them.
 var sleepLabels = [...]string{
-	player.SleepOff:   "Off",
-	player.Sleep15:    "15 min",
-	player.Sleep30:    "30 min",
-	player.Sleep45:    "45 min",
-	player.Sleep60:    "60 min",
-	player.SleepTrack: "End of track",
-	player.SleepAlbum: "End of album",
+	player.SleepOff:     "Off",
+	player.Sleep15:      "15 min",
+	player.Sleep30:      "30 min",
+	player.Sleep45:      "45 min",
+	player.Sleep60:      "60 min",
+	player.SleepTrack:   "End of track",
+	player.SleepAlbum:   "End of album",
+	player.SleepChapter: "End of chapter",
 }
 
 // SleepLabel names the sleep timer's mode m.
@@ -75,5 +76,5 @@ func NextSleep(m player.SleepMode, step int, live bool) player.SleepMode {
 // SleepOffered reports whether the timer offers mode m: while a station plays
 // (live) it doesn't offer End of track or End of album.
 func SleepOffered(m player.SleepMode, live bool) bool {
-	return !live || m != player.SleepTrack && m != player.SleepAlbum
+	return !live || m != player.SleepTrack && m != player.SleepAlbum && m != player.SleepChapter
 }

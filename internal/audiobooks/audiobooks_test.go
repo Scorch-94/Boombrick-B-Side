@@ -241,3 +241,47 @@ func TestLookup(t *testing.T) {
 		t.Error("found a book not scanned")
 	}
 }
+
+type sleeper struct {
+	st     player.State
+	mode   player.SleepMode
+	within []time.Duration
+}
+
+func (s *sleeper) State() player.State         { return s.st }
+func (s *sleeper) Sleep() player.Sleep         { return player.Sleep{Mode: s.mode} }
+func (s *sleeper) SleepWithin(d time.Duration) { s.within = append(s.within, d) }
+
+func TestChapterEnd(t *testing.T) {
+	d := t.TempDir()
+	SetDir(d)
+	touch(t, filepath.Join(d, "Folder", "01.m4a"))
+	touch(t, filepath.Join(d, "Folder", "02.m4a"))
+	Scan(d)
+	// A chapter that's its file ends with it: nothing to watch for.
+	if _, ok := chapterEnd(filepath.Join(d, "Folder", "01.m4a"), time.Minute, 10*time.Minute); ok {
+		t.Error("a file's end was taken for a chapter's inside it")
+	}
+	// A book of chapters inside its file.
+	m := map[string]Book{filepath.Join(d, "Dune.m4b"): {Path: filepath.Join(d, "Dune.m4b"), Parts: []Part{{Path: filepath.Join(d, "Dune.m4b")}},
+		Chapters: []Chapter{{Length: 10 * time.Minute}, {Start: 10 * time.Minute, Length: 20 * time.Minute}}}}
+	known.Store(&m)
+	if end, ok := chapterEnd(filepath.Join(d, "Dune.m4b"), 5*time.Minute, 30*time.Minute); !ok || end != 10*time.Minute {
+		t.Errorf("end %v, %v", end, ok)
+	}
+	if _, ok := chapterEnd(filepath.Join(d, "Dune.m4b"), 15*time.Minute, 30*time.Minute); ok {
+		t.Error("the last chapter ends with the file")
+	}
+
+	s := &sleeper{mode: player.SleepChapter, st: player.State{Playing: true, Track: player.Track{Path: filepath.Join(d, "Dune.m4b")},
+		Elapsed: 10*time.Minute - 15*time.Second, Duration: 30 * time.Minute, Speed: 1.5}}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { WatchChapterSleep(ctx, s); close(done) }()
+	time.Sleep(1200 * time.Millisecond)
+	cancel()
+	<-done
+	if len(s.within) == 0 || s.within[0] != 10*time.Second {
+		t.Errorf("told %v, want 15 s at 1.5×: 10 s", s.within)
+	}
+}

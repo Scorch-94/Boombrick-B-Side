@@ -313,10 +313,20 @@ func run(started time.Time) error {
 	}()
 	// The place in the audiobook playing is kept as it plays.
 	books := audiobooks.NewPlaces(db.DB)
+	// Home's Continue listening reads the places again when a book stops.
+	booksSaved := make(chan struct{}, 1) // never closed: Follow may tell it as it ends
 	go func() {
 		defer close(booked)
-		audiobooks.Follow(ctx, p.State, books, nil, log)
+		audiobooks.Follow(ctx, p.State, books, func() {
+			if !p.State().Playing {
+				select {
+				case booksSaved <- struct{}{}:
+				default:
+				}
+			}
+		}, log)
 	}()
+	go audiobooks.WatchChapterSleep(ctx, p) // returns at once when ctx ends
 	// Podcast episodes' places go back to Spotify as they play, and the
 	// Podcasts tab's Continue listening is asked for again after.
 	go func() {
@@ -419,6 +429,7 @@ func run(started time.Time) error {
 		MusicPlace:   prof.MusicPlace(),
 		Audiobooks:   books,
 		AudiobookDir: paths.Audiobooks(),
+		BooksSaved:   booksSaved,
 		Load: func() (*library.Index, error) {
 			ix, err := library.Load(db.DB)
 			if err == nil {

@@ -62,6 +62,9 @@ type Options struct {
 	// the Audiobooks tab. Without it the tab is a placeholder.
 	Audiobooks   audiobookscreen.Places
 	AudiobookDir string
+	// BooksSaved receives a value when a book's place is kept as it stops
+	// or pauses, for Continue listening.
+	BooksSaved <-chan struct{}
 	// Load reads the library and Progress the albums in progress; the app calls
 	// them on a goroutine. Rescan asks for a scan. Scanned receives an update
 	// when a scan has written to the library, at most every few seconds while
@@ -412,6 +415,9 @@ func New(opts Options) (*App, error) {
 				a.wake()
 			}
 		}()
+	}
+	if opts.BooksSaved != nil {
+		a.forward(opts.BooksSaved, &a.saves) // Continue listening shows the place
 	}
 	if opts.Saved != nil {
 		a.forward(opts.Saved, &a.saves)
@@ -922,7 +928,7 @@ func (a *App) showHome(progress []resume.Progress) {
 					Play:  func(ep spotify.Episode) { spotifyscreen.PlayEpisode(a.env, ep) },
 					Queue: func(ep spotify.Episode) { spotifyscreen.QueueEpisode(a.env, ep) }}
 			}
-			return home.ContinueRow(progress, a.ix, a.resumeAlbum, a.queueAlbum, eps)
+			return home.ContinueRow(progress, a.ix, a.resumeAlbum, a.queueAlbum, eps, a.startedBooks()...)
 		},
 		keys.HomeShuffle: func() (fixture.Row, bool) {
 			play := func() { browse.ShuffleAll(a.player, a.ix) }
@@ -1015,6 +1021,10 @@ func (a *App) homeShows(key string) bool { return a.opts.Prefs == nil || a.opts.
 func (a *App) homeSections() []settingsscreen.Integration {
 	ins := []settingsscreen.Integration{
 		{Key: keys.HomeContinue, Name: "Continue listening", Icon: "play", About: "Albums you stopped part way through"},
+	}
+	if a.opts.Audiobooks != nil {
+		ins = append(ins, settingsscreen.Integration{Key: keys.HomeBooks, Name: "Audiobooks in Continue listening",
+			Icon: "music", About: "Books you're part way through", Attached: true})
 	}
 	if a.opts.Spotify != nil {
 		ins = append(ins, settingsscreen.Integration{Key: keys.HomeEpisodes, Name: "Podcast episodes in Continue listening",
@@ -1556,4 +1566,34 @@ func (e playlistEdits) Song(path string) *library.Track {
 func (e playlistEdits) Saved() {
 	e.a.loads.start(true, e.a.scanEnded)
 	e.a.dirty = true
+}
+
+// startedBooks are the audiobooks part way through, for Continue listening,
+// as the last scan found them; A picks one up where it was left.
+func (a *App) startedBooks() []home.Started {
+	if a.opts.Audiobooks == nil || !a.homeShows(keys.HomeBooks) {
+		return nil
+	}
+	places, err := a.opts.Audiobooks.All()
+	if err != nil {
+		return nil
+	}
+	var out []home.Started
+	for path, pl := range places {
+		b, ok := audiobooks.Lookup(path)
+		if !ok || pl.Finished || pl.Part == "" || b.Duration <= 0 || b.Path != path {
+			continue
+		}
+		art := widgets.SpecFor(b.Title)
+		art.Cover = media.Cover{Artist: b.Author, Album: b.Title, Path: b.Parts[0].Path}
+		it := fixture.Item{Title: b.Title, Subtitle: b.Author, Art: art, Source: media.Local,
+			Progress: 1 - float64(b.Left(pl))/float64(b.Duration)}
+		it.Play = func() {
+			part, at := b.Start(pl)
+			a.opts.Player.SetShuffle(false)
+			a.player.PlayAt(b.Tracks(), part, at)
+		}
+		out = append(out, home.Started{Item: it, At: pl.Updated})
+	}
+	return out
 }

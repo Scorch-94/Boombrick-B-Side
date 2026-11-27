@@ -32,7 +32,7 @@ The screenshots are of the original Boombrick. See [CHANGELOG.md](CHANGELOG.md) 
   - **Playlists**: your playlist files.
   - **Podcasts**: the shows you follow.
   - **Latest releases**: the newest albums, EPs and singles of the artists you follow on Spotify, from the last six months, each over its artist; A opens one.
-  - Spotify **podcast episodes you've started**, in Continue listening.
+  - Spotify **podcast episodes you've started**, and **audiobooks** you're part way through, in Continue listening.
 - **Top tabs setting:** hide the tabs you don't use, in Settings → Top tabs. Hiding a tab only hides it: Spotify stays signed in, and Spotify songs in your playlists and on Home still stream. (Settings → Integrations is what switches a service off.)
 - **Hotkeys:** Menu + volume sets the screen's brightness; Menu + Start quits.
 - **Album view setting:** the Library's albums as a 4 × 2 grid (the default), three across with big covers as in the original, or a list.
@@ -100,7 +100,9 @@ Only episodes Spotify hosts itself play; the ones it only links to, on the podca
 
 The **Audiobooks** tab, to the right of Podcasts, lists the books in the `Audiobooks` folder at the top of the SD card, beside `Music`. A book is either a single file (an `.m4b`, or an `.m4a`, `.mp3`, `.flac` or `.opus`) or a folder of them, one book per folder, played in the order of their track tags, then their file names. The title and author come from the tags (album, then title; album artist, then artist), or the file or folder name. Books aren't added to the music library.
 
-Books you're part way through come first, the one you last listened to at the top, with how much is left and how far through you are; then the ones you haven't started, then the finished ones. A plays a book from where you left it, a few seconds back so you hear where you were; X starts it over from the beginning; Select lists its chapters; Y looks for new books. Your place is kept every 15 seconds while a book plays, and at once when you pause, move to another chapter file, play something else or quit, background play included. On Now Playing and with headphone buttons, Left and Right jump 30 seconds back and forward. A book played to the end, or left within 30 seconds of it, is marked Finished.
+Books you're part way through come first, the one you last listened to at the top, with how much is left and how far through you are; then the ones you haven't started, then the finished ones. A plays a book from where you left it, a few seconds back so you hear where you were; X starts it over from the beginning; Select lists its chapters; Y looks for new books. Your place is kept every 15 seconds while a book plays, and at once when you pause, move to another chapter file, play something else or quit, background play included. On Now Playing and with headphone buttons, Left and Right jump 30 seconds back and forward. A book played to the end, or left within 30 seconds of it, is marked Finished. Books you're part way through also show in Home's Continue listening (switch it off in Settings → Home sections). Up on Now Playing doesn't shuffle a book's files.
+
+The sleep timer's **End of chapter** stops at the end of the chapter playing, inside an `.m4b` too, at whatever speed it plays. For music it stops at the end of the song, as End of track does.
 
 **Chapters** come from the chapter list inside an `.m4b` or `.m4a` (Apple's chapter track, or a Nero chapter list), or for a book without one, its files: each file is a chapter. While a book plays, Now Playing shows the book's title over the chapter's, then "Author · Chapter 3 of 40", and the bar and times run through the chapter. L1 and R1 go to the next chapter and back (back starts the chapter again once you're a few seconds in, as with tracks), and Y lists the chapters, with the one playing focused; A plays from one. The tab shows which chapter you're on, as "Ch. 12 of 40 · 6 hr left".
 

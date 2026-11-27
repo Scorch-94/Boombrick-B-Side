@@ -87,7 +87,7 @@ type State struct {
 	Repeat            Repeat
 	Speed             float64 // how fast the current track plays: 1, or spoken word's speed
 	Err               error   // the last output error, which paused playback
-	Version           uint64 // changes whenever the queue or its order does
+	Version           uint64  // changes whenever the queue or its order does
 }
 
 // Opener opens a track's file for decoding. It is never called with the
@@ -109,8 +109,8 @@ type Player struct {
 	// spoken says which tracks are speech, played at speed; nil: none.
 	spoken func(Track) bool
 	speed  float64
-	open    Opener
-	log     *slog.Logger
+	open   Opener
+	log    *slog.Logger
 
 	mu      sync.Mutex
 	queue   []Track

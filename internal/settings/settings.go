@@ -31,6 +31,7 @@ const (
 	// includes podcast episodes.
 	HomeContinue  = "home.continue"
 	HomeEpisodes  = "home.continue_episodes"
+	HomeBooks     = "home.continue_books"
 	HomeRandom    = "home.random"
 	HomeShuffle   = "home.shuffle"
 	HomePlaylists = "home.playlists"
@@ -84,6 +85,7 @@ var Defaults = map[string]string{
 	RadioOn:          "true",
 	HomeContinue:     "true",
 	HomeEpisodes:     "true",
+	HomeBooks:        "true",
 	HomeRandom:       "true",
 	HomeShuffle:      "true",
 	HomePlaylists:    "true",
