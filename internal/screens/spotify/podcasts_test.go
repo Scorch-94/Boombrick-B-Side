@@ -1,6 +1,7 @@
 package spotify
 
 import (
+	"fmt"
 	"github.com/ujjwal313/boombrick/internal/platform/input"
 	"slices"
 	"testing"
@@ -145,5 +146,22 @@ func TestPodcastHintsFit(t *testing.T) {
 		if w := widgets.HintsWidth(u, h); w > widgets.MaxHintsWidth {
 			t.Errorf("hints %v are %.1f wide, more than %.1f", h, w, widgets.MaxHintsWidth)
 		}
+	}
+}
+
+// A show with more episodes than are listed says its list is the latest.
+func TestLongShow(t *testing.T) {
+	src := podcastSource()
+	var eps []spotify.Episode
+	for i := range spotify.MaxShowEpisodes {
+		e := ep2
+		e.ID, e.Title = fmt.Sprintf("e%d", i), fmt.Sprintf("Episode %d", spotify.MaxShowEpisodes-i)
+		eps = append(eps, e)
+	}
+	src.episodes[owls.URI] = eps
+	pg := NewShowPage(&Env{Nav: &fakeNav{}, Src: src, Player: &fakePlayer{}}, owls)
+	uitest.Golden(t, "podcast-show-long", render(t, pg))
+	if pg.count != "Latest 200 episodes" {
+		t.Fatalf("count %q", pg.count)
 	}
 }

@@ -82,7 +82,7 @@ All of the original Boombrick's features are here:
 
 ## Podcasts
 
-With Spotify signed in, the **Podcasts** tab lists the podcasts on your Spotify account: **Continue** (episodes you are part way through, on any device), **Shows** (the podcasts you follow) and **Your Episodes** (the ones you saved). L2 and R2 change between them. A plays an episode from where you left off; Y adds it to the queue. Your place goes back to Spotify every 30 seconds while an episode plays, when you pause and when you move on, so the Spotify app on your phone carries on from there. On Now Playing, Left and Right jump 30 seconds back and forward during an episode.
+With Spotify signed in, the **Podcasts** tab lists the podcasts on your Spotify account: **Continue** (episodes you are part way through, on any device), **Shows** (the podcasts you follow) and **Your Episodes** (the ones you saved). L2 and R2 change between them. A show lists its newest 200 episodes. A plays an episode from where you left off; Y adds it to the queue. Your place goes back to Spotify every 30 seconds while an episode plays, when you pause and when you move on, so the Spotify app on your phone carries on from there. On Now Playing, Left and Right jump 30 seconds back and forward during an episode.
 
 Only episodes Spotify hosts itself play; the ones it only links to, on the podcast's own host, show "Not playable yet".
 

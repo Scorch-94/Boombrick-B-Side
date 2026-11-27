@@ -27,7 +27,9 @@ import (
 
 const (
 	// maxEpisodes caps a show's episodes listed: the newest are what's wanted.
-	maxEpisodes = 200
+	maxEpisodes = spotify.MaxShowEpisodes
+	// maxShowURIs caps a show's episodes looked through for the newest.
+	maxShowURIs = 20000
 	// maxContinue caps the episodes Continue listening lists.
 	maxContinue = 50
 	// statesPage is how many resume points are asked for at once, and
@@ -90,7 +92,9 @@ func (s *Librespot) Episodes(ctx context.Context, uri string) ([]spotify.Episode
 		if !strings.HasPrefix(uri, "spotify:show:") {
 			return nil, fmt.Errorf("%w: not a show: %s", spotify.ErrUnavailable, uri)
 		}
-		uris, err = showEpisodes(ctx, s, sess, uri)
+		if uris, err = showEpisodes(ctx, s, sess, uri); err == nil {
+			uris, err = newestEpisodes(ctx, sess, uris)
+		}
 	}
 	if err != nil {
 		return nil, classify(err)
@@ -238,14 +242,46 @@ func inProgress(states map[string]state, n int) []string {
 	return uris
 }
 
-// showEpisodes is a show's episode URIs, from its context, up to maxEpisodes.
+// newestEpisodes is the newest maxEpisodes of a show's episode URIs, in its
+// context's order. A show's context lists them oldest first or newest
+// first, as the show is set, so the episodes at its two ends say which end
+// is the newest.
+func newestEpisodes(ctx context.Context, sess *session.Session, uris []string) ([]string, error) {
+	if len(uris) <= maxEpisodes {
+		return uris, nil
+	}
+	first, last := uris[0], uris[len(uris)-1]
+	meta, err := metadata[metadatapb.Episode](ctx, sess.Spclient(), []string{first, last}, extmetadatapb.ExtensionKind_EPISODE_V4)
+	if err != nil {
+		return nil, err
+	}
+	oldestFirst := false
+	if f, l := meta[first], meta[last]; f != nil && l != nil {
+		oldestFirst = episode("", f).Published < episode("", l).Published
+	}
+	return newestEnd(uris, oldestFirst), nil
+}
+
+// newestEnd is the maxEpisodes of uris at their newest end.
+func newestEnd(uris []string, oldestFirst bool) []string {
+	if len(uris) <= maxEpisodes {
+		return uris
+	}
+	if oldestFirst {
+		return uris[len(uris)-maxEpisodes:]
+	}
+	return uris[:maxEpisodes]
+}
+
+// showEpisodes is all of a show's episode URIs, from its context, in its
+// order: up to maxShowURIs.
 func showEpisodes(ctx context.Context, s *Librespot, sess *session.Session, uri string) ([]string, error) {
 	r, err := spclient.NewContextResolver(ctx, s.lg, sess.Spclient(), &connectpb.Context{Uri: uri})
 	if err != nil {
 		return nil, err
 	}
 	var uris []string
-	for page := 0; page < maxPages && len(uris) < maxEpisodes; page++ {
+	for page := 0; page < maxPages && len(uris) < maxShowURIs; page++ {
 		items, err := r.Page(ctx, page)
 		if errors.Is(err, io.EOF) {
 			break
@@ -261,9 +297,6 @@ func showEpisodes(ctx context.Context, s *Librespot, sess *session.Session, uri 
 				uris = append(uris, u)
 			}
 		}
-	}
-	if len(uris) > maxEpisodes {
-		uris = uris[:maxEpisodes]
 	}
 	return uris, nil
 }

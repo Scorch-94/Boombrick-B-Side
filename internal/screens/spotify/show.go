@@ -64,6 +64,9 @@ func (pg *ShowPage) refresh(now time.Time) {
 	pg.count = ""
 	if have {
 		pg.count = screens.Count(len(es)) + " episodes"
+		if len(es) >= spotify.MaxShowEpisodes {
+			pg.count = "Latest " + pg.count // the show has more
+		}
 		if len(es) == 1 {
 			pg.count = "1 episode"
 		}

@@ -73,6 +73,9 @@ type Show struct {
 	Cover     string `json:"cover,omitempty"`
 }
 
+// MaxShowEpisodes is how many of a show's episodes are listed: its newest.
+const MaxShowEpisodes = 200
+
 // Episode is a podcast episode, with where the user is in it.
 type Episode struct {
 	ID        string `json:"id"` // base62, as in spotify:episode:<id>

@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -162,5 +163,23 @@ func TestPodcastsWaitForTheSession(t *testing.T) {
 	cancel()
 	if _, err := s.Episodes(ctx, spotify.ContinueURI); err == nil {
 		t.Fatal("no session, no episodes")
+	}
+}
+
+// A show's list keeps its newest episodes, whichever end of its context
+// they're at.
+func TestNewestEnd(t *testing.T) {
+	var uris []string
+	for i := range maxEpisodes + 50 {
+		uris = append(uris, fmt.Sprint(i))
+	}
+	if got := newestEnd(uris, true); len(got) != maxEpisodes || got[0] != "50" || got[len(got)-1] != fmt.Sprint(maxEpisodes+49) {
+		t.Fatalf("oldest first: %v…%v", got[0], got[len(got)-1])
+	}
+	if got := newestEnd(uris, false); len(got) != maxEpisodes || got[0] != "0" {
+		t.Fatalf("newest first: from %v", got[0])
+	}
+	if got := newestEnd(uris[:3], true); len(got) != 3 {
+		t.Fatalf("a short show: %v", got)
 	}
 }
