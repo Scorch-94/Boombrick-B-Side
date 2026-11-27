@@ -29,16 +29,17 @@ const (
 	TabLibrary
 	TabSpotify
 	TabPodcasts
+	TabAudiobooks
 	TabYouTube
 	TabDownloads
 	TabRadio
 	TabCount
 )
 
-var tabNames = [TabCount]string{"Home", "Library", "Spotify", "Podcasts", "YouTube", "Downloads", "Radio"}
+var tabNames = [TabCount]string{"Home", "Library", "Spotify", "Podcasts", "Audiobooks", "YouTube", "Downloads", "Radio"}
 
 // allTabs is every tab, shown when u.Tabs.Shown is nil.
-var allTabs = []int{TabHome, TabLibrary, TabSpotify, TabPodcasts, TabYouTube, TabDownloads, TabRadio}
+var allTabs = []int{TabHome, TabLibrary, TabSpotify, TabPodcasts, TabAudiobooks, TabYouTube, TabDownloads, TabRadio}
 
 // TabName is the name tab id shows.
 func TabName(id int) string { return tabNames[id] }

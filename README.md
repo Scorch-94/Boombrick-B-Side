@@ -16,6 +16,7 @@ The screenshots are of the original Boombrick. See [CHANGELOG.md](CHANGELOG.md) 
 ## What B-Side adds
 
 - **Podcasts tab:** your Spotify podcasts, in three lists: episodes you're part way through on any device, the shows you follow, and your saved episodes. Episodes play from where you left off, and your place goes back to Spotify as you listen, so your phone picks up from there. Left and Right on Now Playing jump 30 seconds during an episode. [More below](#podcasts).
+- **Audiobooks tab:** your `.m4b` and `.m4a` audiobooks from the `Audiobooks` folder on the SD card, each picked up where you left it, even after quitting. Left and Right on Now Playing jump 30 seconds. [More below](#audiobooks).
 - **Bluetooth headphone controls:** play/pause, next and previous from headphones and speakers, AirPods' and Beats' taps included, with the screen on or off and in background play. Boombrick tells them what's playing, for headphones that pause when you take an earbud out. [More below](#bluetooth-headphones).
 - **Playlists:** `.m3u`, `.m3u8` and `.csv` files in `Music/Playlists` become playlists in the Library. A `.csv` exported from Spotify by Exportify or TuneMyMusic is matched to your songs by Spotify track, title, artist, album and length, and songs you don't have stream from Spotify in their place. [More below](#playlists).
 - **Library management:** Settings → Library lists your duplicate songs and albums, deletes songs and albums from the card, and deletes every download you also have elsewhere in one go. [More below](#library-management).
@@ -92,6 +93,12 @@ With Spotify signed in, the **Podcasts** tab lists the podcasts on your Spotify 
 
 Only episodes Spotify hosts itself play; the ones it only links to, on the podcast's own host, show "Not playable yet".
 
+## Audiobooks
+
+The **Audiobooks** tab, to the right of Podcasts, lists the books in the `Audiobooks` folder at the top of the SD card, beside `Music`. A book is either a single file (an `.m4b`, or an `.m4a`, `.mp3`, `.flac` or `.opus`) or a folder of them, one book per folder, played in the order of their track tags, then their file names. The title and author come from the tags (album, then title; album artist, then artist), or the file or folder name. Books aren't added to the music library.
+
+Books you're part way through come first, the one you last listened to at the top, with how much is left and how far through you are; then the ones you haven't started, then the finished ones. A plays a book from where you left it, a few seconds back so you hear where you were; X starts it over from the beginning; Y looks for new books. Your place is kept every 15 seconds while a book plays, and at once when you pause, move to another chapter file, play something else or quit, background play included. On Now Playing and with headphone buttons, Left and Right jump 30 seconds back and forward. A book played to the end, or left within 30 seconds of it, is marked Finished.
+
 ## Playlists
 
 Put `.m3u`, `.m3u8` or `.csv` files in a `Playlists` folder inside your music folder (`Music/Playlists/` on the SD card). They show under **Playlists** in the Library (called **Lists** when Genres also shows), and on Home, in the order the file lists them. Playlists are read again on every launch and rescan; on an empty Playlists filter, Y rescans.
@@ -123,11 +130,11 @@ If a button doesn't seem to do anything, each command that arrives is written to
 | D-pad | Move |
 | A | Play or open |
 | B | Back |
-| X | Download (YouTube Music); search (Library, Spotify); move a section (Settings → Home sections) |
+| X | Download (YouTube Music); search (Library, Spotify); start a book over (Audiobooks); move a section (Settings → Home sections) |
 | A (Settings → Library) | Delete the song or album, after a dialog |
 | X (Settings → Library) | Search |
 | Y | Add to the queue; on Now Playing, lyrics |
-| D-pad Left, Right (Now Playing) | Previous and next track; 30 s back and forward in a podcast episode |
+| D-pad Left, Right (Now Playing) | Previous and next track; 30 s back and forward in a podcast episode or an audiobook |
 | A (Now Playing) | Play or pause |
 | D-pad Up (Now Playing) | Shuffle on or off |
 | D-pad Down (Now Playing) | Step repeat: off, all, one |
@@ -151,6 +158,7 @@ On the SD card:
 | The app | `Tools/tg5040/Boombrick B-Side.pak/` |
 | Your music | `Music/` |
 | Playlists | `Music/Playlists/` |
+| Audiobooks | `Audiobooks/`: a file or a folder for each book |
 | Downloads | `Music/Boombrick/<Artist>/<Album>/`, shared with the original Boombrick |
 | Library, settings, covers, lyrics, downloader, Spotify sign-in | `.userdata/tg5040/Boombrick B-Side/` |
 | Log | `.userdata/tg5040/logs/Boombrick B-Side.txt` |

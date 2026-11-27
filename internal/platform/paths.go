@@ -43,6 +43,10 @@ type Paths struct {
 	OnDevice bool
 }
 
+// Audiobooks is the folder audiobooks are kept in: Audiobooks beside the
+// music folder, at the top of the SD card.
+func (p Paths) Audiobooks() string { return filepath.Join(filepath.Dir(p.Music), "Audiobooks") }
+
 // Profile is what differs from one firmware to another: where Boombrick
 // keeps its files, how it powers the device off, and the release file that
 // updates it.

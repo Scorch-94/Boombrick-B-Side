@@ -103,9 +103,10 @@ const levellingOffset = 4
 // Player owns the queue and drives an audio engine. It is safe for concurrent
 // use: the UI calls it, and the engine reports track ends from its goroutine.
 type Player struct {
-	engine *audio.Engine
-	open   Opener
-	log    *slog.Logger
+	startAt time.Duration // PlayAt's time into the track to open next
+	engine  *audio.Engine
+	open    Opener
+	log     *slog.Logger
 
 	mu      sync.Mutex
 	queue   []Track
@@ -349,6 +350,16 @@ func (p *Player) Play(tracks []Track, start int) { p.PlayFrom(tracks, start, 0) 
 
 // PlayFrom replaces the queue with tracks and starts tracks[start] at frame,
 // to carry on with an album where it was left.
+// PlayAt plays tracks from start, at time at into it, as an audiobook is
+// picked up where it was left: the frame is worked out once the file is open
+// and its sample rate known.
+func (p *Player) PlayAt(tracks []Track, start int, at time.Duration) {
+	p.mu.Lock()
+	p.startAt = max(at, 0)
+	p.mu.Unlock()
+	p.PlayFrom(tracks, start, 0)
+}
+
 func (p *Player) PlayFrom(tracks []Track, start int, frame int64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -434,6 +445,8 @@ func (p *Player) openFileLocked(frame int64, tries int) {
 	p.gen++ // anything opening for what was playing is stale
 	p.cancelOpensLocked()
 	p.loading, p.startFrame = true, max(frame, 0)
+	at := p.startAt // PlayAt's time, for this open only
+	p.startAt = 0
 	gen, t, levelling, album := p.gen, p.queue[p.order[p.pos]], p.levelling, p.albumModeLocked()
 	p.wg.Go(func() {
 		src, err := p.openTrack(t, levelling, album)
@@ -453,6 +466,13 @@ func (p *Player) openFileLocked(frame int64, tries int) {
 		p.failures = 0
 		p.cur, p.curRate, p.curFrames = src, src.SampleRate(), src.Frames()
 		p.framesOf = t.key()
+		if at > 0 && p.curRate > 0 {
+			frame = int64(at.Seconds() * float64(p.curRate))
+			if p.curFrames > 0 {
+				frame = min(frame, p.curFrames-1)
+			}
+			p.startFrame = frame
+		}
 		if p.cued {
 			p.engine.Cue(src, frame)
 		} else {

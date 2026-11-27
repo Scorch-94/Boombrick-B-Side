@@ -12,6 +12,7 @@ package remote
 
 import (
 	"context"
+	"github.com/ujjwal313/boombrick/internal/audiobooks"
 	"log/slog"
 	"sync"
 	"time"
@@ -126,5 +127,5 @@ func (r *Remote) Do(c Command, from string) {
 
 func isEpisode(t player.Track) bool {
 	_, ok := spotify.IsEpisode(t.SpotifyID)
-	return ok
+	return ok || audiobooks.IsBook(t.Path)
 }

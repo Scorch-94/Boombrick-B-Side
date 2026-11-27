@@ -42,18 +42,18 @@ func (p switchPrefs) SetBool(k string, v bool) {
 
 func TestShownTabs(t *testing.T) {
 	home, lib := widgets.TabHome, widgets.TabLibrary
-	sp, pod, yt, dl, rd := widgets.TabSpotify, widgets.TabPodcasts, widgets.TabYouTube, widgets.TabDownloads, widgets.TabRadio
+	sp, pod, ab, yt, dl, rd := widgets.TabSpotify, widgets.TabPodcasts, widgets.TabAudiobooks, widgets.TabYouTube, widgets.TabDownloads, widgets.TabRadio
 	for _, c := range []struct {
 		spotify, youtube, radio bool
 		want                    []int
 	}{
-		{true, true, true, []int{home, lib, sp, pod, yt, dl, rd}},
-		{true, true, false, []int{home, lib, sp, pod, yt, dl}},
-		{false, true, true, []int{home, lib, yt, dl, rd}},
-		{true, false, true, []int{home, lib, sp, pod, rd}},
-		{false, false, true, []int{home, lib, rd}},
-		{true, false, false, []int{home, lib, sp, pod}},
-		{false, false, false, []int{home, lib}},
+		{true, true, true, []int{home, lib, sp, pod, ab, yt, dl, rd}},
+		{true, true, false, []int{home, lib, sp, pod, ab, yt, dl}},
+		{false, true, true, []int{home, lib, ab, yt, dl, rd}},
+		{true, false, true, []int{home, lib, sp, pod, ab, rd}},
+		{false, false, true, []int{home, lib, ab, rd}},
+		{true, false, false, []int{home, lib, sp, pod, ab}},
+		{false, false, false, []int{home, lib, ab}},
 	} {
 		if got := shownTabs(c.spotify, c.youtube, c.radio); !slices.Equal(got, c.want) {
 			t.Errorf("Spotify %v, YouTube %v, Radio %v: tabs %v, want %v", c.spotify, c.youtube, c.radio, got, c.want)
@@ -139,7 +139,7 @@ func switchApp(t *testing.T, p switchPrefs) (*App, *[]bool, *[]bool, *liveQueue)
 
 func TestSwitchesAtStart(t *testing.T) {
 	a, holds, imports, _ := switchApp(t, switchPrefs{keys.YouTubeOn: "false"})
-	if !slices.Equal(a.ui.Tabs.Shown, []int{widgets.TabHome, widgets.TabLibrary, widgets.TabSpotify, widgets.TabPodcasts, widgets.TabRadio}) {
+	if !slices.Equal(a.ui.Tabs.Shown, []int{widgets.TabHome, widgets.TabLibrary, widgets.TabSpotify, widgets.TabPodcasts, widgets.TabAudiobooks, widgets.TabRadio}) {
 		t.Fatalf("tabs %v", a.ui.Tabs.Shown)
 	}
 	if !slices.Equal(*holds, []bool{true}) || !slices.Equal(*imports, []bool{false}) {

@@ -2,6 +2,10 @@
 
 All notable changes to Boombrick. Versions match the release tags.
 
+## [v0.7.8]
+
+- Audiobooks: a new Audiobooks tab, after Podcasts, lists the books in the `Audiobooks` folder at the top of the SD card: each `.m4b` (or `.m4a`, `.mp3`, `.flac`, `.opus`) file, or each folder of them, as one book. A plays a book from where you left it, five seconds back; X starts it over; Y looks for new books. Your place is kept every 15 seconds while it plays, and when you pause, change chapter, play something else or quit, background play included. Books in progress come first, with the time left and how far through; finished ones last. Left and Right on Now Playing, and headphone skips, jump 30 seconds in a book, as in a podcast episode.
+
 ## [v0.7.7]
 
 - Hotkeys: hold Menu and press volume up or down to make the screen brighter or dimmer, through NextUI's levels 0 to 10, which NextUI keeps after you quit; Menu and Start quits Boombrick. Menu alone still opens the quick menu.

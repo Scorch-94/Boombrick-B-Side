@@ -32,6 +32,7 @@ func shownTabs(spotify, youtube, radio bool) []int {
 	if spotify {
 		ids = append(ids, widgets.TabSpotify, widgets.TabPodcasts)
 	}
+	ids = append(ids, widgets.TabAudiobooks)
 	if youtube {
 		ids = append(ids, widgets.TabYouTube, widgets.TabDownloads)
 	}

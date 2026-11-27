@@ -112,7 +112,7 @@ func TestTabsKeepTheirStacks(t *testing.T) {
 func allTabs() (*shell, []*page) {
 	var tabs []*page
 	var roots []screens.Screen
-	for _, n := range []string{"home", "library", "spotify", "podcasts", "youtube", "downloads", "radio"} {
+	for _, n := range []string{"home", "library", "spotify", "podcasts", "audiobooks", "youtube", "downloads", "radio"} {
 		p := &page{name: n}
 		tabs = append(tabs, p)
 		roots = append(roots, p)

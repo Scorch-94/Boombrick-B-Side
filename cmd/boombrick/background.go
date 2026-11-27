@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/ujjwal313/boombrick/internal/audiobooks"
 	"github.com/ujjwal313/boombrick/internal/version"
 	"log/slog"
 	"net"
@@ -39,6 +40,7 @@ func runBackground() error {
 	dir := programDir()
 	prof := platform.Detect(dir)
 	paths := prof.Paths
+	audiobooks.SetDir(paths.Audiobooks())
 	logPath := filepath.Join(paths.Logs, version.Name+".txt")
 	logFile, err := logx.Open(logPath, 1<<20, 1)
 	if err != nil {
@@ -107,6 +109,13 @@ func runBackground() error {
 		followEpisodes(followCtx, p, sp, nil, log)
 	}()
 	defer func() { stopFollowing(); waitAtMost(followed, 3*time.Second, "podcast places", log) }()
+	// And the place in an audiobook.
+	booked := make(chan struct{})
+	go func() {
+		defer close(booked)
+		audiobooks.Follow(followCtx, p.State, audiobooks.NewPlaces(db.DB), nil, log)
+	}()
+	defer func() { stopFollowing(); waitAtMost(booked, 2*time.Second, "audiobook places", log) }()
 	// Headphones' taps play, pause and skip while the screen is off too.
 	remoteCtx, stopRemote := context.WithCancel(context.Background())
 	remoteDone := remote.New(p, log).Start(remoteCtx)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/ujjwal313/boombrick/internal/audiobooks"
 	"io"
 	"log/slog"
 	"net"
@@ -82,6 +83,7 @@ func run(started time.Time) error {
 	dir := programDir()
 	prof := platform.Detect(dir)
 	paths := prof.Paths
+	audiobooks.SetDir(paths.Audiobooks())
 	for _, d := range []string{paths.Data, paths.Logs} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			return err
@@ -300,13 +302,20 @@ func run(started time.Time) error {
 	// Quitting cancels the scanner and the saver, and waits for them and the
 	// restore before the database closes under them.
 	ctx, cancel := context.WithCancel(context.Background())
-	scanDone, saved, followed := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	scanDone, saved, followed, booked := make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})
 	defer func() {
 		cancel()
 		<-scanDone
 		<-saved
 		<-restored
 		waitAtMost(followed, 3*time.Second, "podcast places", log)
+		waitAtMost(booked, 2*time.Second, "audiobook places", log)
+	}()
+	// The place in the audiobook playing is kept as it plays.
+	books := audiobooks.NewPlaces(db.DB)
+	go func() {
+		defer close(booked)
+		audiobooks.Follow(ctx, p.State, books, nil, log)
 	}()
 	// Podcast episodes' places go back to Spotify as they play, and the
 	// Podcasts tab's Continue listening is asked for again after.
@@ -402,12 +411,14 @@ func run(started time.Time) error {
 	}
 
 	opts := app.Options{
-		Fullscreen: paths.OnDevice,
-		Log:        log,
-		Started:    started,
-		Player:     p,
-		MusicDir:   paths.Music,
-		MusicPlace: prof.MusicPlace(),
+		Fullscreen:   paths.OnDevice,
+		Log:          log,
+		Started:      started,
+		Player:       p,
+		MusicDir:     paths.Music,
+		MusicPlace:   prof.MusicPlace(),
+		Audiobooks:   books,
+		AudiobookDir: paths.Audiobooks(),
 		Load: func() (*library.Index, error) {
 			ix, err := library.Load(db.DB)
 			if err == nil {

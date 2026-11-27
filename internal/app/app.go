@@ -29,6 +29,7 @@ import (
 	"github.com/ujjwal313/boombrick/internal/radio"
 	"github.com/ujjwal313/boombrick/internal/resume"
 	"github.com/ujjwal313/boombrick/internal/screens"
+	audiobookscreen "github.com/ujjwal313/boombrick/internal/screens/audiobooks"
 	"github.com/ujjwal313/boombrick/internal/screens/browse"
 	downloadsscreen "github.com/ujjwal313/boombrick/internal/screens/downloads"
 	"github.com/ujjwal313/boombrick/internal/screens/home"
@@ -56,6 +57,10 @@ type Options struct {
 	Player     *player.Player
 	MusicDir   string // shown by the empty library
 	MusicPlace string // where MusicDir is, in words, for the empty library; "" for the SD card's Music folder
+	// Audiobooks keeps the listener's place in each book in AudiobookDir, for
+	// the Audiobooks tab. Without it the tab is a placeholder.
+	Audiobooks   audiobookscreen.Places
+	AudiobookDir string
 	// Load reads the library and Progress the albums in progress; the app calls
 	// them on a goroutine. Rescan asks for a scan. Scanned receives an update
 	// when a scan has written to the library, at most every few seconds while
@@ -458,10 +463,15 @@ func New(opts Options) (*App, error) {
 	if opts.Stations != nil {
 		a.forward(opts.Stations.Ready(), &a.redraw)
 	}
+	var bookTab screens.Screen = &screens.Placeholder{Tab: widgets.TabAudiobooks, Title: "Audiobooks"}
+	if opts.Audiobooks != nil && opts.Player != nil {
+		bookTab = audiobookscreen.New(a, opts.Player, opts.Audiobooks, opts.AudiobookDir)
+	}
 	a.shell = newShell(a.home,
 		a.library,
 		spTab,
 		podTab,
+		bookTab,
 		ytTab,
 		dlTab,
 		a.radioTab())

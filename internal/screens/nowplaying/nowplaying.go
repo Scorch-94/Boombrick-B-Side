@@ -4,6 +4,7 @@ package nowplaying
 import (
 	"cmp"
 	"fmt"
+	"github.com/ujjwal313/boombrick/internal/audiobooks"
 	"image/color"
 	"strconv"
 	"time"
@@ -301,6 +302,9 @@ const skip = 30 * time.Second
 
 // episode reports whether t is a podcast episode, streamed.
 func episode(t player.Track) bool {
+	if audiobooks.IsBook(t.Path) {
+		return true
+	}
 	_, ok := spotify.IsEpisode(t.SpotifyID)
 	return ok && t.Path == ""
 }

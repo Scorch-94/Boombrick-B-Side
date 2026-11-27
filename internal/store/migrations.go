@@ -168,6 +168,14 @@ var migrations = []string{
 	) WITHOUT ROWID;
 	ALTER TABLE queue ADD COLUMN station_id TEXT NOT NULL DEFAULT '';
 	ALTER TABLE queue ADD COLUMN stream_url TEXT NOT NULL DEFAULT ''`,
+	// Audiobooks: where the listener is in each, by its file or folder.
+	`CREATE TABLE audiobooks (
+		book     TEXT PRIMARY KEY,
+		part     TEXT NOT NULL,
+		position INTEGER NOT NULL,
+		finished INTEGER NOT NULL,
+		updated  INTEGER NOT NULL
+	) WITHOUT ROWID`,
 }
 
 func migrate(db *sql.DB) error {
